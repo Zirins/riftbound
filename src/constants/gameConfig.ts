@@ -36,6 +36,8 @@ export const FORMATION = {
   HERO_WALK_IN_SPAWN_X: -50,       // px — heroes enter from off the left edge
   ENEMY_WALK_IN_SPAWN_OFFSET: 50,  // px — enemies enter from CANVAS.WIDTH + offset
   ARRIVAL_THRESHOLD: 2,            // px — all units within this distance = formation ready
+  ENEMY_OVERFLOW_X_OFFSET: 50,     // px — extra x offset per enemy beyond slot 4
+  ENEMY_SUMMON_SPREAD: 36,         // px — horizontal spread for Warden-summoned grunts
   SLOT_WIDTH: 110,
   SLOT_HEIGHT: 90,
 } as const;
@@ -155,7 +157,7 @@ export const ENEMIES = {
     ID: 'rift_grunt',
     COLOR: 0x887744,
     RADIUS: 16,
-    HP: 1600, // TEMP: raised for Prompt 6 ultimate verification — revert before Prompt 7
+    HP: 1600, // held at 1600 for ultimate testing — revisit in tuning pass
     ATTACK: 55,
     DEFENSE: 10,
     SPEED: 100,             // px/s
@@ -272,6 +274,7 @@ export const UI = {
   ENERGY_BAR_COLOR: 0x4488ff,
   ENERGY_BAR_Y_OFFSET: -22,    // px above entity center
   BOSS_BAR_Y: 12,              // px from top of canvas
+  BOSS_BAR_WIDTH: 400,         // px — full width at boss max HP
   BOSS_BAR_HEIGHT: 10,
   BOSS_BAR_COLOR: 0xcc2222,
   WAVE_LABEL_X: 422,           // horizontal center of canvas

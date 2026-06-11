@@ -37,6 +37,29 @@ export class FormationSystem extends Phaser.Events.EventEmitter {
     return this.isWalkingIn;
   }
 
+  animateEnemyWalkIn(enemies: EnemyRuntimeState[]): void {
+    this.walkInUnits = [];
+    this.elapsedMs = 0;
+    this.isWalkingIn = true;
+
+    const enemySpawnX = CANVAS.WIDTH + FORMATION.ENEMY_WALK_IN_SPAWN_OFFSET;
+    enemies.forEach((enemy) => {
+      const targetX = enemy.x;
+      const targetY = enemy.y;
+
+      enemy.x = enemySpawnX;
+      enemy.y = targetY;
+
+      this.walkInUnits.push({
+        runtime: enemy,
+        startX: enemySpawnX,
+        startY: targetY,
+        targetX,
+        targetY,
+      });
+    });
+  }
+
   animateWalkIn(
     heroes: HeroRuntimeState[],
     enemies: EnemyRuntimeState[],
@@ -96,9 +119,12 @@ export class FormationSystem extends Phaser.Events.EventEmitter {
 
     if (progress >= 1 || this.allUnitsArrived()) {
       this.snapToTargets();
+      const enemyOnlyWalkIn = this.walkInUnits.every(
+        (unit) => !('heroId' in unit.runtime),
+      );
       this.isWalkingIn = false;
       this.walkInUnits = [];
-      this.emit('formationReady');
+      this.emit(enemyOnlyWalkIn ? 'waveEnemiesReady' : 'formationReady');
     }
   }
 
