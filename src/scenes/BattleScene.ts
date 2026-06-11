@@ -210,6 +210,8 @@ export class BattleScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.resetBattleSession();
+
     this.cameras.main.setBackgroundColor(UI.BACKGROUND_COLOR);
     this.battleBackground = this.add.rectangle(
       CANVAS.WIDTH / 2,
@@ -256,9 +258,22 @@ export class BattleScene extends Phaser.Scene {
     this.waveSystem.startStage();
     this.syncAllVisuals();
 
-    if (DEV_MODE.ENABLED) {
-      this.input.keyboard?.on(`keydown-${DEV_MODE.DEFEAT_SHORTCUT_KEY}`, this.onDevDefeatShortcut, this);
+    if (DEV_MODE.ENABLED && this.input.keyboard) {
+      const defeatKeyEvent = `keydown-${DEV_MODE.DEFEAT_SHORTCUT_KEY}`;
+      this.input.keyboard.off(defeatKeyEvent, this.onDevDefeatShortcut, this);
+      this.input.keyboard.on(defeatKeyEvent, this.onDevDefeatShortcut, this);
     }
+  }
+
+  private resetBattleSession(): void {
+    this.battleEnded = false;
+    this.combatActive = false;
+    this.isFirstWaveSpawn = true;
+    this.heroes = [];
+    this.enemies = [];
+    this.heroVisuals.clear();
+    this.enemyVisuals.clear();
+    this.heroAliveSnapshot.clear();
   }
 
   update(_time: number, delta: number): void {
@@ -497,10 +512,6 @@ export class BattleScene extends Phaser.Scene {
       visual.hpBar.destroy();
     }
 
-    this.heroVisuals.clear();
-    this.enemyVisuals.clear();
-    this.heroAliveSnapshot.clear();
-    this.heroes = [];
-    this.enemies = [];
+    this.resetBattleSession();
   }
 }

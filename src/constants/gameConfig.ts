@@ -40,6 +40,18 @@ export const FORMATION = {
   ENEMY_SUMMON_SPREAD: 36,         // px — horizontal spread for Warden-summoned grunts
   SLOT_WIDTH: 110,
   SLOT_HEIGHT: 90,
+  SLOT_UI: [
+    { x: 80, y: 80, rowLabel: 'Front' },
+    { x: 80, y: 190, rowLabel: 'Front' },
+    { x: 210, y: 80, rowLabel: 'Back' },
+    { x: 210, y: 190, rowLabel: 'Back' },
+  ],
+  ENEMY_PREVIEW_POSITIONS: [
+    { x: 530, y: 100 },
+    { x: 530, y: 210 },
+    { x: 680, y: 100 },
+    { x: 680, y: 210 },
+  ],
 } as const;
 
 // ─── Combat ───────────────────────────────────────────────────────────────────
@@ -289,6 +301,17 @@ export const UI = {
   ULTIMATE_VFX_DURATION: 900,
   SOLAR_REND_LINE_ALPHA: 0.9,
   RIFT_BLOOM_PULSE_ALPHA: 0.85,
+  FORMATION_BATTLEFIELD_PREVIEW: 0x1a1a33,
+  FORMATION_SLOT_ACTIVE_BORDER: 0x44ccff,
+  FORMATION_SLOT_EMPTY_BORDER: 0x666688,
+  FORMATION_ENEMY_PREVIEW_COLOR: 0x666666,
+  FORMATION_ROSTER_Y: 355,
+  FORMATION_ROSTER_START_X: 140,
+  FORMATION_ROSTER_SPACING: 140,
+  FORMATION_BATTLE_BUTTON_X: 720,
+  FORMATION_HERO_PREVIEW_RADIUS: 20,
+  FORMATION_BUTTON_DISABLED_COLOR: '#666666',
+  FORMATION_BUTTON_ENABLED_COLOR: '#44ccff',
 } as const;
 
 // ─── Stages ───────────────────────────────────────────────────────────────────
