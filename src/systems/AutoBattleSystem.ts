@@ -4,6 +4,7 @@
 import Phaser from 'phaser';
 import { CANVAS, COMBAT, HEROES, RANGER } from '../constants/gameConfig';
 import { createHeroProjectile, Projectile } from '../entities/Projectile';
+import { agentDebugLog } from '../utils/agentDebugLog';
 import {
   getEnemyTarget,
   getHeroTarget,
@@ -16,6 +17,7 @@ type CombatUnit = HeroRuntimeState | EnemyRuntimeState;
 
 export class AutoBattleSystem extends Phaser.Events.EventEmitter {
   private readonly projectiles: Projectile[] = [];
+  private readonly pendingTargetCleanups = new Set<string>();
 
   constructor(private readonly scene: Phaser.Scene) {
     super();
@@ -29,11 +31,13 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
     this.tickProjectiles(heroes, enemies, delta);
     this.tickHeroes(heroes, enemies, delta);
     this.tickEnemies(heroes, enemies, delta);
+    this.flushProjectileCleanups();
   }
 
   clearProjectiles(): void {
     this.projectiles.forEach((projectile) => projectile.destroy());
     this.projectiles.length = 0;
+    this.pendingTargetCleanups.clear();
   }
 
   private tickProjectiles(
@@ -41,8 +45,11 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
     enemies: EnemyRuntimeState[],
     delta: number,
   ): void {
-    for (let i = this.projectiles.length - 1; i >= 0; i -= 1) {
+    const indicesToRemove: number[] = [];
+
+    for (let i = 0; i < this.projectiles.length; i += 1) {
       const projectile = this.projectiles[i];
+      const wasActive = projectile.active;
       const hitTarget = projectile.update(delta, heroes, enemies);
 
       if (hitTarget && 'instanceId' in hitTarget) {
@@ -51,13 +58,23 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
           this.applyDamageToEnemy(hitTarget, projectile.damage, owner);
         }
         projectile.destroy();
-        this.projectiles.splice(i, 1);
+        indicesToRemove.push(i);
         continue;
       }
 
       if (!projectile.active) {
-        this.projectiles.splice(i, 1);
+        if (wasActive) {
+          this.emit('combatDebug', {
+            type: 'orphan',
+            targetId: projectile.targetId,
+          });
+        }
+        indicesToRemove.push(i);
       }
+    }
+
+    for (let i = indicesToRemove.length - 1; i >= 0; i -= 1) {
+      this.projectiles.splice(indicesToRemove[i], 1);
     }
   }
 
@@ -146,7 +163,6 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
     const nextX = hero.x + (dx / dist) * step;
     const nextY = hero.y + (dy / dist) * step;
 
-    // Closest melee position — may cross zone midpoint; HERO_ZONE_END alone leaves a gap.
     const engageDist = hero.radius + target.radius;
     const engageX = target.x - (dx / dist) * engageDist;
     const engageY = target.y - (dy / dist) * engageDist;
@@ -230,18 +246,59 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
     if (enemy.currentHP <= 0) {
       enemy.currentHP = 0;
       enemy.isAlive = false;
-      this.clearProjectilesTargeting(enemy.instanceId);
+      this.pendingTargetCleanups.add(enemy.instanceId);
+      // #region agent log
+      agentDebugLog({
+        hypothesisId: 'C',
+        location: 'AutoBattleSystem.ts:applyDamageToEnemy',
+        message: 'enemy marked dead — deferred projectile cleanup',
+        data: { instanceId: enemy.instanceId },
+        runId: 'post-fix',
+      });
+      // #endregion
+      this.emit('combatDebug', { type: 'dead', unitId: enemy.instanceId });
       this.emit('enemyKilled', enemy.instanceId);
     }
   }
 
-  private clearProjectilesTargeting(instanceId: string): void {
-    for (let i = this.projectiles.length - 1; i >= 0; i -= 1) {
+  private flushProjectileCleanups(): void {
+    if (this.pendingTargetCleanups.size === 0) return;
+
+    let totalRemoved = 0;
+    for (const instanceId of this.pendingTargetCleanups) {
+      totalRemoved += this.removeProjectilesTargeting(instanceId);
+    }
+    this.pendingTargetCleanups.clear();
+
+    if (totalRemoved > 0) {
+      // #region agent log
+      agentDebugLog({
+        hypothesisId: 'B',
+        location: 'AutoBattleSystem.ts:flushProjectileCleanups',
+        message: 'deferred projectile cleanup flushed',
+        data: { count: totalRemoved },
+        runId: 'post-fix',
+      });
+      // #endregion
+      this.emit('combatDebug', { type: 'cleanup', count: totalRemoved });
+    }
+  }
+
+  private removeProjectilesTargeting(instanceId: string): number {
+    const indicesToRemove: number[] = [];
+
+    for (let i = 0; i < this.projectiles.length; i += 1) {
       if (this.projectiles[i].targetId === instanceId) {
         this.projectiles[i].destroy();
-        this.projectiles.splice(i, 1);
+        indicesToRemove.push(i);
       }
     }
+
+    for (let i = indicesToRemove.length - 1; i >= 0; i -= 1) {
+      this.projectiles.splice(indicesToRemove[i], 1);
+    }
+
+    return indicesToRemove.length;
   }
 
   private applyDamageToHero(hero: HeroRuntimeState, damage: number): void {

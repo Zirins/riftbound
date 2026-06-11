@@ -3,6 +3,7 @@
 
 import Phaser from 'phaser';
 import { COMBAT } from '../constants/gameConfig';
+import { agentDebugLog } from '../utils/agentDebugLog';
 import type { EnemyRuntimeState, HeroRuntimeState } from '../types';
 
 export type ProjectileOwnerType = 'hero' | 'enemy';
@@ -33,6 +34,7 @@ export class Projectile {
   active = true;
 
   private readonly sprite: Phaser.GameObjects.Arc;
+  private spriteDestroyed = false;
 
   constructor(config: ProjectileConfig) {
     this.x = config.x;
@@ -57,10 +59,19 @@ export class Projectile {
     heroes: HeroRuntimeState[],
     enemies: EnemyRuntimeState[],
   ): HeroRuntimeState | EnemyRuntimeState | null {
-    if (!this.active) return null;
+    if (!this.active || this.spriteDestroyed) return null;
 
     const target = this.resolveTarget(heroes, enemies);
     if (!target || !target.isAlive) {
+      // #region agent log
+      agentDebugLog({
+        hypothesisId: 'A',
+        location: 'Projectile.ts:update',
+        message: 'projectile orphaned — target dead or missing',
+        data: { targetId: this.targetId, ownerId: this.ownerId },
+        runId: 'post-fix',
+      });
+      // #endregion
       this.destroy();
       return null;
     }
@@ -77,7 +88,9 @@ export class Projectile {
       this.y = target.y;
     }
 
-    this.sprite.setPosition(this.x, this.y);
+    if (!this.spriteDestroyed) {
+      this.sprite.setPosition(this.x, this.y);
+    }
 
     if (this.overlapsTarget(target)) {
       this.active = false;
@@ -88,6 +101,8 @@ export class Projectile {
   }
 
   destroy(): void {
+    if (this.spriteDestroyed) return;
+    this.spriteDestroyed = true;
     this.active = false;
     this.sprite.destroy();
   }

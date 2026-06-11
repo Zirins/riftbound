@@ -120,6 +120,25 @@ export class BattleScene extends Phaser.Scene {
     );
   };
 
+  private readonly onCombatDebug = (payload: {
+    type: 'dead' | 'cleanup' | 'orphan';
+    unitId?: string;
+    targetId?: string;
+    count?: number;
+  }): void => {
+    if (payload.type === 'dead' && payload.unitId) {
+      this.hitDebugText.setText(`dead:${payload.unitId}`);
+      return;
+    }
+    if (payload.type === 'cleanup' && payload.count !== undefined) {
+      this.hitDebugText.setText(`cleanup-projectiles:${payload.count}`);
+      return;
+    }
+    if (payload.type === 'orphan' && payload.targetId) {
+      this.hitDebugText.setText(`projectile-orphaned:${payload.targetId}`);
+    }
+  };
+
   private readonly onEnemyKilled = (instanceId: string): void => {
     this.syncUnitVisual(this.enemyVisuals.get(instanceId), this.enemies.find((e) => e.instanceId === instanceId));
     this.waveSystem.onEnemyKilled(this.enemies);
@@ -167,6 +186,7 @@ export class BattleScene extends Phaser.Scene {
     this.waveSystem = new WaveSystem();
 
     this.autoBattle.on('enemyHit', this.onEnemyHit);
+    this.autoBattle.on('combatDebug', this.onCombatDebug);
     this.autoBattle.on('enemyKilled', this.onEnemyKilled);
     this.waveSystem.on('waveCleared', this.onWaveCleared);
   }
@@ -316,6 +336,7 @@ export class BattleScene extends Phaser.Scene {
   shutdown(): void {
     this.formationSystem?.off('formationReady', this.onFormationReady);
     this.autoBattle?.off('enemyHit', this.onEnemyHit);
+    this.autoBattle?.off('combatDebug', this.onCombatDebug);
     this.autoBattle?.off('enemyKilled', this.onEnemyKilled);
     this.waveSystem?.off('waveCleared', this.onWaveCleared);
     this.hitDebugText?.destroy();
