@@ -4,7 +4,6 @@
 import Phaser from 'phaser';
 import { CANVAS, COMBAT, HEROES, RANGER } from '../constants/gameConfig';
 import { createHeroProjectile, Projectile } from '../entities/Projectile';
-import { agentDebugLog } from '../utils/agentDebugLog';
 import {
   getEnemyTarget,
   getHeroTarget,
@@ -49,7 +48,6 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
 
     for (let i = 0; i < this.projectiles.length; i += 1) {
       const projectile = this.projectiles[i];
-      const wasActive = projectile.active;
       const hitTarget = projectile.update(delta, heroes, enemies);
 
       if (hitTarget && 'instanceId' in hitTarget) {
@@ -63,12 +61,6 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
       }
 
       if (!projectile.active) {
-        if (wasActive) {
-          this.emit('combatDebug', {
-            type: 'orphan',
-            targetId: projectile.targetId,
-          });
-        }
         indicesToRemove.push(i);
       }
     }
@@ -235,28 +227,10 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
     );
     attacker.attackCounter += 1;
 
-    this.emit('enemyHit', {
-      instanceId: enemy.instanceId,
-      enemyId: enemy.enemyId,
-      damage,
-      currentHP: enemy.currentHP,
-      maxHP: enemy.maxHP,
-    });
-
     if (enemy.currentHP <= 0) {
       enemy.currentHP = 0;
       enemy.isAlive = false;
       this.pendingTargetCleanups.add(enemy.instanceId);
-      // #region agent log
-      agentDebugLog({
-        hypothesisId: 'C',
-        location: 'AutoBattleSystem.ts:applyDamageToEnemy',
-        message: 'enemy marked dead — deferred projectile cleanup',
-        data: { instanceId: enemy.instanceId },
-        runId: 'post-fix',
-      });
-      // #endregion
-      this.emit('combatDebug', { type: 'dead', unitId: enemy.instanceId });
       this.emit('enemyKilled', enemy.instanceId);
     }
   }
@@ -264,24 +238,10 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
   private flushProjectileCleanups(): void {
     if (this.pendingTargetCleanups.size === 0) return;
 
-    let totalRemoved = 0;
     for (const instanceId of this.pendingTargetCleanups) {
-      totalRemoved += this.removeProjectilesTargeting(instanceId);
+      this.removeProjectilesTargeting(instanceId);
     }
     this.pendingTargetCleanups.clear();
-
-    if (totalRemoved > 0) {
-      // #region agent log
-      agentDebugLog({
-        hypothesisId: 'B',
-        location: 'AutoBattleSystem.ts:flushProjectileCleanups',
-        message: 'deferred projectile cleanup flushed',
-        data: { count: totalRemoved },
-        runId: 'post-fix',
-      });
-      // #endregion
-      this.emit('combatDebug', { type: 'cleanup', count: totalRemoved });
-    }
   }
 
   private removeProjectilesTargeting(instanceId: string): number {

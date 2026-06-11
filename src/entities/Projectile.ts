@@ -3,7 +3,6 @@
 
 import Phaser from 'phaser';
 import { COMBAT } from '../constants/gameConfig';
-import { agentDebugLog } from '../utils/agentDebugLog';
 import type { EnemyRuntimeState, HeroRuntimeState } from '../types';
 
 export type ProjectileOwnerType = 'hero' | 'enemy';
@@ -63,15 +62,6 @@ export class Projectile {
 
     const target = this.resolveTarget(heroes, enemies);
     if (!target || !target.isAlive) {
-      // #region agent log
-      agentDebugLog({
-        hypothesisId: 'A',
-        location: 'Projectile.ts:update',
-        message: 'projectile orphaned — target dead or missing',
-        data: { targetId: this.targetId, ownerId: this.ownerId },
-        runId: 'post-fix',
-      });
-      // #endregion
       this.destroy();
       return null;
     }

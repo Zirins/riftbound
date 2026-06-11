@@ -101,42 +101,10 @@ export class BattleScene extends Phaser.Scene {
   private autoBattle!: AutoBattleSystem;
   private waveSystem!: WaveSystem;
   private formationSystem!: FormationSystem;
-  private hitDebugText!: Phaser.GameObjects.Text;
   private combatActive = false;
 
   private readonly onFormationReady = (): void => {
     this.combatActive = true;
-  };
-
-  private readonly onEnemyHit = (payload: {
-    enemyId: string;
-    damage: number;
-    currentHP: number;
-    maxHP: number;
-  }): void => {
-    const current = Math.max(0, Math.floor(payload.currentHP));
-    this.hitDebugText.setText(
-      `hit:${payload.enemyId}:${payload.damage} hp:${current}/${payload.maxHP}`,
-    );
-  };
-
-  private readonly onCombatDebug = (payload: {
-    type: 'dead' | 'cleanup' | 'orphan';
-    unitId?: string;
-    targetId?: string;
-    count?: number;
-  }): void => {
-    if (payload.type === 'dead' && payload.unitId) {
-      this.hitDebugText.setText(`dead:${payload.unitId}`);
-      return;
-    }
-    if (payload.type === 'cleanup' && payload.count !== undefined) {
-      this.hitDebugText.setText(`cleanup-projectiles:${payload.count}`);
-      return;
-    }
-    if (payload.type === 'orphan' && payload.targetId) {
-      this.hitDebugText.setText(`projectile-orphaned:${payload.targetId}`);
-    }
   };
 
   private readonly onEnemyKilled = (instanceId: string): void => {
@@ -176,17 +144,9 @@ export class BattleScene extends Phaser.Scene {
     this.formationSystem.on('formationReady', this.onFormationReady);
     this.syncAllVisuals();
 
-    this.hitDebugText = this.add.text(8, CANVAS.HEIGHT - 8, '', {
-      fontSize: '10px',
-      color: '#ffff00',
-      fontFamily: 'monospace',
-    }).setOrigin(0, 1);
-
     this.autoBattle = new AutoBattleSystem(this);
     this.waveSystem = new WaveSystem();
 
-    this.autoBattle.on('enemyHit', this.onEnemyHit);
-    this.autoBattle.on('combatDebug', this.onCombatDebug);
     this.autoBattle.on('enemyKilled', this.onEnemyKilled);
     this.waveSystem.on('waveCleared', this.onWaveCleared);
   }
@@ -335,11 +295,8 @@ export class BattleScene extends Phaser.Scene {
 
   shutdown(): void {
     this.formationSystem?.off('formationReady', this.onFormationReady);
-    this.autoBattle?.off('enemyHit', this.onEnemyHit);
-    this.autoBattle?.off('combatDebug', this.onCombatDebug);
     this.autoBattle?.off('enemyKilled', this.onEnemyKilled);
     this.waveSystem?.off('waveCleared', this.onWaveCleared);
-    this.hitDebugText?.destroy();
     this.autoBattle?.clearProjectiles();
 
     this.battleBackground?.destroy();
