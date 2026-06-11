@@ -2,11 +2,11 @@
 // V0.1: Battlefield rendering + AutoBattleSystem combat loop.
 
 import Phaser from 'phaser';
-import { CANVAS, COMBAT, DEV_MODE, ENEMIES, HEROES, UI, WARDEN } from '../constants/gameConfig';
+import { CANVAS, COMBAT, DEV_MODE, ENEMIES, FORMATION, HEROES, UI, WARDEN } from '../constants/gameConfig';
 import { createBattleGameState } from '../store/GameState';
 import { AutoBattleSystem } from '../systems/AutoBattleSystem';
-import { FormationSystem, getHeroBattlePosition } from '../systems/FormationSystem';
-import { getBattleFormationSlots } from '../systems/SaveSystem';
+import { assignCombatSlotIndices, FormationSystem, getHeroBattlePosition } from '../systems/FormationSystem';
+import { getBattleLineupHeroIds } from '../systems/SaveSystem';
 import { UltimateSystem } from '../systems/UltimateSystem';
 import { WaveSystem } from '../systems/WaveSystem';
 import { BossBar } from '../ui/BossBar';
@@ -14,7 +14,7 @@ import { drawEnergyBar } from '../ui/EnergyBar';
 import { UltimateButtons } from '../ui/UltimateButtons';
 import { DefeatScene } from './DefeatScene';
 import { VictoryScene } from './VictoryScene';
-import type { EnemyRuntimeState, GameState, HeroClass, HeroRuntimeState } from '../types';
+import type { EnemyRuntimeState, GameState, HeroClass, HeroLineupEntry, HeroRuntimeState } from '../types';
 
 interface HeroSetupEntry {
   id: string;
@@ -339,13 +339,20 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private spawnHeroes(): void {
-    const slotHeroIds = getBattleFormationSlots();
+    const lineupHeroIds = getBattleLineupHeroIds();
+    const lineupEntries: HeroLineupEntry[] = lineupHeroIds.flatMap((heroId) => {
+      const setup = HERO_SETUP_BY_ID[heroId];
+      if (!setup) return [];
+      return [{ heroId: setup.id, heroClass: setup.heroClass }];
+    });
+    const combatSlotByHeroId = assignCombatSlotIndices(lineupEntries);
 
-    for (let slotIndex = 0; slotIndex < slotHeroIds.length; slotIndex += 1) {
-      const setup = HERO_SETUP_BY_ID[slotHeroIds[slotIndex]];
+    for (const heroId of lineupHeroIds) {
+      const setup = HERO_SETUP_BY_ID[heroId];
       if (!setup) continue;
 
-      const position = getHeroBattlePosition(slotIndex);
+      const combatSlotIndex = combatSlotByHeroId.get(heroId) ?? FORMATION.COMBAT_FRONT_SLOT_INDICES[0];
+      const position = getHeroBattlePosition(combatSlotIndex);
 
       const hero: HeroRuntimeState = {
         heroId: setup.id,

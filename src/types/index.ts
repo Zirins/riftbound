@@ -139,6 +139,12 @@ export interface FormationGrid {
   slots: FormationSlot[];    // 4 elements for V0.1
 }
 
+/** Selected heroes passed from lineup to battle — order is not combat placement. */
+export interface HeroLineupEntry {
+  heroId: string;
+  heroClass: HeroClass;
+}
+
 // ─── Enemy ───────────────────────────────────────────────────────────────────
 
 export interface EnemyData {

@@ -3,7 +3,7 @@
 
 import Phaser from 'phaser';
 import { CANVAS, FORMATION } from '../constants/gameConfig';
-import type { EnemyRuntimeState, HeroRuntimeState } from '../types';
+import type { EnemyRuntimeState, HeroClass, HeroLineupEntry, HeroRuntimeState } from '../types';
 
 interface WalkInUnit {
   runtime: HeroRuntimeState | EnemyRuntimeState;
@@ -26,6 +26,61 @@ export function getEnemyStartPosition(slotIndex: number): { x: number; y: number
 /** Battle position for a formation slot — reads FORMATION.HERO_POSITIONS directly. */
 export function getHeroBattlePosition(slotIndex: number): { x: number; y: number } {
   return getStartPosition(slotIndex);
+}
+
+function getCombatClassAssignPriority(heroClass: HeroClass): number {
+  const assignOrder = FORMATION.COMBAT_CLASS_ASSIGN_ORDER as readonly HeroClass[];
+  const priorityIndex = assignOrder.indexOf(heroClass);
+  return priorityIndex === -1 ? assignOrder.length : priorityIndex;
+}
+
+function isFrontlineClass(heroClass: HeroClass): boolean {
+  return (FORMATION.COMBAT_FRONTLINE_CLASSES as readonly HeroClass[]).includes(heroClass);
+}
+
+/** Maps each selected hero to a combat slot by class/role — independent of lineup display order. */
+export function assignCombatSlotIndices(
+  lineup: readonly HeroLineupEntry[],
+): Map<string, number> {
+  const assignments = new Map<string, number>();
+  const frontSlots = [...FORMATION.COMBAT_FRONT_SLOT_INDICES];
+  const backSlots = [...FORMATION.COMBAT_BACK_SLOT_INDICES];
+  let nextFrontSlot = 0;
+  let nextBackSlot = 0;
+
+  const sortedLineup = [...lineup].sort(
+    (heroA, heroB) => getCombatClassAssignPriority(heroA.heroClass)
+      - getCombatClassAssignPriority(heroB.heroClass),
+  );
+
+  for (const hero of sortedLineup) {
+    const prefersFrontline = isFrontlineClass(hero.heroClass);
+
+    if (prefersFrontline && nextFrontSlot < frontSlots.length) {
+      assignments.set(hero.heroId, frontSlots[nextFrontSlot]);
+      nextFrontSlot += 1;
+      continue;
+    }
+
+    if (!prefersFrontline && nextBackSlot < backSlots.length) {
+      assignments.set(hero.heroId, backSlots[nextBackSlot]);
+      nextBackSlot += 1;
+      continue;
+    }
+
+    if (nextFrontSlot < frontSlots.length) {
+      assignments.set(hero.heroId, frontSlots[nextFrontSlot]);
+      nextFrontSlot += 1;
+      continue;
+    }
+
+    if (nextBackSlot < backSlots.length) {
+      assignments.set(hero.heroId, backSlots[nextBackSlot]);
+      nextBackSlot += 1;
+    }
+  }
+
+  return assignments;
 }
 
 export class FormationSystem extends Phaser.Events.EventEmitter {
@@ -68,19 +123,18 @@ export class FormationSystem extends Phaser.Events.EventEmitter {
     this.elapsedMs = 0;
     this.isWalkingIn = true;
 
-    heroes.forEach((hero, slotIndex) => {
-      const target = getHeroBattlePosition(slotIndex);
+    heroes.forEach((hero) => {
+      const targetX = hero.targetX;
+      const targetY = hero.targetY;
       hero.x = FORMATION.HERO_WALK_IN_SPAWN_X;
-      hero.y = target.y;
-      hero.targetX = target.x;
-      hero.targetY = target.y;
+      hero.y = targetY;
 
       this.walkInUnits.push({
         runtime: hero,
         startX: FORMATION.HERO_WALK_IN_SPAWN_X,
-        startY: target.y,
-        targetX: target.x,
-        targetY: target.y,
+        startY: targetY,
+        targetX,
+        targetY,
       });
     });
 

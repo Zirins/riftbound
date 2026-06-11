@@ -50,6 +50,10 @@ export const FORMATION = {
   LINEUP_HERO_Y_OFFSET: -36,
   // Display slot order for lineup screen — tank first, then fighter, support, ranger.
   LINEUP_CLASS_SLOT_ORDER: ['tank', 'fighter', 'support', 'ranger'],
+  COMBAT_FRONT_SLOT_INDICES: [0, 1],
+  COMBAT_BACK_SLOT_INDICES: [2, 3],
+  COMBAT_FRONTLINE_CLASSES: ['tank', 'fighter'],
+  COMBAT_CLASS_ASSIGN_ORDER: ['tank', 'fighter', 'support', 'ranger', 'mage', 'assassin'],
 } as const;
 
 // ─── Combat ───────────────────────────────────────────────────────────────────

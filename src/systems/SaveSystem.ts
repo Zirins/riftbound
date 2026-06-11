@@ -44,15 +44,22 @@ export function saveFormationSlots(slots: FormationSlotSave[]): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(slots));
 }
 
-/** Returns hero IDs for battle spawn. Resets invalid saves to the default lineup. */
-export function getBattleFormationSlots(): readonly string[] {
+/** Returns selected hero IDs for battle — display slot order is ignored. */
+export function getBattleLineupHeroIds(): readonly string[] {
   const slots = loadFormationSlots();
-  if (slots.every((slot) => slot !== null) && isValidMvpLineup(slots as string[])) {
-    return slots as string[];
+  const heroIds = slots.filter((slot): slot is string => slot !== null);
+
+  if (heroIds.length === SLOT_COUNT && isValidMvpLineup(heroIds)) {
+    return heroIds;
   }
 
   writeDefaultLineup();
   return DEFAULT_LINEUP_HERO_IDS;
+}
+
+/** @deprecated Use getBattleLineupHeroIds — saved slot indices are not combat positions. */
+export function getBattleFormationSlots(): readonly string[] {
+  return getBattleLineupHeroIds();
 }
 
 export function loadSettings(): GameSettings {
