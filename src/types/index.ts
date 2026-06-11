@@ -77,19 +77,23 @@ export interface HeroData {
 
 export interface HeroRuntimeState {
   heroId: string;
+  heroClass: HeroClass;
   x: number;
   y: number;
   targetX: number;
   targetY: number;
+  radius: number;
   currentHP: number;
   maxHP: number;
   attack: number;                   // computed: level + star rank + Sigil bonuses
   defense: number;
   attackCooldown: number;           // ms, may be modified by buffs
+  attackRange: number;              // px — melee reach; ranged heroes still fire projectiles
   moveSpeed: number;
   currentEnergy: number;
   isAlive: boolean;
   attackCooldownRemaining: number;  // ms countdown
+  healCooldownRemaining: number;    // ms — support passive heal timer (Mira)
   ultimateReady: boolean;
   attackCounter: number;            // tracks Nth-hit passive triggers
   activeBuffs: ActiveBuff[];
@@ -163,6 +167,7 @@ export interface EnemyRuntimeState {
   defense: number;
   moveSpeed: number;
   attackCooldown: number;
+  attackRange: number;         // px
   radius: number;
   isAlive: boolean;
   attackCooldownRemaining: number;

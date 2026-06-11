@@ -44,9 +44,10 @@ export const COMBAT = {
   ENERGY_GAIN_ON_HIT: 10,
   ENERGY_GAIN_ON_TAKEN: 15,
   HEAL_ENERGY_GAIN: 12,
-  PROJECTILE_SPEED: 450,  // px/s
-  PROJECTILE_RADIUS: 6,   // px
-  WAVE_PAUSE_DURATION: 1500, // ms pause between waves
+  MELEE_ATTACK_RANGE: 40,   // px — melee heroes and melee enemies
+  PROJECTILE_SPEED: 450,    // px/s
+  PROJECTILE_RADIUS: 6,     // px
+  WAVE_PAUSE_DURATION: 1500,  // ms pause between waves
 } as const;
 
 // ─── Heroes ───────────────────────────────────────────────────────────────────
@@ -256,6 +257,7 @@ export const UI = {
   HUD_ALPHA: 0.92,
   HP_BAR_WIDTH: 50,
   HP_BAR_HEIGHT: 5,
+  HP_BAR_BG_COLOR: 0x333333,
   HP_BAR_Y_OFFSET: -30,        // px above entity center
   HP_COLOR_HIGH: 0x44ff44,
   HP_COLOR_LOW: 0xff4444,
