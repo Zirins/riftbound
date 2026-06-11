@@ -74,6 +74,10 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
         continue;
       }
 
+      if (hero.heroClass === 'tank') {
+        this.applyTankAdvance(hero, enemies, delta);
+      }
+
       if (hero.heroClass === 'ranger') {
         this.applyRangerStandoff(hero, enemies, delta);
       }
@@ -121,6 +125,31 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
         enemy.attackCooldownRemaining = enemy.attackCooldown;
       }
     }
+  }
+
+  private applyTankAdvance(
+    hero: HeroRuntimeState,
+    enemies: EnemyRuntimeState[],
+    delta: number,
+  ): void {
+    const target = getNearestLivingEnemy(hero, enemies);
+    if (!target) return;
+
+    const dist = this.getDistance(hero, target);
+    if (dist <= hero.attackRange) return;
+
+    const dx = target.x - hero.x;
+    const dy = target.y - hero.y;
+    if (dist === 0) return;
+
+    const step = hero.moveSpeed * delta;
+    const nextX = hero.x + (dx / dist) * step;
+    const nextY = hero.y + (dy / dist) * step;
+
+    hero.x = Math.max(hero.radius, Math.min(CANVAS.HERO_ZONE_END - hero.radius, nextX));
+    hero.y = nextY;
+    hero.targetX = hero.x;
+    hero.targetY = hero.y;
   }
 
   private applyRangerStandoff(

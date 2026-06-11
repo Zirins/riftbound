@@ -23,26 +23,9 @@ export function getEnemyStartPosition(slotIndex: number): { x: number; y: number
   return { x: position.x, y: position.y };
 }
 
-/** Battlefield 2×2 grid position derived from FORMATION.HERO_POSITIONS values. */
+/** Battle position for a formation slot — reads FORMATION.HERO_POSITIONS directly. */
 export function getHeroBattlePosition(slotIndex: number): { x: number; y: number } {
-  const positions = FORMATION.HERO_POSITIONS;
-  const leftColX = positions[2].x;
-  const rightColX = positions[0].x;
-  const frontRowY = positions[0].y;
-  const backRowY = positions[3].y;
-
-  switch (slotIndex) {
-    case 0:
-      return { x: leftColX, y: frontRowY };
-    case 1:
-      return { x: rightColX, y: frontRowY };
-    case 2:
-      return { x: leftColX, y: backRowY };
-    case 3:
-      return { x: rightColX, y: backRowY };
-    default:
-      return getStartPosition(slotIndex);
-  }
+  return getStartPosition(slotIndex);
 }
 
 export class FormationSystem extends Phaser.Events.EventEmitter {

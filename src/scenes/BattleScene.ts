@@ -5,6 +5,7 @@ import Phaser from 'phaser';
 import { CANVAS, COMBAT, ENEMIES, FORMATION, HEROES, UI, WAVES } from '../constants/gameConfig';
 import { AutoBattleSystem } from '../systems/AutoBattleSystem';
 import { FormationSystem, getHeroBattlePosition } from '../systems/FormationSystem';
+import { getBattleFormationSlots } from '../systems/SaveSystem';
 import { WaveSystem } from '../systems/WaveSystem';
 import type { EnemyRuntimeState, HeroClass, HeroRuntimeState } from '../types';
 
@@ -28,9 +29,9 @@ interface UnitVisual {
   hpBar: Phaser.GameObjects.Graphics;
 }
 
-// Indexed by formation slot 0–3. Slot index maps directly to FORMATION.HERO_POSITIONS[slot].
-const HEROES_BY_FORMATION_SLOT: HeroSetupEntry[] = [
-  {
+// Default slot map: 0 Kael, 1 Sura, 2 Mira, 3 Nyra — overridden by SaveSystem when valid.
+const HERO_SETUP_BY_ID: Record<string, HeroSetupEntry> = {
+  [HEROES.KAEL.ID]: {
     id: HEROES.KAEL.ID,
     name: 'Kael',
     heroClass: 'tank',
@@ -43,7 +44,7 @@ const HEROES_BY_FORMATION_SLOT: HeroSetupEntry[] = [
     attackRange: COMBAT.MELEE_ATTACK_RANGE,
     moveSpeed: HEROES.KAEL.SPEED,
   },
-  {
+  [HEROES.SURA.ID]: {
     id: HEROES.SURA.ID,
     name: 'Sura',
     heroClass: 'fighter',
@@ -56,7 +57,7 @@ const HEROES_BY_FORMATION_SLOT: HeroSetupEntry[] = [
     attackRange: COMBAT.MELEE_ATTACK_RANGE,
     moveSpeed: HEROES.SURA.SPEED,
   },
-  {
+  [HEROES.MIRA.ID]: {
     id: HEROES.MIRA.ID,
     name: 'Mira',
     heroClass: 'support',
@@ -69,7 +70,7 @@ const HEROES_BY_FORMATION_SLOT: HeroSetupEntry[] = [
     attackRange: COMBAT.MELEE_ATTACK_RANGE,
     moveSpeed: HEROES.MIRA.SPEED,
   },
-  {
+  [HEROES.NYRA.ID]: {
     id: HEROES.NYRA.ID,
     name: 'Nyra',
     heroClass: 'ranger',
@@ -82,7 +83,7 @@ const HEROES_BY_FORMATION_SLOT: HeroSetupEntry[] = [
     attackRange: COMBAT.MELEE_ATTACK_RANGE,
     moveSpeed: HEROES.NYRA.SPEED,
   },
-];
+};
 
 const GRUNT_COUNT = WAVES[0].enemies[0].count;
 
@@ -181,8 +182,12 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private spawnHeroes(): void {
-    for (let slotIndex = 0; slotIndex < HEROES_BY_FORMATION_SLOT.length; slotIndex += 1) {
-      const setup = HEROES_BY_FORMATION_SLOT[slotIndex];
+    const slotHeroIds = getBattleFormationSlots();
+
+    for (let slotIndex = 0; slotIndex < slotHeroIds.length; slotIndex += 1) {
+      const setup = HERO_SETUP_BY_ID[slotHeroIds[slotIndex]];
+      if (!setup) continue;
+
       const position = getHeroBattlePosition(slotIndex);
 
       const hero: HeroRuntimeState = {
