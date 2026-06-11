@@ -33,6 +33,9 @@ export const FORMATION = {
     { x: 734, y: 210 }, // Enemy Slot 3: Back-Right
   ],
   WALK_IN_DURATION: 500,  // ms — hero/enemy walk-in animation
+  HERO_WALK_IN_SPAWN_X: -50,       // px — heroes enter from off the left edge
+  ENEMY_WALK_IN_SPAWN_OFFSET: 50,  // px — enemies enter from CANVAS.WIDTH + offset
+  ARRIVAL_THRESHOLD: 2,            // px — all units within this distance = formation ready
   SLOT_WIDTH: 110,
   SLOT_HEIGHT: 90,
 } as const;

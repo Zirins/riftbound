@@ -1,10 +1,10 @@
 // src/scenes/BattleScene.ts
 // V0.1: Battlefield rendering + AutoBattleSystem combat loop.
-// Prompt 2: hero circles. Prompt 3: 4 grunts, attacks, damage, death.
 
 import Phaser from 'phaser';
 import { CANVAS, COMBAT, ENEMIES, FORMATION, HEROES, UI, WAVES } from '../constants/gameConfig';
 import { AutoBattleSystem } from '../systems/AutoBattleSystem';
+import { FormationSystem, getHeroBattlePosition } from '../systems/FormationSystem';
 import { WaveSystem } from '../systems/WaveSystem';
 import type { EnemyRuntimeState, HeroClass, HeroRuntimeState } from '../types';
 
@@ -86,28 +86,6 @@ const HEROES_BY_FORMATION_SLOT: HeroSetupEntry[] = [
 
 const GRUNT_COUNT = WAVES[0].enemies[0].count;
 
-/** Map formation slot → 2×2 grid position using only values from FORMATION.HERO_POSITIONS. */
-function getHeroPositionForSlot(slotIndex: number): { x: number; y: number } {
-  const positions = FORMATION.HERO_POSITIONS;
-  const leftColX = positions[2].x;
-  const rightColX = positions[0].x;
-  const frontRowY = positions[0].y;
-  const backRowY = positions[3].y;
-
-  switch (slotIndex) {
-    case 0:
-      return { x: leftColX, y: frontRowY };
-    case 1:
-      return { x: rightColX, y: frontRowY };
-    case 2:
-      return { x: leftColX, y: backRowY };
-    case 3:
-      return { x: rightColX, y: backRowY };
-    default:
-      return positions[slotIndex];
-  }
-}
-
 export class BattleScene extends Phaser.Scene {
   static readonly KEY = 'BattleScene';
 
@@ -121,6 +99,12 @@ export class BattleScene extends Phaser.Scene {
 
   private autoBattle!: AutoBattleSystem;
   private waveSystem!: WaveSystem;
+  private formationSystem!: FormationSystem;
+  private combatActive = false;
+
+  private readonly onFormationReady = (): void => {
+    this.combatActive = true;
+  };
 
   private readonly onEnemyKilled = (instanceId: string): void => {
     this.syncUnitVisual(this.enemyVisuals.get(instanceId), this.enemies.find((e) => e.instanceId === instanceId));
@@ -154,6 +138,11 @@ export class BattleScene extends Phaser.Scene {
     this.spawnHeroes();
     this.spawnGrunts();
 
+    this.formationSystem = new FormationSystem();
+    this.formationSystem.animateWalkIn(this.heroes, this.enemies);
+    this.formationSystem.on('formationReady', this.onFormationReady);
+    this.syncAllVisuals();
+
     this.autoBattle = new AutoBattleSystem(this);
     this.waveSystem = new WaveSystem();
 
@@ -162,14 +151,19 @@ export class BattleScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number): void {
-    this.autoBattle.update(this.heroes, this.enemies, delta / 1000);
+    const deltaSeconds = delta / 1000;
+    this.formationSystem.update(deltaSeconds);
     this.syncAllVisuals();
+
+    if (!this.combatActive) return;
+
+    this.autoBattle.update(this.heroes, this.enemies, deltaSeconds);
   }
 
   private spawnHeroes(): void {
     for (let slotIndex = 0; slotIndex < HEROES_BY_FORMATION_SLOT.length; slotIndex += 1) {
       const setup = HEROES_BY_FORMATION_SLOT[slotIndex];
-      const position = getHeroPositionForSlot(slotIndex);
+      const position = getHeroBattlePosition(slotIndex);
 
       const hero: HeroRuntimeState = {
         heroId: setup.id,
@@ -295,6 +289,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   shutdown(): void {
+    this.formationSystem?.off('formationReady', this.onFormationReady);
     this.autoBattle?.off('enemyKilled', this.onEnemyKilled);
     this.waveSystem?.off('waveCleared', this.onWaveCleared);
     this.autoBattle?.clearProjectiles();
