@@ -252,12 +252,19 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
 
     const ally = getSupportHealTarget(hero, heroes);
     if (!ally) {
+      hero.currentEnergy = Math.min(
+        COMBAT.ENERGY_MAX,
+        hero.currentEnergy + HEROES.MIRA.PASSIVE_ENERGY_GAIN,
+      );
       hero.healCooldownRemaining = HEROES.MIRA.HEAL_COOLDOWN;
       return;
     }
 
     ally.currentHP = Math.min(ally.maxHP, ally.currentHP + HEROES.MIRA.PASSIVE_HEAL);
-    hero.currentEnergy = Math.min(COMBAT.ENERGY_MAX, hero.currentEnergy + COMBAT.HEAL_ENERGY_GAIN);
+    hero.currentEnergy = Math.min(
+      COMBAT.ENERGY_MAX,
+      hero.currentEnergy + HEROES.MIRA.ENERGY_GAIN_ON_HEAL,
+    );
     hero.healCooldownRemaining = HEROES.MIRA.HEAL_COOLDOWN;
   }
 

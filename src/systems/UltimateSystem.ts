@@ -113,6 +113,8 @@ export class UltimateSystem extends Phaser.Events.EventEmitter {
 
   private fireSuraSolarRend(hero: HeroRuntimeState, gameState: GameState): void {
     const yBand = HEROES.SURA.ULTIMATE_LINE_HALF_HEIGHT;
+    const lineWidth = CANVAS.WIDTH - CANVAS.HERO_ZONE_END;
+    const lineCenterX = CANVAS.HERO_ZONE_END + lineWidth / 2;
 
     for (const enemy of gameState.enemies) {
       if (!enemy.isAlive) continue;
@@ -128,13 +130,14 @@ export class UltimateSystem extends Phaser.Events.EventEmitter {
     }
 
     const line = this.scene.add.rectangle(
-      (CANVAS.HERO_ZONE_END + CANVAS.ENEMY_ZONE_START) / 2,
+      lineCenterX,
       hero.y,
-      CANVAS.ENEMY_ZONE_START - CANVAS.HERO_ZONE_END,
+      lineWidth,
       yBand * 2,
       HEROES.SURA.COLOR,
-      0.75,
+      UI.SOLAR_REND_LINE_ALPHA,
     );
+    line.setStrokeStyle(3, 0xffaa66, 1);
     this.trackVfx(line);
     this.scene.tweens.add({
       targets: line,
@@ -152,11 +155,18 @@ export class UltimateSystem extends Phaser.Events.EventEmitter {
         ally.activeDebuffs = ally.activeDebuffs.slice(1);
       }
 
-      const pulse = this.scene.add.circle(ally.x, ally.y, ally.radius, HEROES.MIRA.COLOR, 0.6);
+      const pulse = this.scene.add.circle(
+        ally.x,
+        ally.y,
+        ally.radius,
+        HEROES.MIRA.COLOR,
+        UI.RIFT_BLOOM_PULSE_ALPHA,
+      );
+      pulse.setStrokeStyle(4, 0xaaffaa, 1);
       this.trackVfx(pulse);
       this.scene.tweens.add({
         targets: pulse,
-        radius: ally.radius * 3,
+        radius: ally.radius * HEROES.MIRA.RIFT_BLOOM_PULSE_SCALE,
         alpha: 0,
         duration: UI.ULTIMATE_VFX_DURATION,
         onComplete: () => pulse.destroy(),

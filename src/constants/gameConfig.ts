@@ -100,8 +100,8 @@ export const HEROES = {
     CLEAVE_RADIUS: 120,     // px — Ember Cleave passive radius
     CLEAVE_ENERGY_MULT: 0.5,
     ULTIMATE_DAMAGE: 400,
-    ULTIMATE_LINE_HALF_HEIGHT: 30, // px — Solar Rend hits enemies within ±this y band
-    BURN_DPS: 40,           // damage per second from Solar Rend burn
+    ULTIMATE_LINE_HALF_HEIGHT: 110, // px — Solar Rend y band; covers both enemy rows
+    BURN_DPS: 80,           // damage per second from Solar Rend burn
     BURN_DURATION: 3000,    // ms
   },
 
@@ -119,8 +119,10 @@ export const HEROES = {
     SPEED: 130,             // px/s
     ENERGY_GAIN_ON_HEAL: 12,
     ENERGY_GAIN_ON_TAKEN: 10,
+    PASSIVE_ENERGY_GAIN: 6, // energy per heal-cooldown tick when all allies are full HP
     PASSIVE_HEAL: 80,       // HP healed by Lantern Pulse
     ULTIMATE_HEAL: 300,     // HP healed to all allies by Rift Bloom
+    RIFT_BLOOM_PULSE_SCALE: 4, // multiplier on ally radius for Rift Bloom VFX
   },
 
   NYRA: {
@@ -282,6 +284,8 @@ export const UI = {
   HUD_TAP_ZONE_HEIGHT: 74,
   ULTIMATE_VFX_DEPTH: 500,
   ULTIMATE_VFX_DURATION: 900,
+  SOLAR_REND_LINE_ALPHA: 0.9,
+  RIFT_BLOOM_PULSE_ALPHA: 0.85,
 } as const;
 
 // ─── App ──────────────────────────────────────────────────────────────────────
