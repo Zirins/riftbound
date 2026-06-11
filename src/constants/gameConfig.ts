@@ -153,7 +153,7 @@ export const ENEMIES = {
     ID: 'rift_grunt',
     COLOR: 0x887744,
     RADIUS: 16,
-    HP: 400,
+    HP: 1600, // TEMP: raised for Prompt 6 ultimate verification — revert before Prompt 7
     ATTACK: 55,
     DEFENSE: 10,
     SPEED: 100,             // px/s
