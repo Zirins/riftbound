@@ -1,10 +1,9 @@
 // src/scenes/FormationScene.ts
-// V0.1: 2×2 formation grid, hero assignment, Battle button.
+// V0.1: team lineup selection — combat positions are assigned in battle.
 
 import Phaser from 'phaser';
 import {
   CANVAS,
-  ENEMIES,
   FORMATION,
   HEROES,
   STAGES,
@@ -20,12 +19,10 @@ interface RosterHero {
   color: number;
 }
 
-interface SlotVisual {
-  panel: Phaser.GameObjects.Rectangle;
-  rowLabel: Phaser.GameObjects.Text;
+interface LineupSlotVisual {
+  platform: Phaser.GameObjects.Rectangle;
   heroCircle?: Phaser.GameObjects.Arc;
   heroName?: Phaser.GameObjects.Text;
-  classLabel?: Phaser.GameObjects.Text;
   emptyLabel?: Phaser.GameObjects.Text;
   tapZone: Phaser.GameObjects.Zone;
 }
@@ -46,13 +43,13 @@ const ROSTER_HEROES: readonly RosterHero[] = [
 export class FormationScene extends Phaser.Scene {
   static readonly KEY = 'FormationScene';
 
-  private battlefieldPreview!: Phaser.GameObjects.Rectangle;
-  private stageEnemiesLabel!: Phaser.GameObjects.Text;
+  private lineupStage!: Phaser.GameObjects.Rectangle;
+  private lineupTitle!: Phaser.GameObjects.Text;
   private battleButton!: Phaser.GameObjects.Text;
 
-  private slotAssignments: (string | null)[] = [null, null, null, null];
+  private lineupSlots: (string | null)[] = [null, null, null, null];
   private activeSlotIndex: number | null = null;
-  private readonly slotVisuals: SlotVisual[] = [];
+  private readonly lineupVisuals: LineupSlotVisual[] = [];
   private readonly rosterVisuals: RosterVisual[] = [];
 
   constructor() {
@@ -62,16 +59,26 @@ export class FormationScene extends Phaser.Scene {
   create(): void {
     this.cameras.main.setBackgroundColor(UI.BACKGROUND_COLOR);
 
-    this.battlefieldPreview = this.add.rectangle(
-      CANVAS.WIDTH / 4,
-      CANVAS.BATTLE_HEIGHT / 2,
+    this.lineupStage = this.add.rectangle(
       CANVAS.WIDTH / 2,
+      CANVAS.BATTLE_HEIGHT / 2,
+      CANVAS.WIDTH,
       CANVAS.BATTLE_HEIGHT,
-      UI.FORMATION_BATTLEFIELD_PREVIEW,
+      UI.FORMATION_LINEUP_STAGE_COLOR,
     );
 
-    this.createEnemyPreview();
-    this.createFormationSlots();
+    this.lineupTitle = this.add.text(
+      CANVAS.WIDTH / 2,
+      UI.FORMATION_LINEUP_TITLE_Y,
+      `Team — ${STAGES.STAGE_1.DISPLAY_NAME}`,
+      {
+        fontSize: '16px',
+        color: '#ccccdd',
+        fontFamily: 'monospace',
+      },
+    ).setOrigin(0.5);
+
+    this.createLineupSlots();
     this.createRosterStrip();
 
     this.battleButton = this.add.text(
@@ -85,25 +92,23 @@ export class FormationScene extends Phaser.Scene {
       },
     ).setOrigin(0.5);
 
-    this.slotAssignments = [...loadFormationSlots()];
+    this.lineupSlots = [...loadFormationSlots()];
     this.activeSlotIndex = null;
-    this.refreshAllVisuals();
+    this.refreshLineupVisuals();
     this.updateBattleButton();
   }
 
   shutdown(): void {
     this.battleButton?.off('pointerup', this.onBattle, this);
 
-    for (const slot of this.slotVisuals) {
+    for (const slot of this.lineupVisuals) {
       slot.tapZone.destroy();
-      slot.panel.destroy();
-      slot.rowLabel.destroy();
+      slot.platform.destroy();
       slot.heroCircle?.destroy();
       slot.heroName?.destroy();
-      slot.classLabel?.destroy();
       slot.emptyLabel?.destroy();
     }
-    this.slotVisuals.length = 0;
+    this.lineupVisuals.length = 0;
 
     for (const portrait of this.rosterVisuals) {
       portrait.tapZone.destroy();
@@ -112,64 +117,32 @@ export class FormationScene extends Phaser.Scene {
     }
     this.rosterVisuals.length = 0;
 
-    this.battlefieldPreview?.destroy();
-    this.stageEnemiesLabel?.destroy();
+    this.lineupStage?.destroy();
+    this.lineupTitle?.destroy();
     this.battleButton?.destroy();
   }
 
-  private createEnemyPreview(): void {
-    this.stageEnemiesLabel = this.add.text(
-      CANVAS.WIDTH * 0.75,
-      UI.WAVE_LABEL_Y,
-      `${STAGES.STAGE_1.DISPLAY_NAME} Enemies`,
-      {
-        fontSize: '14px',
-        color: '#aaaaaa',
-        fontFamily: 'monospace',
-      },
-    ).setOrigin(0.5, 0);
-
-    for (const position of FORMATION.ENEMY_PREVIEW_POSITIONS) {
-      this.add.circle(
-        position.x,
-        position.y,
-        ENEMIES.GRUNT.RADIUS,
-        UI.FORMATION_ENEMY_PREVIEW_COLOR,
+  private createLineupSlots(): void {
+    FORMATION.LINEUP_SLOT_POSITIONS.forEach((slotPosition, slotIndex) => {
+      const platform = this.add.rectangle(
+        slotPosition.x,
+        slotPosition.platformY,
+        FORMATION.LINEUP_PLATFORM_WIDTH,
+        FORMATION.LINEUP_PLATFORM_HEIGHT,
+        UI.FORMATION_LINEUP_PLATFORM_COLOR,
       );
-    }
-  }
 
-  private createFormationSlots(): void {
-    FORMATION.SLOT_UI.forEach((slotUi, slotIndex) => {
-      const centerX = slotUi.x + FORMATION.SLOT_WIDTH / 2;
-      const centerY = slotUi.y + FORMATION.SLOT_HEIGHT / 2;
-
-      const panel = this.add.rectangle(
-        centerX,
-        centerY,
-        FORMATION.SLOT_WIDTH,
-        FORMATION.SLOT_HEIGHT,
-        UI.BACKGROUND_COLOR,
-        0.35,
+      const heroY = slotPosition.platformY + FORMATION.LINEUP_HERO_Y_OFFSET;
+      const tapZone = this.add.zone(
+        slotPosition.x,
+        heroY + FORMATION.LINEUP_TAP_ZONE_HEIGHT / 2,
+        FORMATION.LINEUP_PLATFORM_WIDTH + 20,
+        FORMATION.LINEUP_TAP_ZONE_HEIGHT,
       );
-      panel.setStrokeStyle(2, UI.FORMATION_SLOT_EMPTY_BORDER);
-
-      const rowLabel = this.add.text(
-        centerX,
-        slotUi.y + 8,
-        slotUi.rowLabel,
-        {
-          fontSize: '11px',
-          color: '#888899',
-          fontFamily: 'monospace',
-        },
-      ).setOrigin(0.5, 0);
-
-      const tapZone = this.add.zone(centerX, centerY, FORMATION.SLOT_WIDTH, FORMATION.SLOT_HEIGHT);
       tapZone.setInteractive({ useHandCursor: true });
-      tapZone.on('pointerup', () => this.onSlotTapped(slotIndex));
+      tapZone.on('pointerup', () => this.onLineupSlotTapped(slotIndex));
 
-      this.slotVisuals.push({ panel, rowLabel, tapZone });
+      this.lineupVisuals.push({ platform, tapZone });
     });
   }
 
@@ -193,60 +166,57 @@ export class FormationScene extends Phaser.Scene {
     });
   }
 
-  private onSlotTapped(slotIndex: number): void {
-    if (this.activeSlotIndex === slotIndex && this.slotAssignments[slotIndex] !== null) {
-      this.slotAssignments[slotIndex] = null;
+  private onLineupSlotTapped(slotIndex: number): void {
+    if (this.activeSlotIndex === slotIndex && this.lineupSlots[slotIndex] !== null) {
+      this.lineupSlots[slotIndex] = null;
       this.activeSlotIndex = slotIndex;
-      this.refreshAllVisuals();
+      this.refreshLineupVisuals();
       this.updateBattleButton();
       return;
     }
 
     this.activeSlotIndex = slotIndex;
-    this.refreshAllVisuals();
+    this.refreshLineupVisuals();
   }
 
   private onRosterTapped(heroId: string): void {
     if (this.activeSlotIndex === null) return;
 
-    const existingSlot = this.slotAssignments.indexOf(heroId);
+    const existingSlot = this.lineupSlots.indexOf(heroId);
     if (existingSlot === this.activeSlotIndex) {
-      this.slotAssignments[existingSlot] = null;
+      this.lineupSlots[existingSlot] = null;
     } else {
       if (existingSlot !== -1) {
-        this.slotAssignments[existingSlot] = null;
+        this.lineupSlots[existingSlot] = null;
       }
-      this.slotAssignments[this.activeSlotIndex] = heroId;
+      this.lineupSlots[this.activeSlotIndex] = heroId;
     }
 
-    this.refreshAllVisuals();
+    this.refreshLineupVisuals();
     this.updateBattleButton();
   }
 
-  private refreshAllVisuals(): void {
-    this.slotVisuals.forEach((visual, slotIndex) => {
-      const heroId = this.slotAssignments[slotIndex];
+  private refreshLineupVisuals(): void {
+    this.lineupVisuals.forEach((visual, slotIndex) => {
+      const heroId = this.lineupSlots[slotIndex];
       const isActive = this.activeSlotIndex === slotIndex;
-      const centerX = visual.panel.x;
-      const centerY = visual.panel.y;
+      const slotPosition = FORMATION.LINEUP_SLOT_POSITIONS[slotIndex];
+      const heroY = slotPosition.platformY + FORMATION.LINEUP_HERO_Y_OFFSET;
 
-      visual.panel.setStrokeStyle(
-        2,
-        isActive ? UI.FORMATION_SLOT_ACTIVE_BORDER : UI.FORMATION_SLOT_EMPTY_BORDER,
+      visual.platform.setFillStyle(
+        isActive ? UI.FORMATION_LINEUP_PLATFORM_ACTIVE_COLOR : UI.FORMATION_LINEUP_PLATFORM_COLOR,
       );
 
       visual.heroCircle?.destroy();
       visual.heroName?.destroy();
-      visual.classLabel?.destroy();
       visual.emptyLabel?.destroy();
       visual.heroCircle = undefined;
       visual.heroName = undefined;
-      visual.classLabel = undefined;
       visual.emptyLabel = undefined;
 
       if (!heroId) {
-        visual.emptyLabel = this.add.text(centerX, centerY, 'Empty', {
-          fontSize: '14px',
+        visual.emptyLabel = this.add.text(slotPosition.x, heroY + 8, '+', {
+          fontSize: '28px',
           color: '#888899',
           fontFamily: 'monospace',
         }).setOrigin(0.5);
@@ -257,33 +227,41 @@ export class FormationScene extends Phaser.Scene {
       if (!hero) return;
 
       visual.heroCircle = this.add.circle(
-        centerX,
-        centerY - 10,
+        slotPosition.x,
+        heroY,
         UI.FORMATION_HERO_PREVIEW_RADIUS,
         hero.color,
       );
-      visual.heroName = this.add.text(centerX, centerY + 10, hero.name, {
+      visual.heroName = this.add.text(slotPosition.x, heroY + 28, hero.name, {
         fontSize: '12px',
         color: '#ffffff',
         fontFamily: 'monospace',
       }).setOrigin(0.5);
-      visual.classLabel = this.add.text(centerX, centerY + 26, hero.classLabel, {
-        fontSize: '10px',
-        color: '#aaaacc',
-        fontFamily: 'monospace',
-      }).setOrigin(0.5);
+    });
+
+    this.refreshRosterHighlights();
+  }
+
+  private refreshRosterHighlights(): void {
+    this.rosterVisuals.forEach((portrait, index) => {
+      const heroId = ROSTER_HEROES[index].id;
+      const isSelected = this.lineupSlots.includes(heroId);
+      portrait.circle.setAlpha(isSelected ? 1 : 0.55);
+      portrait.label.setAlpha(isSelected ? 1 : 0.7);
     });
   }
 
   private updateBattleButton(): void {
-    const allFilled = this.slotAssignments.every((slot) => slot !== null);
+    const filledIds = this.lineupSlots.filter((slot): slot is string => slot !== null);
+    const lineupReady = filledIds.length === FORMATION.LINEUP_SLOT_COUNT
+      && new Set(filledIds).size === FORMATION.LINEUP_SLOT_COUNT;
 
     this.battleButton.off('pointerup', this.onBattle, this);
     this.battleButton.setColor(
-      allFilled ? UI.FORMATION_BUTTON_ENABLED_COLOR : UI.FORMATION_BUTTON_DISABLED_COLOR,
+      lineupReady ? UI.FORMATION_BUTTON_ENABLED_COLOR : UI.FORMATION_BUTTON_DISABLED_COLOR,
     );
 
-    if (allFilled) {
+    if (lineupReady) {
       this.battleButton.setInteractive({ useHandCursor: true });
       this.battleButton.on('pointerup', this.onBattle, this);
     } else {
@@ -292,9 +270,13 @@ export class FormationScene extends Phaser.Scene {
   }
 
   private readonly onBattle = (): void => {
-    if (!this.slotAssignments.every((slot) => slot !== null)) return;
+    const filledIds = this.lineupSlots.filter((slot): slot is string => slot !== null);
+    if (filledIds.length !== FORMATION.LINEUP_SLOT_COUNT
+      || new Set(filledIds).size !== FORMATION.LINEUP_SLOT_COUNT) {
+      return;
+    }
 
-    saveFormationSlots(this.slotAssignments);
+    saveFormationSlots(this.lineupSlots);
     this.scene.start(BattleScene.KEY);
   };
 }

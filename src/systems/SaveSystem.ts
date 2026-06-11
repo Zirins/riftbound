@@ -1,20 +1,19 @@
 // src/systems/SaveSystem.ts
-// V0.1: localStorage formation slot assignment + settings.
+// V0.1: localStorage team lineup + settings.
 
 import { HEROES } from '../constants/gameConfig';
 
 const STORAGE_KEY = 'riftbound_mvp_formation';
 const SETTINGS_KEY = 'riftbound_settings';
 
-const DEFAULT_SLOT_HERO_IDS: readonly string[] = [
+const DEFAULT_LINEUP_HERO_IDS: readonly string[] = [
   HEROES.KAEL.ID,
   HEROES.SURA.ID,
   HEROES.MIRA.ID,
   HEROES.NYRA.ID,
 ];
 
-const MVP_HERO_IDS = new Set(DEFAULT_SLOT_HERO_IDS);
-const FRONT_SLOTS = new Set([0, 1]);
+const MVP_HERO_IDS = new Set(DEFAULT_LINEUP_HERO_IDS);
 const SLOT_COUNT = 4;
 
 export type FormationSlotSave = string | null;
@@ -27,33 +26,33 @@ const DEFAULT_SETTINGS: GameSettings = {
   soundMuted: false,
 };
 
-const EMPTY_FORMATION: FormationSlotSave[] = [null, null, null, null];
+const EMPTY_LINEUP: FormationSlotSave[] = [null, null, null, null];
 
-/** Loads formation editor state — null entries are empty slots. */
+/** Loads saved team lineup — order is roster selection only, not combat position. */
 export function loadFormationSlots(): FormationSlotSave[] {
   const saved = readSavedSlotsRaw();
-  if (!saved) return [...EMPTY_FORMATION];
+  if (!saved) return [...DEFAULT_LINEUP_HERO_IDS];
 
   return saved.map((entry) => (
     typeof entry === 'string' && entry.length > 0 && MVP_HERO_IDS.has(entry) ? entry : null
   ));
 }
 
-/** Persists the current formation grid (may include nulls while editing). */
+/** Persists the current team lineup (may include nulls while editing). */
 export function saveFormationSlots(slots: FormationSlotSave[]): void {
   if (slots.length !== SLOT_COUNT) return;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(slots));
 }
 
-/** Returns heroId per slot 0–3 for battle spawn. Resets invalid saves to default. */
+/** Returns hero IDs for battle spawn. Resets invalid saves to the default lineup. */
 export function getBattleFormationSlots(): readonly string[] {
   const slots = loadFormationSlots();
-  if (slots.every((slot) => slot !== null) && isValidMvpFormation(slots as string[])) {
+  if (slots.every((slot) => slot !== null) && isValidMvpLineup(slots as string[])) {
     return slots as string[];
   }
 
-  writeDefaultFormation();
-  return DEFAULT_SLOT_HERO_IDS;
+  writeDefaultLineup();
+  return DEFAULT_LINEUP_HERO_IDS;
 }
 
 export function loadSettings(): GameSettings {
@@ -79,9 +78,9 @@ export function saveSettings(settings: GameSettings): void {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
 }
 
-/** Removes saved formation so the player can assign a new team. */
+/** Clears saved lineup so the player can pick a new team. */
 export function clearFormation(): void {
-  localStorage.removeItem(STORAGE_KEY);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify([...EMPTY_LINEUP]));
 }
 
 function readSavedSlotsRaw(): unknown[] | null {
@@ -96,17 +95,15 @@ function readSavedSlotsRaw(): unknown[] | null {
   }
 }
 
-function isValidMvpFormation(slots: string[]): boolean {
+function isValidMvpLineup(slots: string[]): boolean {
   const seen = new Set<string>();
   for (const heroId of slots) {
     if (!MVP_HERO_IDS.has(heroId) || seen.has(heroId)) return false;
     seen.add(heroId);
   }
-
-  const kaelSlot = slots.indexOf(HEROES.KAEL.ID);
-  return kaelSlot !== -1 && FRONT_SLOTS.has(kaelSlot);
+  return seen.size === SLOT_COUNT;
 }
 
-function writeDefaultFormation(): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify([...DEFAULT_SLOT_HERO_IDS]));
+function writeDefaultLineup(): void {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify([...DEFAULT_LINEUP_HERO_IDS]));
 }
