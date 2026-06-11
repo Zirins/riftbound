@@ -1,5 +1,5 @@
 // src/scenes/FormationScene.ts
-// V0.1: team lineup selection — tap roster heroes to toggle; class order for display.
+// V0.1: team lineup selection — tap roster heroes to toggle; right-aligned by frontline priority.
 
 import Phaser from 'phaser';
 import {
@@ -25,6 +25,7 @@ interface LineupSlotVisual {
   platform: Phaser.GameObjects.Rectangle;
   heroCircle?: Phaser.GameObjects.Arc;
   heroName?: Phaser.GameObjects.Text;
+  heroTapZone?: Phaser.GameObjects.Zone;
 }
 
 interface RosterVisual {
@@ -64,28 +65,49 @@ const ROSTER_HEROES: readonly RosterHero[] = [
   },
 ];
 
-function getLineupSlotForClass(heroClass: HeroClass): number {
-  const classOrder = FORMATION.LINEUP_CLASS_SLOT_ORDER as readonly HeroClass[];
-  return classOrder.indexOf(heroClass);
+/** Lower value = further back / leftmost when packed right. Tank is highest frontline. */
+const FRONTLINE_SORT_PRIORITY: Record<HeroClass, number> = {
+  ranger: 0,
+  mage: 1,
+  assassin: 1,
+  support: 2,
+  fighter: 3,
+  tank: 4,
+};
+
+function getFrontlineSortPriority(heroClass: HeroClass): number {
+  return FRONTLINE_SORT_PRIORITY[heroClass];
 }
 
-function normalizeLineupSlots(slots: (string | null)[]): (string | null)[] {
-  const normalized: (string | null)[] = Array.from(
+function buildRightAlignedLineup(selectedHeroIds: readonly string[]): (string | null)[] {
+  const slots: (string | null)[] = Array.from(
     { length: FORMATION.LINEUP_SLOT_COUNT },
     () => null,
   );
+  if (selectedHeroIds.length === 0) return slots;
 
-  for (const heroId of slots) {
-    if (!heroId) continue;
-    const hero = ROSTER_HEROES.find((entry) => entry.id === heroId);
-    if (!hero) continue;
+  const sortedHeroIds = [...selectedHeroIds].sort((heroIdA, heroIdB) => {
+    const heroA = ROSTER_HEROES.find((entry) => entry.id === heroIdA);
+    const heroB = ROSTER_HEROES.find((entry) => entry.id === heroIdB);
+    if (!heroA || !heroB) return 0;
 
-    const slotIndex = getLineupSlotForClass(hero.heroClass);
-    if (slotIndex === -1) continue;
-    normalized[slotIndex] = heroId;
-  }
+    const priorityDelta = getFrontlineSortPriority(heroA.heroClass)
+      - getFrontlineSortPriority(heroB.heroClass);
+    if (priorityDelta !== 0) return priorityDelta;
+    return heroIdA.localeCompare(heroIdB);
+  });
 
-  return normalized;
+  sortedHeroIds.forEach((heroId, index) => {
+    const platformIndex = (FORMATION.LINEUP_SLOT_COUNT - sortedHeroIds.length) + index;
+    slots[platformIndex] = heroId;
+  });
+
+  return slots;
+}
+
+function normalizeLineupSlots(slots: (string | null)[]): (string | null)[] {
+  const selectedHeroIds = slots.filter((slot): slot is string => slot !== null);
+  return buildRightAlignedLineup(selectedHeroIds);
 }
 
 export class FormationScene extends Phaser.Scene {
@@ -151,6 +173,7 @@ export class FormationScene extends Phaser.Scene {
       slot.platform.destroy();
       slot.heroCircle?.destroy();
       slot.heroName?.destroy();
+      slot.heroTapZone?.destroy();
     }
     this.lineupVisuals.length = 0;
 
@@ -201,18 +224,25 @@ export class FormationScene extends Phaser.Scene {
   }
 
   private onRosterTapped(heroId: string): void {
-    const hero = ROSTER_HEROES.find((entry) => entry.id === heroId);
-    if (!hero) return;
+    const selectedHeroIds = this.lineupSlots.filter((slot): slot is string => slot !== null);
+    const isSelected = selectedHeroIds.includes(heroId);
 
-    const slotIndex = getLineupSlotForClass(hero.heroClass);
-    if (slotIndex === -1) return;
+    const nextSelectedHeroIds = isSelected
+      ? selectedHeroIds.filter((id) => id !== heroId)
+      : [...selectedHeroIds, heroId];
 
-    if (this.lineupSlots[slotIndex] === heroId) {
-      this.lineupSlots[slotIndex] = null;
-    } else {
-      this.lineupSlots[slotIndex] = heroId;
-    }
+    this.applySelectedHeroIds(nextSelectedHeroIds);
+  }
 
+  private onLineupHeroTapped(heroId: string): void {
+    const selectedHeroIds = this.lineupSlots.filter((slot): slot is string => slot !== null);
+    if (!selectedHeroIds.includes(heroId)) return;
+
+    this.applySelectedHeroIds(selectedHeroIds.filter((id) => id !== heroId));
+  }
+
+  private applySelectedHeroIds(selectedHeroIds: string[]): void {
+    this.lineupSlots = buildRightAlignedLineup(selectedHeroIds);
     this.refreshLineupVisuals();
     this.updateBattleButton();
   }
@@ -225,8 +255,10 @@ export class FormationScene extends Phaser.Scene {
 
       visual.heroCircle?.destroy();
       visual.heroName?.destroy();
+      visual.heroTapZone?.destroy();
       visual.heroCircle = undefined;
       visual.heroName = undefined;
+      visual.heroTapZone = undefined;
 
       if (!heroId) return;
 
@@ -244,6 +276,17 @@ export class FormationScene extends Phaser.Scene {
         color: '#ffffff',
         fontFamily: 'monospace',
       }).setOrigin(0.5);
+
+      const tapZoneWidth = UI.FORMATION_HERO_PREVIEW_RADIUS * 2 + 20;
+      const tapZoneHeight = UI.FORMATION_HERO_PREVIEW_RADIUS * 2 + 36;
+      visual.heroTapZone = this.add.zone(
+        slotPosition.x,
+        heroY + 14,
+        tapZoneWidth,
+        tapZoneHeight,
+      );
+      visual.heroTapZone.setInteractive({ useHandCursor: true });
+      visual.heroTapZone.on('pointerup', () => this.onLineupHeroTapped(heroId));
     });
 
     this.refreshRosterHighlights();
