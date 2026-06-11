@@ -45,17 +45,17 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
       const projectile = this.projectiles[i];
       const hitTarget = projectile.update(delta, heroes, enemies);
 
-      if (!projectile.active) {
-        this.projectiles.splice(i, 1);
-        continue;
-      }
-
       if (hitTarget && 'instanceId' in hitTarget) {
         const owner = heroes.find((hero) => hero.heroId === projectile.ownerId);
         if (owner) {
           this.applyDamageToEnemy(hitTarget, projectile.damage, owner);
         }
         projectile.destroy();
+        this.projectiles.splice(i, 1);
+        continue;
+      }
+
+      if (!projectile.active) {
         this.projectiles.splice(i, 1);
       }
     }
@@ -181,10 +181,28 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
     );
     attacker.attackCounter += 1;
 
+    this.emit('enemyHit', {
+      instanceId: enemy.instanceId,
+      enemyId: enemy.enemyId,
+      damage,
+      currentHP: enemy.currentHP,
+      maxHP: enemy.maxHP,
+    });
+
     if (enemy.currentHP <= 0) {
       enemy.currentHP = 0;
       enemy.isAlive = false;
+      this.clearProjectilesTargeting(enemy.instanceId);
       this.emit('enemyKilled', enemy.instanceId);
+    }
+  }
+
+  private clearProjectilesTargeting(instanceId: string): void {
+    for (let i = this.projectiles.length - 1; i >= 0; i -= 1) {
+      if (this.projectiles[i].targetId === instanceId) {
+        this.projectiles[i].destroy();
+        this.projectiles.splice(i, 1);
+      }
     }
   }
 

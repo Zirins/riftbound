@@ -69,11 +69,6 @@ export class Projectile {
     const dy = target.y - this.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
 
-    if (this.overlapsTarget(target)) {
-      this.active = false;
-      return target;
-    }
-
     if (dist > this.speed * delta) {
       this.x += (dx / dist) * this.speed * delta;
       this.y += (dy / dist) * this.speed * delta;
@@ -83,6 +78,12 @@ export class Projectile {
     }
 
     this.sprite.setPosition(this.x, this.y);
+
+    if (this.overlapsTarget(target)) {
+      this.active = false;
+      return target;
+    }
+
     return null;
   }
 
