@@ -146,8 +146,17 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
     const nextX = hero.x + (dx / dist) * step;
     const nextY = hero.y + (dy / dist) * step;
 
-    hero.x = Math.max(hero.radius, Math.min(CANVAS.HERO_ZONE_END - hero.radius, nextX));
-    hero.y = nextY;
+    // Closest melee position — may cross zone midpoint; HERO_ZONE_END alone leaves a gap.
+    const engageDist = hero.radius + target.radius;
+    const engageX = target.x - (dx / dist) * engageDist;
+    const engageY = target.y - (dy / dist) * engageDist;
+
+    hero.x = dx > 0
+      ? Math.max(hero.radius, Math.min(engageX, nextX))
+      : Math.min(CANVAS.WIDTH - hero.radius, Math.max(engageX, nextX));
+    hero.y = dy > 0
+      ? Math.min(engageY, nextY)
+      : Math.max(engageY, nextY);
     hero.targetX = hero.x;
     hero.targetY = hero.y;
   }
