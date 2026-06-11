@@ -4,7 +4,6 @@
 import Phaser from 'phaser';
 import { CANVAS, UI } from '../constants/gameConfig';
 import { clearFormation } from '../systems/SaveSystem';
-import { FormationScene } from './FormationScene';
 
 interface DefeatSceneData {
   firstHeroName?: string;
@@ -17,11 +16,13 @@ export class DefeatScene extends Phaser.Scene {
   private titleLabel!: Phaser.GameObjects.Text;
   private messageLabel!: Phaser.GameObjects.Text;
   private fallenLabel!: Phaser.GameObjects.Text;
-  private retryButton!: Phaser.GameObjects.Text;
-  private changeTeamButton!: Phaser.GameObjects.Text;
+  private retryBg!: Phaser.GameObjects.Rectangle;
+  private retryLabel!: Phaser.GameObjects.Text;
+  private changeTeamBg!: Phaser.GameObjects.Rectangle;
+  private changeTeamLabel!: Phaser.GameObjects.Text;
 
   constructor() {
-    super({ key: DefeatScene.KEY });
+    super({ key: 'DefeatScene' });
   }
 
   init(data: DefeatSceneData): void {
@@ -35,80 +36,67 @@ export class DefeatScene extends Phaser.Scene {
       CANVAS.WIDTH / 2,
       CANVAS.HEIGHT / 2 - 80,
       'DEFEAT',
-      {
-        fontSize: '36px',
-        color: '#ff4444',
-        fontFamily: 'monospace',
-      },
+      { fontSize: '36px', color: '#ff4444', fontFamily: 'monospace' },
     ).setOrigin(0.5);
 
     this.messageLabel = this.add.text(
       CANVAS.WIDTH / 2,
       CANVAS.HEIGHT / 2 - 30,
       'All Relic Bearers have fallen.',
-      {
-        fontSize: '16px',
-        color: '#cccccc',
-        fontFamily: 'monospace',
-      },
+      { fontSize: '16px', color: '#cccccc', fontFamily: 'monospace' },
     ).setOrigin(0.5);
 
     this.fallenLabel = this.add.text(
       CANVAS.WIDTH / 2,
       CANVAS.HEIGHT / 2 + 5,
       `First to fall: ${this.firstHeroName}`,
-      {
-        fontSize: '14px',
-        color: '#ff8888',
-        fontFamily: 'monospace',
-      },
+      { fontSize: '14px', color: '#ff8888', fontFamily: 'monospace' },
     ).setOrigin(0.5);
 
-    this.retryButton = this.add.text(
-      CANVAS.WIDTH / 2 - 90,
-      CANVAS.HEIGHT / 2 + 60,
-      '[ RETRY ]',
-      {
-        fontSize: '18px',
-        color: '#44ccff',
-        fontFamily: 'monospace',
-      },
-    )
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true })
-      .on('pointerup', this.onRetry, this);
+    const buttonY = CANVAS.HEIGHT / 2 + 60;
+    const retryX = CANVAS.WIDTH / 2 - 100;
+    const changeTeamX = CANVAS.WIDTH / 2 + 110;
+    const btnW = 160;
+    const btnH = 48;
 
-    this.changeTeamButton = this.add.text(
-      CANVAS.WIDTH / 2 + 90,
-      CANVAS.HEIGHT / 2 + 60,
-      '[ CHANGE TEAM ]',
-      {
-        fontSize: '18px',
-        color: '#44ccff',
-        fontFamily: 'monospace',
-      },
-    )
-      .setOrigin(0.5)
+    // ── Retry ──────────────────────────────────────────────────────────────
+    this.retryBg = this.add.rectangle(retryX, buttonY, btnW, btnH, 0x2a2a44)
+      .setStrokeStyle(2, 0x44ccff)
+      .setDepth(2000)
       .setInteractive({ useHandCursor: true })
-      .on('pointerup', this.onChangeTeam, this);
+      .on('pointerdown', () => {
+        this.scene.start('FormationScene');
+      });
+
+    this.retryLabel = this.add.text(retryX, buttonY, '[ RETRY ]', {
+      fontSize: '18px', color: '#44ccff', fontFamily: 'monospace',
+    }).setOrigin(0.5).setDepth(2001);
+
+    // ── Change Team ────────────────────────────────────────────────────────
+    this.changeTeamBg = this.add.rectangle(changeTeamX, buttonY, btnW + 40, btnH, 0x2a2a44)
+      .setStrokeStyle(2, 0x44ccff)
+      .setDepth(2000)
+      .setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => {
+        clearFormation();
+        this.scene.start('FormationScene');
+      });
+
+    this.changeTeamLabel = this.add.text(changeTeamX, buttonY, '[ CHANGE TEAM ]', {
+      fontSize: '18px', color: '#44ccff', fontFamily: 'monospace',
+    }).setOrigin(0.5).setDepth(2001);
+
   }
 
   shutdown(): void {
-    this.retryButton?.off('pointerup', this.onRetry, this);
-    this.changeTeamButton?.off('pointerup', this.onChangeTeam, this);
+    this.retryBg?.removeAllListeners();
+    this.retryBg?.destroy();
+    this.retryLabel?.destroy();
+    this.changeTeamBg?.removeAllListeners();
+    this.changeTeamBg?.destroy();
+    this.changeTeamLabel?.destroy();
     this.titleLabel?.destroy();
     this.messageLabel?.destroy();
     this.fallenLabel?.destroy();
-    this.retryButton?.destroy();
-    this.changeTeamButton?.destroy();
   }
-
-  private readonly onRetry = (): void => {
-    this.scene.start(FormationScene.KEY);
-  };
-
-  private readonly onChangeTeam = (): void => {
-    clearFormation();
-    this.scene.start(FormationScene.KEY);
-  };
 }

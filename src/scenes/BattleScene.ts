@@ -3,6 +3,7 @@
 
 import Phaser from 'phaser';
 import { CANVAS, COMBAT, DEV_MODE, ENEMIES, FORMATION, HEROES, UI, WARDEN } from '../constants/gameConfig';
+import { SCENE_KEYS } from '../constants/sceneKeys';
 import { createBattleGameState } from '../store/GameState';
 import { AutoBattleSystem } from '../systems/AutoBattleSystem';
 import { assignCombatSlotIndices, FormationSystem, getHeroBattlePosition } from '../systems/FormationSystem';
@@ -12,8 +13,6 @@ import { WaveSystem } from '../systems/WaveSystem';
 import { BossBar } from '../ui/BossBar';
 import { drawEnergyBar } from '../ui/EnergyBar';
 import { UltimateButtons } from '../ui/UltimateButtons';
-import { DefeatScene } from './DefeatScene';
-import { VictoryScene } from './VictoryScene';
 import type { EnemyRuntimeState, GameState, HeroClass, HeroLineupEntry, HeroRuntimeState } from '../types';
 
 interface HeroSetupEntry {
@@ -122,7 +121,7 @@ const HERO_SETUP_BY_ID: Record<string, HeroSetupEntry> = {
 };
 
 export class BattleScene extends Phaser.Scene {
-  static readonly KEY = 'BattleScene';
+  static readonly KEY = SCENE_KEYS.BATTLE;
 
   private battleBackground!: Phaser.GameObjects.Rectangle;
   private waveLabel!: Phaser.GameObjects.Text;
@@ -170,7 +169,7 @@ export class BattleScene extends Phaser.Scene {
     this.battleEnded = true;
     this.gameState.isVictory = true;
     this.combatActive = false;
-    this.scene.start(VictoryScene.KEY);
+    this.scene.start(SCENE_KEYS.VICTORY);
   };
 
   private readonly onWaveEnemiesSpawned = (payload: WaveEnemiesSpawnedPayload): void => {
@@ -335,7 +334,7 @@ export class BattleScene extends Phaser.Scene {
     const fallenHeroId = this.gameState.firstHeroToFall ?? HEROES.KAEL.ID;
     const fallenName = HERO_SETUP_BY_ID[fallenHeroId]?.name ?? 'Unknown';
 
-    this.scene.start(DefeatScene.KEY, { firstHeroName: fallenName });
+    this.scene.start(SCENE_KEYS.DEFEAT, { firstHeroName: fallenName });
   }
 
   private spawnHeroes(): void {
