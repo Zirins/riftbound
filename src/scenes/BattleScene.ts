@@ -3,11 +3,15 @@
 
 import Phaser from 'phaser';
 import { CANVAS, COMBAT, ENEMIES, FORMATION, HEROES, UI, WAVES } from '../constants/gameConfig';
+import { createBattleGameState } from '../store/GameState';
 import { AutoBattleSystem } from '../systems/AutoBattleSystem';
 import { FormationSystem, getHeroBattlePosition } from '../systems/FormationSystem';
 import { getBattleFormationSlots } from '../systems/SaveSystem';
+import { UltimateSystem } from '../systems/UltimateSystem';
 import { WaveSystem } from '../systems/WaveSystem';
-import type { EnemyRuntimeState, HeroClass, HeroRuntimeState } from '../types';
+import { drawEnergyBar } from '../ui/EnergyBar';
+import { UltimateButtons } from '../ui/UltimateButtons';
+import type { EnemyRuntimeState, GameState, HeroClass, HeroRuntimeState } from '../types';
 
 interface HeroSetupEntry {
   id: string;
@@ -27,6 +31,7 @@ interface UnitVisual {
   circle: Phaser.GameObjects.Arc;
   label: Phaser.GameObjects.Text;
   hpBar: Phaser.GameObjects.Graphics;
+  energyBar?: Phaser.GameObjects.Graphics;
 }
 
 // Default slot map: 0 Kael, 1 Sura, 2 Mira, 3 Nyra — overridden by SaveSystem when valid.
@@ -98,9 +103,12 @@ export class BattleScene extends Phaser.Scene {
   private heroVisuals = new Map<string, UnitVisual>();
   private enemyVisuals = new Map<string, UnitVisual>();
 
+  private gameState!: GameState;
   private autoBattle!: AutoBattleSystem;
   private waveSystem!: WaveSystem;
   private formationSystem!: FormationSystem;
+  private ultimateSystem!: UltimateSystem;
+  private ultimateButtons!: UltimateButtons;
   private combatActive = false;
 
   private readonly onFormationReady = (): void => {
@@ -108,6 +116,7 @@ export class BattleScene extends Phaser.Scene {
   };
 
   private readonly onEnemyKilled = (instanceId: string): void => {
+    this.autoBattle.queueTargetCleanup(instanceId);
     this.syncUnitVisual(this.enemyVisuals.get(instanceId), this.enemies.find((e) => e.instanceId === instanceId));
     this.waveSystem.onEnemyKilled(this.enemies);
   };
@@ -138,27 +147,41 @@ export class BattleScene extends Phaser.Scene {
 
     this.spawnHeroes();
     this.spawnGrunts();
+    this.gameState = createBattleGameState(this.heroes, this.enemies);
 
     this.formationSystem = new FormationSystem();
     this.formationSystem.animateWalkIn(this.heroes, this.enemies);
     this.formationSystem.on('formationReady', this.onFormationReady);
     this.syncAllVisuals();
 
+    this.ultimateSystem = new UltimateSystem(this);
+    this.ultimateButtons = new UltimateButtons(
+      this,
+      this.gameState,
+      (heroId) => this.ultimateSystem.fireUltimate(heroId, this.gameState),
+    );
+    this.ultimateButtons.create();
+
     this.autoBattle = new AutoBattleSystem(this);
     this.waveSystem = new WaveSystem();
 
     this.autoBattle.on('enemyKilled', this.onEnemyKilled);
+    this.ultimateSystem.on('enemyKilled', this.onEnemyKilled);
     this.waveSystem.on('waveCleared', this.onWaveCleared);
   }
 
   update(_time: number, delta: number): void {
     const deltaSeconds = delta / 1000;
     this.formationSystem.update(deltaSeconds);
+
+    if (this.combatActive) {
+      this.gameState.elapsedTimeMs += delta;
+      this.autoBattle.update(this.heroes, this.enemies, deltaSeconds);
+      this.ultimateSystem.update(deltaSeconds, this.gameState);
+    }
+
     this.syncAllVisuals();
-
-    if (!this.combatActive) return;
-
-    this.autoBattle.update(this.heroes, this.enemies, deltaSeconds);
+    this.ultimateButtons.update(this.heroes);
   }
 
   private spawnHeroes(): void {
@@ -196,10 +219,9 @@ export class BattleScene extends Phaser.Scene {
       };
 
       this.heroes.push(hero);
-      this.heroVisuals.set(
-        setup.id,
-        this.createUnitVisual(setup.name, setup.color, setup.radius, position.x, position.y),
-      );
+      const visual = this.createUnitVisual(setup.name, setup.color, setup.radius, position.x, position.y);
+      visual.energyBar = this.add.graphics();
+      this.heroVisuals.set(setup.id, visual);
     }
   }
 
@@ -253,10 +275,32 @@ export class BattleScene extends Phaser.Scene {
 
   private syncAllVisuals(): void {
     for (const hero of this.heroes) {
-      this.syncUnitVisual(this.heroVisuals.get(hero.heroId), hero);
+      this.syncHeroVisual(this.heroVisuals.get(hero.heroId), hero);
     }
     for (const enemy of this.enemies) {
       this.syncUnitVisual(this.enemyVisuals.get(enemy.instanceId), enemy);
+    }
+  }
+
+  private syncHeroVisual(
+    visual: UnitVisual | undefined,
+    hero: HeroRuntimeState | undefined,
+  ): void {
+    if (!visual || !hero) return;
+
+    visual.circle.setVisible(hero.isAlive);
+    visual.label.setVisible(hero.isAlive);
+    visual.hpBar.setVisible(hero.isAlive);
+    visual.energyBar?.setVisible(hero.isAlive);
+
+    if (!hero.isAlive) return;
+
+    visual.circle.setPosition(hero.x, hero.y);
+    visual.label.setPosition(hero.x, hero.y + hero.radius);
+    this.drawHpBar(visual.hpBar, hero);
+    if (visual.energyBar) {
+      visual.energyBar.clear();
+      drawEnergyBar(visual.energyBar, hero);
     }
   }
 
@@ -296,8 +340,11 @@ export class BattleScene extends Phaser.Scene {
   shutdown(): void {
     this.formationSystem?.off('formationReady', this.onFormationReady);
     this.autoBattle?.off('enemyKilled', this.onEnemyKilled);
+    this.ultimateSystem?.off('enemyKilled', this.onEnemyKilled);
     this.waveSystem?.off('waveCleared', this.onWaveCleared);
     this.autoBattle?.clearProjectiles();
+    this.ultimateSystem?.destroy();
+    this.ultimateButtons?.destroy();
 
     this.battleBackground?.destroy();
     this.waveLabel?.destroy();
@@ -306,6 +353,7 @@ export class BattleScene extends Phaser.Scene {
       visual.circle.destroy();
       visual.label.destroy();
       visual.hpBar.destroy();
+      visual.energyBar?.destroy();
     }
     for (const visual of this.enemyVisuals.values()) {
       visual.circle.destroy();

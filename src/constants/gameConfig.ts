@@ -100,6 +100,7 @@ export const HEROES = {
     CLEAVE_RADIUS: 120,     // px — Ember Cleave passive radius
     CLEAVE_ENERGY_MULT: 0.5,
     ULTIMATE_DAMAGE: 400,
+    ULTIMATE_LINE_HALF_HEIGHT: 30, // px — Solar Rend hits enemies within ±this y band
     BURN_DPS: 40,           // damage per second from Solar Rend burn
     BURN_DURATION: 3000,    // ms
   },
@@ -277,6 +278,10 @@ export const UI = {
   HUD_PORTRAIT_Y: 350,         // center Y of portrait buttons in HUD strip
   HUD_PORTRAIT_SPACING: 180,   // px between portrait button centers
   HUD_PORTRAIT_START_X: 120,   // x of first (leftmost) portrait button
+  HUD_DEPTH: 1000,
+  HUD_TAP_ZONE_HEIGHT: 74,
+  ULTIMATE_VFX_DEPTH: 500,
+  ULTIMATE_VFX_DURATION: 900,
 } as const;
 
 // ─── App ──────────────────────────────────────────────────────────────────────

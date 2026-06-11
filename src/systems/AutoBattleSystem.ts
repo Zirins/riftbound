@@ -27,10 +27,16 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
     enemies: EnemyRuntimeState[],
     delta: number,
   ): void {
+    this.tickStatusEffects(heroes, enemies, delta);
     this.tickProjectiles(heroes, enemies, delta);
     this.tickHeroes(heroes, enemies, delta);
     this.tickEnemies(heroes, enemies, delta);
+    this.syncUltimateReady(heroes);
     this.flushProjectileCleanups();
+  }
+
+  queueTargetCleanup(instanceId: string): void {
+    this.pendingTargetCleanups.add(instanceId);
   }
 
   clearProjectiles(): void {
@@ -67,6 +73,48 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
 
     for (let i = indicesToRemove.length - 1; i >= 0; i -= 1) {
       this.projectiles.splice(indicesToRemove[i], 1);
+    }
+  }
+
+  private syncUltimateReady(heroes: HeroRuntimeState[]): void {
+    for (const hero of heroes) {
+      hero.ultimateReady = hero.isAlive && hero.currentEnergy >= COMBAT.ENERGY_MAX;
+    }
+  }
+
+  private tickStatusEffects(
+    heroes: HeroRuntimeState[],
+    enemies: EnemyRuntimeState[],
+    delta: number,
+  ): void {
+    const deltaMs = delta * 1000;
+
+    for (const hero of heroes) {
+      hero.activeBuffs = hero.activeBuffs.filter((buff) => {
+        buff.durationRemaining -= deltaMs;
+        return buff.durationRemaining > 0 && buff.value > 0;
+      });
+      hero.activeDebuffs = hero.activeDebuffs.filter((debuff) => {
+        debuff.durationRemaining -= deltaMs;
+        return debuff.durationRemaining > 0;
+      });
+    }
+
+    for (const enemy of enemies) {
+      if (!enemy.isAlive) continue;
+
+      for (const debuff of enemy.activeDebuffs) {
+        if (debuff.type !== 'burn') continue;
+        enemy.currentHP -= debuff.value * delta;
+        if (enemy.currentHP <= 0) {
+          enemy.currentHP = 0;
+          enemy.isAlive = false;
+          this.pendingTargetCleanups.add(enemy.instanceId);
+          this.emit('enemyKilled', enemy.instanceId);
+        }
+      }
+
+      enemy.activeDebuffs = enemy.activeDebuffs.filter((debuff) => debuff.durationRemaining > 0);
     }
   }
 
@@ -264,7 +312,18 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
   private applyDamageToHero(hero: HeroRuntimeState, damage: number): void {
     if (!hero.isAlive) return;
 
-    hero.currentHP -= damage;
+    let remaining = damage;
+    const shieldBuff = hero.activeBuffs.find((buff) => buff.type === 'shield');
+    if (shieldBuff) {
+      const absorbed = Math.min(shieldBuff.value, remaining);
+      shieldBuff.value -= absorbed;
+      remaining -= absorbed;
+      if (shieldBuff.value <= 0) {
+        hero.activeBuffs = hero.activeBuffs.filter((buff) => buff.id !== shieldBuff.id);
+      }
+    }
+
+    hero.currentHP -= remaining;
     hero.currentEnergy = Math.min(
       COMBAT.ENERGY_MAX,
       hero.currentEnergy + COMBAT.ENERGY_GAIN_ON_TAKEN,
