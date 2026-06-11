@@ -48,7 +48,8 @@ export const FORMATION = {
     { x: 620, platformY: 200 },
   ],
   LINEUP_HERO_Y_OFFSET: -36,
-  LINEUP_TAP_ZONE_HEIGHT: 120,
+  // Display slot order for lineup screen — tank first, then fighter, support, ranger.
+  LINEUP_CLASS_SLOT_ORDER: ['tank', 'fighter', 'support', 'ranger'],
 } as const;
 
 // ─── Combat ───────────────────────────────────────────────────────────────────
@@ -300,10 +301,7 @@ export const UI = {
   RIFT_BLOOM_PULSE_ALPHA: 0.85,
   FORMATION_LINEUP_STAGE_COLOR: 0x1a1a33,
   FORMATION_LINEUP_PLATFORM_COLOR: 0x3a3a55,
-  FORMATION_LINEUP_PLATFORM_ACTIVE_COLOR: 0x44ccff,
   FORMATION_LINEUP_TITLE_Y: 36,
-  FORMATION_SLOT_ACTIVE_BORDER: 0x44ccff,
-  FORMATION_SLOT_EMPTY_BORDER: 0x666688,
   FORMATION_ROSTER_Y: 355,
   FORMATION_ROSTER_START_X: 140,
   FORMATION_ROSTER_SPACING: 140,
