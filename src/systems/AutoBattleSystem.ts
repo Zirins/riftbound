@@ -1,10 +1,15 @@
 // src/systems/AutoBattleSystem.ts
 // Core combat loop — attack timers, damage resolution, death detection.
-// Basic nearest-target selection; per-class AI arrives in Prompt 4.
 
 import Phaser from 'phaser';
-import { COMBAT, HEROES } from '../constants/gameConfig';
+import { CANVAS, COMBAT, HEROES, RANGER } from '../constants/gameConfig';
 import { createHeroProjectile, Projectile } from '../entities/Projectile';
+import {
+  getEnemyTarget,
+  getHeroTarget,
+  getNearestLivingEnemy,
+  getSupportHealTarget,
+} from './TargetingSystem';
 import type { EnemyRuntimeState, HeroClass, HeroRuntimeState } from '../types';
 
 type CombatUnit = HeroRuntimeState | EnemyRuntimeState;
@@ -69,10 +74,14 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
         continue;
       }
 
+      if (hero.heroClass === 'ranger') {
+        this.applyRangerStandoff(hero, enemies, delta);
+      }
+
       hero.attackCooldownRemaining -= delta * 1000;
       if (hero.attackCooldownRemaining > 0) continue;
 
-      const target = this.findNearestLivingEnemy(hero, enemies);
+      const target = getHeroTarget(hero, enemies);
       if (!target) continue;
 
       if (this.isRangedHero(hero.heroClass)) {
@@ -103,7 +112,7 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
       enemy.attackCooldownRemaining -= delta * 1000;
       if (enemy.attackCooldownRemaining > 0) continue;
 
-      const target = this.findNearestLivingHero(enemy, heroes);
+      const target = getEnemyTarget(enemy, heroes);
       if (!target) continue;
 
       if (this.getDistance(enemy, target) <= enemy.attackRange) {
@@ -114,6 +123,31 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
     }
   }
 
+  private applyRangerStandoff(
+    hero: HeroRuntimeState,
+    enemies: EnemyRuntimeState[],
+    delta: number,
+  ): void {
+    const nearest = getNearestLivingEnemy(hero, enemies);
+    if (!nearest) return;
+
+    const dist = this.getDistance(hero, nearest);
+    if (dist >= RANGER.STANDOFF_RANGE) return;
+
+    const dx = hero.x - nearest.x;
+    const dy = hero.y - nearest.y;
+    if (dist === 0) return;
+
+    const step = hero.moveSpeed * delta;
+    const nextX = hero.x + (dx / dist) * step;
+    const nextY = hero.y + (dy / dist) * step;
+
+    hero.x = Math.max(0, Math.min(CANVAS.HERO_ZONE_END - hero.radius, nextX));
+    hero.y = nextY;
+    hero.targetX = hero.x;
+    hero.targetY = hero.y;
+  }
+
   private tickSupportHeal(
     hero: HeroRuntimeState,
     heroes: HeroRuntimeState[],
@@ -122,7 +156,7 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
     hero.healCooldownRemaining -= delta * 1000;
     if (hero.healCooldownRemaining > 0) return;
 
-    const ally = this.findLowestHpAlly(hero, heroes);
+    const ally = getSupportHealTarget(hero, heroes);
     if (!ally) {
       hero.healCooldownRemaining = HEROES.MIRA.HEAL_COOLDOWN;
       return;
@@ -172,45 +206,6 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
 
   private calculateDamage(attack: number, defense: number): number {
     return Math.max(COMBAT.MIN_DAMAGE, attack - defense);
-  }
-
-  private findNearestLivingEnemy(
-    hero: HeroRuntimeState,
-    enemies: EnemyRuntimeState[],
-  ): EnemyRuntimeState | null {
-    return this.findNearestLiving(hero, enemies.filter((enemy) => enemy.isAlive));
-  }
-
-  private findNearestLivingHero(
-    enemy: EnemyRuntimeState,
-    heroes: HeroRuntimeState[],
-  ): HeroRuntimeState | null {
-    return this.findNearestLiving(enemy, heroes.filter((hero) => hero.isAlive));
-  }
-
-  private findLowestHpAlly(
-    healer: HeroRuntimeState,
-    heroes: HeroRuntimeState[],
-  ): HeroRuntimeState | null {
-    const allies = heroes.filter((hero) => hero.isAlive && hero.heroId !== healer.heroId);
-    if (allies.length === 0) return null;
-
-    return allies.reduce((lowest, ally) =>
-      ally.currentHP < lowest.currentHP ? ally : lowest,
-    );
-  }
-
-  private findNearestLiving<T extends CombatUnit>(
-    source: CombatUnit,
-    candidates: T[],
-  ): T | null {
-    if (candidates.length === 0) return null;
-
-    return candidates.reduce((nearest, candidate) => {
-      const nearestDist = this.getDistance(source, nearest);
-      const candidateDist = this.getDistance(source, candidate);
-      return candidateDist < nearestDist ? candidate : nearest;
-    });
   }
 
   private getDistance(a: CombatUnit, b: CombatUnit): number {

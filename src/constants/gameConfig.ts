@@ -284,7 +284,11 @@ export const APP = {
   WEB_DIR: 'dist',
 } as const;
 
-// ─── AI targeting radii ───────────────────────────────────────────────────────
+// ─── AI targeting ─────────────────────────────────────────────────────────────
+export const SUPPORT = {
+  HEAL_TARGET_HP_THRESHOLD: 0.9, // allies above this HP ratio are not heal-targeted
+} as const;
+
 export const MAGE = {
   CLUSTER_RADIUS: 80, // px — mage targets the densest cluster of enemies within this radius
 } as const;
