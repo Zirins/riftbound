@@ -2,7 +2,7 @@
 // V0.1: Battlefield rendering + AutoBattleSystem combat loop.
 
 import Phaser from 'phaser';
-import { CANVAS, COMBAT, ENEMIES, HEROES, UI, WARDEN } from '../constants/gameConfig';
+import { CANVAS, COMBAT, DEV_MODE, ENEMIES, HEROES, UI, WARDEN } from '../constants/gameConfig';
 import { createBattleGameState } from '../store/GameState';
 import { AutoBattleSystem } from '../systems/AutoBattleSystem';
 import { FormationSystem, getHeroBattlePosition } from '../systems/FormationSystem';
@@ -12,6 +12,7 @@ import { WaveSystem } from '../systems/WaveSystem';
 import { BossBar } from '../ui/BossBar';
 import { drawEnergyBar } from '../ui/EnergyBar';
 import { UltimateButtons } from '../ui/UltimateButtons';
+import { DefeatScene } from './DefeatScene';
 import { VictoryScene } from './VictoryScene';
 import type { EnemyRuntimeState, GameState, HeroClass, HeroRuntimeState } from '../types';
 
@@ -140,6 +141,8 @@ export class BattleScene extends Phaser.Scene {
   private bossBar!: BossBar;
   private combatActive = false;
   private isFirstWaveSpawn = true;
+  private battleEnded = false;
+  private readonly heroAliveSnapshot = new Map<string, boolean>();
 
   private readonly onFormationReady = (): void => {
     this.combatActive = true;
@@ -163,6 +166,9 @@ export class BattleScene extends Phaser.Scene {
   };
 
   private readonly onBattleVictory = (): void => {
+    if (this.battleEnded) return;
+    this.battleEnded = true;
+    this.gameState.isVictory = true;
     this.combatActive = false;
     this.scene.start(VictoryScene.KEY);
   };
@@ -249,6 +255,10 @@ export class BattleScene extends Phaser.Scene {
 
     this.waveSystem.startStage();
     this.syncAllVisuals();
+
+    if (DEV_MODE.ENABLED) {
+      this.input.keyboard?.on(`keydown-${DEV_MODE.DEFEAT_SHORTCUT_KEY}`, this.onDevDefeatShortcut, this);
+    }
   }
 
   update(_time: number, delta: number): void {
@@ -267,8 +277,50 @@ export class BattleScene extends Phaser.Scene {
       this.ultimateSystem.update(deltaSeconds, this.gameState);
     }
 
+    this.trackHeroDeaths();
+    this.checkDefeat();
+
     this.syncAllVisuals();
     this.ultimateButtons.update(this.heroes);
+  }
+
+  private trackHeroDeaths(): void {
+    for (const hero of this.heroes) {
+      const wasAlive = this.heroAliveSnapshot.get(hero.heroId) ?? true;
+      if (wasAlive && !hero.isAlive && !this.gameState.firstHeroToFall) {
+        this.gameState.firstHeroToFall = hero.heroId;
+      }
+      this.heroAliveSnapshot.set(hero.heroId, hero.isAlive);
+    }
+  }
+
+  private readonly onDevDefeatShortcut = (): void => {
+    if (!DEV_MODE.ENABLED || this.battleEnded || !this.combatActive) return;
+
+    for (const hero of this.heroes) {
+      if (!hero.isAlive) continue;
+      hero.currentHP = 0;
+      hero.isAlive = false;
+    }
+
+    this.trackHeroDeaths();
+    this.checkDefeat();
+  };
+
+  private checkDefeat(): void {
+    if (this.battleEnded || !this.combatActive) return;
+
+    const livingHeroes = this.heroes.filter((hero) => hero.isAlive);
+    if (livingHeroes.length > 0) return;
+
+    this.battleEnded = true;
+    this.gameState.isDefeat = true;
+    this.combatActive = false;
+
+    const fallenHeroId = this.gameState.firstHeroToFall ?? HEROES.KAEL.ID;
+    const fallenName = HERO_SETUP_BY_ID[fallenHeroId]?.name ?? 'Unknown';
+
+    this.scene.start(DefeatScene.KEY, { firstHeroName: fallenName });
   }
 
   private spawnHeroes(): void {
@@ -306,6 +358,7 @@ export class BattleScene extends Phaser.Scene {
       };
 
       this.heroes.push(hero);
+      this.heroAliveSnapshot.set(hero.heroId, true);
       const visual = this.createUnitVisual(setup.name, setup.color, setup.radius, position.x, position.y);
       visual.energyBar = this.add.graphics();
       this.heroVisuals.set(setup.id, visual);
@@ -411,6 +464,10 @@ export class BattleScene extends Phaser.Scene {
   }
 
   shutdown(): void {
+    if (DEV_MODE.ENABLED) {
+      this.input.keyboard?.off(`keydown-${DEV_MODE.DEFEAT_SHORTCUT_KEY}`, this.onDevDefeatShortcut, this);
+    }
+
     this.formationSystem?.off('formationReady', this.onFormationReady);
     this.formationSystem?.off('waveEnemiesReady', this.onWaveEnemiesReady);
     this.autoBattle?.off('enemyKilled', this.onEnemyKilled);
@@ -442,6 +499,7 @@ export class BattleScene extends Phaser.Scene {
 
     this.heroVisuals.clear();
     this.enemyVisuals.clear();
+    this.heroAliveSnapshot.clear();
     this.heroes = [];
     this.enemies = [];
   }

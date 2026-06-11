@@ -17,5 +17,6 @@ export function createBattleGameState(
     isVictory: false,
     isDefeat: false,
     elapsedTimeMs: 0,
+    firstHeroToFall: null,
   };
 }

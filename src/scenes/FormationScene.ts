@@ -41,13 +41,16 @@ export class FormationScene extends Phaser.Scene {
     )
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true })
-      .on('pointerup', () => {
-        this.scene.start('BattleScene');
-      });
+      .on('pointerup', this.onBattle, this);
   }
 
   shutdown(): void {
+    this.battleButton?.off('pointerup', this.onBattle, this);
     this.label?.destroy();
     this.battleButton?.destroy();
   }
+
+  private readonly onBattle = (): void => {
+    this.scene.start('BattleScene');
+  };
 }

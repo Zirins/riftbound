@@ -307,4 +307,5 @@ export interface GameState {
   isVictory: boolean;
   isDefeat: boolean;
   elapsedTimeMs: number;
+  firstHeroToFall: string | null;
 }

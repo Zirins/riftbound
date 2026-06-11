@@ -157,7 +157,7 @@ export const ENEMIES = {
     ID: 'rift_grunt',
     COLOR: 0x887744,
     RADIUS: 16,
-    HP: 1600, // held at 1600 for ultimate testing — revisit in tuning pass
+    HP: 400,
     ATTACK: 55,
     DEFENSE: 10,
     SPEED: 100,             // px/s
@@ -289,6 +289,20 @@ export const UI = {
   ULTIMATE_VFX_DURATION: 900,
   SOLAR_REND_LINE_ALPHA: 0.9,
   RIFT_BLOOM_PULSE_ALPHA: 0.85,
+} as const;
+
+// ─── Stages ───────────────────────────────────────────────────────────────────
+export const STAGES = {
+  STAGE_1: {
+    ID: 'stage_1',
+    DISPLAY_NAME: 'Stage 1 — Rift Outskirts',
+  },
+} as const;
+
+// ─── Dev / verification (remove before release) ─────────────────────────────
+export const DEV_MODE = {
+  ENABLED: true,
+  DEFEAT_SHORTCUT_KEY: 'D',
 } as const;
 
 // ─── App ──────────────────────────────────────────────────────────────────────
