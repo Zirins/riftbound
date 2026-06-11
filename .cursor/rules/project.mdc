@@ -1,0 +1,283 @@
+---
+description: Riftbound Sigils — Project constitution. Read before generating any code for this project.
+globs:
+  - "**/*.ts"
+  - "**/*.tsx"
+alwaysApply: true
+---
+
+# Riftbound Sigils — Cursor Rules (v3 FINAL)
+
+## Single Source of Truth
+
+`docs/MASTER_GAME_BRIEF_v3_FINAL.md` governs every decision in this project.
+This rules file is a summary and an enforcement layer. When they conflict, the brief wins.
+Read the brief before starting any code generation task in this session.
+
+---
+
+## What This Game Is
+
+A **landscape-orientation, side-view, formation-based auto-battler RPG** for mobile.
+
+- Canvas: **844 × 390 px**, landscape only
+- Heroes on the **LEFT** half. Enemies on the **RIGHT** half.
+- HUD strip at the **BOTTOM** (80 px)
+- Players configure their formation before battle
+- Combat resolves **automatically** — no player input controls unit movement
+- The player's only combat input during battle is **tapping a portrait button to fire an ultimate**
+
+---
+
+## Hard Prohibitions — Never Implement These
+
+Each item below is a hard stop. If a prompt asks for one of these, refuse and explain which rule is violated.
+
+### Portrait Orientation
+Never use a canvas height greater than its width.
+Never set Phaser width to 390 and height to 844.
+The game is 844 × 390. Always.
+
+### Drag-to-Move Controls
+Never add touch drag handlers that move hero units during battle.
+Never implement `pointerdown` / `pointermove` / `pointerup` sequences that reposition heroes.
+Never implement `targetX` / `targetY` that a player sets by dragging.
+Formation is set before battle on the FormationScene. Once battle starts, heroes move only under AI control.
+
+### Manual Dodge Mechanics
+Never implement player-controlled evasion, i-frames triggered by player input, or movement the player uses to avoid enemy attacks.
+The player cannot dodge anything. The formation and class AI handle positioning.
+
+### Roguelite Draft-Card Combat
+Never implement a between-wave card selection screen.
+Never implement a pool of augments shown to the player after a wave clears.
+Never implement run-specific power upgrades chosen by the player during combat.
+The roguelite draft loop is not part of this game.
+
+### V0.1 Out-of-Scope Systems
+Do not build, stub, or reference these in V0.1 code:
+
+| System / Screen | Earliest Version |
+|---|---|
+| RosterScene | v1.1 |
+| HeroDetailScene | v1.1 |
+| SummonScene / GachaSystem | v1.1 |
+| SigilScene / SigilEquipmentSystem | v1.2 |
+| CampaignScene / stage select map | v1.1 |
+| SettingsScene | v1.0 |
+| ShardSystem | v1.1 |
+| StarUpgradeSystem | v1.1 |
+| HeroProgressionSystem | v1.1 |
+| Currency systems (Rift Crystals, Gold) | v1.1 |
+| Paid gacha / IAP | v2.0 |
+| Multiplayer / PvP | Unplanned |
+| Backend / Supabase / cloud saves | v2.0 |
+| 2× speed toggle | v1.0 |
+| Auto mode toggle | v1.0 |
+
+---
+
+## V0.1 Scope — Build Exactly This
+
+### Screens (5 total)
+- `MainMenuScene` — title, Play button, sound toggle
+- `FormationScene` — 2×2 formation grid, hero assignment, Battle button
+- `BattleScene` — complete auto-battle engine
+- `VictoryScene` — reward summary, Continue button
+- `DefeatScene` — retry button, formation hint
+
+### Systems (6 total)
+- `AutoBattleSystem` — attack timers, damage resolution, death detection
+- `TargetingSystem` — per-class target selection AI
+- `FormationSystem` — class-to-position mapping, walk-in animation
+- `UltimateSystem` — energy accumulation, portrait glow, ultimate resolution
+- `WaveSystem` — wave spawning, wave clear detection, Rift Warden boss
+- `SaveSystem` — localStorage for formation slot assignment only
+
+---
+
+## IP Firewall — Never Use These Terms
+
+In code, comments, string literals, variable names, UI text, or file names:
+
+```
+Soul Land · Douluo Continent · Douluo Dalu
+Tang San · Xiao Wu · Bibi Dong · Dai Mubai
+Shrek Academy · Spirit Hall · Sea God Island · Star Dou Forest
+Soul Masters · Martial Souls · Soul Rings · Spirit Beasts
+Soul Power · Soul Seals · Aura Rings · Qi Energy
+Shrek Seven Devils · Blue Silver Grass · Clear Sky Hammer
+```
+
+### Approved Terminology
+
+| Concept | Use This Term |
+|---|---|
+| Power objects bonded to heroes | Sigils / Sigil Cores |
+| Hero warriors | Relic Bearers |
+| Hero inner power manifestation | Anima Forms |
+| Enemy creatures | Riftborn |
+| Accumulated combat power | Resonance |
+| Power rank | Resonance Tier |
+| Combat skills from Sigils | Sigil Arts |
+| Sigil upgrade process | Sigil Bonding |
+| Free summon currency | Rift Crystals |
+| Premium currency (post-MVP) | Void Gems |
+| The game world | Asterra |
+
+---
+
+## The Four MVP Heroes
+
+| Hero | Placeholder | Color Hex | Class | Ultimate Name |
+|---|---|---|---|---|
+| Kael | Blue circle, 24 px radius | `0x4488ff` | Tank / Vanguard | Iron Pulse |
+| Sura | Red circle, 20 px radius | `0xff4422` | Fighter / Striker | Solar Rend |
+| Mira | Green circle, 18 px radius | `0x44cc66` | Support / Healer | Rift Bloom |
+| Nyra | Gold circle, 18 px radius | `0xffcc22` | Ranger / Marksman | Void Barrage |
+
+---
+
+## Architecture Rules
+
+### Constants — gameConfig.ts is the only place for numbers
+Every tunable number lives in `src/constants/gameConfig.ts`.
+HP values, damage values, speed values, cooldown timers, radii, position coordinates, energy thresholds — all of them.
+If you write a raw number into game logic, stop. Name the constant. Add it to gameConfig. Import it.
+
+```typescript
+// Correct — import and use named constants
+import { HEROES, ENEMIES, COMBAT, FORMATION, WARDEN } from '../constants/gameConfig';
+hero.currentHP = HEROES.KAEL.BASE_HP;
+
+// Wrong — magic numbers in logic files
+hero.currentHP = 1800;
+```
+
+### Interfaces — types/index.ts is the only place for types
+All TypeScript interfaces and type aliases live in `src/types/index.ts`.
+Never define interfaces inline in scene files, entity files, or system files.
+
+### File Length
+Maximum 300 lines per file where practical.
+If a file is approaching this limit, split it into a focused sub-module.
+`BattleScene.ts` does not contain targeting logic. `AutoBattleSystem.ts` does not contain wave spawning.
+
+### One Responsibility Per File
+- `AutoBattleSystem.ts` — combat loop and attack resolution only
+- `TargetingSystem.ts` — target selection only
+- `FormationSystem.ts` — position assignment and walk-in only
+- `UltimateSystem.ts` — energy and ultimate resolution only
+- `WaveSystem.ts` — wave spawning and boss behavior only
+- `SaveSystem.ts` — localStorage read/write only
+
+### Scene Cleanup
+Every Phaser scene implements `shutdown()`.
+`shutdown()` destroys every Phaser.GameObjects object, Graphics object, Tween, Timer, and event listener created in `create()`.
+A scene that leaks on transition will crash the app after a few session loops.
+
+### TypeScript Strictness
+- TypeScript only. No `.js` files in `src/`.
+- Never use `any`. Define an interface.
+- Use `as const` on all config objects in `gameConfig.ts`.
+
+### Standard Formulas (copy these exactly)
+
+```typescript
+// LERP movement — delta in seconds
+const dx = target.x - unit.x;
+const dy = target.y - unit.y;
+const dist = Math.sqrt(dx * dx + dy * dy);
+if (dist > unit.speed * delta) {
+  unit.x += (dx / dist) * unit.speed * delta;
+  unit.y += (dy / dist) * unit.speed * delta;
+} else {
+  unit.x = target.x;
+  unit.y = target.y;
+}
+
+// Circle collision — avoid sqrt for performance
+function overlaps(a: { x: number; y: number; radius: number },
+                  b: { x: number; y: number; radius: number }): boolean {
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  return dx * dx + dy * dy < (a.radius + b.radius) * (a.radius + b.radius);
+}
+
+// Damage formula
+const finalDamage = Math.max(COMBAT.MIN_DAMAGE, attacker.attack - defender.defense);
+```
+
+---
+
+## Battlefield Layout (Reference)
+
+```
+Hero zone: x 0–422   |   Enemy zone: x 422–844
+HUD strip: y 310–390  |   Battle area: y 0–310
+
+Formation slot positions (from gameConfig.FORMATION.HERO_POSITIONS):
+  Slot 0 Front-Left:  x=280  y=100
+  Slot 1 Front-Right: x=280  y=210
+  Slot 2 Back-Left:   x=110  y=100
+  Slot 3 Back-Right:  x=110  y=210
+```
+
+Never hardcode these coordinates in scene or system files. Always read from `FORMATION.HERO_POSITIONS[slotIndex]`.
+
+---
+
+## Sequential Build Order — One System at a Time
+
+Work through these 10 prompts in order. Do not skip. Do not combine two prompts into one request.
+
+```
+1.  Project scaffold — types, gameConfig, stub scenes, Vite config
+2.  BattleScene canvas — 4 hero circles rendered in formation positions
+3.  AutoBattleSystem — attack timers, damage, death detection
+4.  TargetingSystem — per-class AI target selection
+5.  FormationSystem — class-to-position mapping, walk-in animation
+6.  UltimateSystem — energy bars, portrait glow, ultimate resolution, auto mode
+7.  WaveSystem — 4 waves + Rift Warden boss with telegraph slam
+8.  VictoryScene + DefeatScene + complete scene loop
+9.  FormationScene — 4-slot grid, hero assignment, save persistence
+10. Capacitor Android build — landscape lock, safe area, device test
+```
+
+---
+
+## After Every Response — Mandatory Stop
+
+After completing any code generation task, always output this block:
+
+```
+FILES CHANGED:
+  [list every file created or modified]
+
+HOW TO VERIFY:
+  [concrete steps to test that this prompt's work is correct]
+
+NEXT STEP:
+  Prompt [N+1] — [name of next prompt]
+
+⏸ Waiting for confirmation before proceeding. Test the above, then reply "continue"
+  or describe any issues to fix first.
+```
+
+Do not generate code for the next system until the user explicitly confirms the current one is working. If the user says "continue" without reporting issues, proceed to the next prompt in sequence.
+
+---
+
+## Publishing
+
+- App ID: `com.riftboundsigils.game`
+- App name: Riftbound Sigils
+- Google Play first — $25 one-time registration
+- iOS second — $99/year Apple Developer Program
+- Store listing must not contain: Soul, Douluo, Spirit, Ring, Land, Reloaded, or any Soul Land-adjacent search term
+
+## Monetization in V0.1
+
+None. No purchase flows. No currency display. No pricing UI.
+The gacha system is architected in the types and brief — it is not built until v1.1.
+Any code that adds a payment flow or Rift Crystal purchase button in V0.1 is out of scope.
