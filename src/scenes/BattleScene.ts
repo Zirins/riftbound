@@ -255,6 +255,8 @@ export class BattleScene extends Phaser.Scene {
     const deltaSeconds = delta / 1000;
     this.formationSystem.update(deltaSeconds);
 
+    this.waveSystem.update(delta, this.heroes, this.enemies, this.onGruntSummoned);
+
     const canFight = this.combatActive
       && !this.waveSystem.isInterWavePause
       && !this.formationSystem.isActive;
@@ -263,7 +265,6 @@ export class BattleScene extends Phaser.Scene {
       this.gameState.elapsedTimeMs += delta;
       this.autoBattle.update(this.heroes, this.enemies, deltaSeconds);
       this.ultimateSystem.update(deltaSeconds, this.gameState);
-      this.waveSystem.update(delta, this.heroes, this.enemies, this.onGruntSummoned);
     }
 
     this.syncAllVisuals();
