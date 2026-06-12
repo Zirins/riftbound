@@ -2,7 +2,7 @@
 // V0.1: Battlefield rendering + AutoBattleSystem combat loop.
 
 import Phaser from 'phaser';
-import { CANVAS, COMBAT, DEV_MODE, ENEMIES, FORMATION, HEROES, UI, WARDEN } from '../constants/gameConfig';
+import { CANVAS, COMBAT, ENEMIES, FORMATION, HEROES, UI, WARDEN } from '../constants/gameConfig';
 import { SCENE_KEYS } from '../constants/sceneKeys';
 import { createBattleGameState } from '../store/GameState';
 import { AutoBattleSystem } from '../systems/AutoBattleSystem';
@@ -256,12 +256,6 @@ export class BattleScene extends Phaser.Scene {
 
     this.waveSystem.startStage();
     this.syncAllVisuals();
-
-    if (DEV_MODE.ENABLED && this.input.keyboard) {
-      const defeatKeyEvent = `keydown-${DEV_MODE.DEFEAT_SHORTCUT_KEY}`;
-      this.input.keyboard.off(defeatKeyEvent, this.onDevDefeatShortcut, this);
-      this.input.keyboard.on(defeatKeyEvent, this.onDevDefeatShortcut, this);
-    }
   }
 
   private resetBattleSession(): void {
@@ -307,19 +301,6 @@ export class BattleScene extends Phaser.Scene {
       this.heroAliveSnapshot.set(hero.heroId, hero.isAlive);
     }
   }
-
-  private readonly onDevDefeatShortcut = (): void => {
-    if (!DEV_MODE.ENABLED || this.battleEnded || !this.combatActive) return;
-
-    for (const hero of this.heroes) {
-      if (!hero.isAlive) continue;
-      hero.currentHP = 0;
-      hero.isAlive = false;
-    }
-
-    this.trackHeroDeaths();
-    this.checkDefeat();
-  };
 
   private checkDefeat(): void {
     if (this.battleEnded || !this.combatActive) return;
@@ -485,10 +466,6 @@ export class BattleScene extends Phaser.Scene {
   }
 
   shutdown(): void {
-    if (DEV_MODE.ENABLED) {
-      this.input.keyboard?.off(`keydown-${DEV_MODE.DEFEAT_SHORTCUT_KEY}`, this.onDevDefeatShortcut, this);
-    }
-
     this.formationSystem?.off('formationReady', this.onFormationReady);
     this.formationSystem?.off('waveEnemiesReady', this.onWaveEnemiesReady);
     this.autoBattle?.off('enemyKilled', this.onEnemyKilled);

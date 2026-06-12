@@ -336,12 +336,6 @@ export const STAGES = {
   },
 } as const;
 
-// ─── Dev / verification (remove before release) ─────────────────────────────
-export const DEV_MODE = {
-  ENABLED: true,
-  DEFEAT_SHORTCUT_KEY: 'D',
-} as const;
-
 // ─── App ──────────────────────────────────────────────────────────────────────
 export const APP = {
   ID: 'com.riftboundsigils.game',
