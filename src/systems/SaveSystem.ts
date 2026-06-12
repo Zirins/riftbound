@@ -1,10 +1,20 @@
 // src/systems/SaveSystem.ts
 // V0.1: localStorage team lineup + settings.
+// V1.1: SaveRoot schema via riftbound_save_root.
 
-import { HEROES } from '../constants/gameConfig';
+import { ENERGY, HEROES, STARTER } from '../constants/gameConfig';
+import type {
+  FormationGrid,
+  HeroOwnershipState,
+  MailMessage,
+  RealmSaveData,
+  SaveRoot,
+} from '../types';
 
 const STORAGE_KEY = 'riftbound_mvp_formation';
 const SETTINGS_KEY = 'riftbound_settings';
+const SAVE_ROOT_KEY = 'riftbound_save_root';
+const SCHEMA_VERSION = 2;
 
 const DEFAULT_LINEUP_HERO_IDS: readonly string[] = [
   HEROES.KAEL.ID,
@@ -88,6 +98,162 @@ export function saveSettings(settings: GameSettings): void {
 /** Clears saved lineup so the player can pick a new team. */
 export function clearFormation(): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify([...EMPTY_LINEUP]));
+}
+
+// ─── V1.1 SaveRoot API ────────────────────────────────────────────────────────
+
+export function loadRoot(): SaveRoot | null {
+  try {
+    const raw = localStorage.getItem(SAVE_ROOT_KEY);
+    if (!raw) return null;
+    const parsed: unknown = JSON.parse(raw);
+    if (!isSaveRoot(parsed)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export function saveRoot(root: SaveRoot): void {
+  localStorage.setItem(SAVE_ROOT_KEY, JSON.stringify(root));
+}
+
+export function loadCurrentRealm(): RealmSaveData | null {
+  const root = loadRoot();
+  if (!root?.selectedRealmId) return null;
+  return root.realms[root.selectedRealmId] ?? null;
+}
+
+export function saveCurrentRealm(data: RealmSaveData): void {
+  const root = loadRoot();
+  if (!root) return;
+
+  root.realms[data.realmId] = { ...data, lastSaved: Date.now() };
+  root.selectedRealmId = data.realmId;
+  saveRoot(root);
+}
+
+export function hasAnySave(): boolean {
+  const root = loadRoot();
+  return root !== null && Object.keys(root.realms).length > 0;
+}
+
+export function buildDefaultSaveRoot(realmId: string, playerName: string): SaveRoot {
+  const now = Date.now();
+  const today = toDateString(now);
+  const defaultFormation = buildDefaultFormationGrid();
+  const ownedHeroes = DEFAULT_LINEUP_HERO_IDS.map((heroId) => buildStarterHero(heroId, now));
+
+  const realm: RealmSaveData = {
+    realmId,
+    playerName,
+    avatarColorIndex: 0,
+    accountLevel: 1,
+    accountXP: 0,
+    resonanceTier: 1,
+    inventory: {
+      gold: STARTER.GOLD,
+      riftCrystals: STARTER.RIFT_CRYSTALS,
+      voidGems: 0,
+      xpFragments: STARTER.XP_FRAGMENTS,
+      energy: STARTER.ENERGY,
+      maxEnergy: ENERGY.MAX,
+      lastEnergyRegenAt: now,
+      ownedSigilIds: [],
+      heroShards: {},
+    },
+    ownedHeroes,
+    currentFormation: defaultFormation,
+    clearedStages: [],
+    pityCounters: {},
+    arenaState: {
+      rankPoints: 0,
+      rankTier: 'rift_initiate',
+      attemptsUsedToday: 0,
+      lastAttemptResetDate: today,
+      lastRewardClaimDate: '',
+      defenseFormation: defaultFormation,
+    },
+    riftChronicle: {
+      currentStreak: 0,
+      lastClaimDate: '',
+      totalDaysClaimed: 0,
+    },
+    tasks: [],
+    mail: [buildWelcomeMail(now)],
+    dailyShopState: {
+      date: today,
+      purchasedItemIds: [],
+    },
+    settings: {
+      musicVolume: 80,
+      sfxVolume: 80,
+      defaultAutoUltimate: false,
+    },
+    lastSaved: now,
+  };
+
+  return {
+    schemaVersion: SCHEMA_VERSION,
+    realms: { [realmId]: realm },
+    selectedRealmId: realmId,
+  };
+}
+
+function buildWelcomeMail(sentAt: number): MailMessage {
+  return {
+    id: 'welcome_mail',
+    fromName: 'Argent Trial Order',
+    subject: 'Welcome to Rift City, Relic Bearer',
+    body: 'Your assignment begins. The Rift gates are active along the eastern border. Supplies enclosed — use them well.',
+    attachments: [{ type: 'crystals', amount: 300 }],
+    isRead: false,
+    isClaimed: false,
+    sentAt,
+    expiresAt: null,
+  };
+}
+
+function buildStarterHero(heroId: string, acquiredAt: number): HeroOwnershipState {
+  return {
+    heroId,
+    isOwned: true,
+    starRank: 1,
+    level: 1,
+    currentXP: 0,
+    shardCount: 0,
+    equippedSigilIds: [],
+    acquiredAt,
+  };
+}
+
+function buildDefaultFormationGrid(): FormationGrid {
+  const rows = ['front', 'front', 'back', 'back'] as const;
+  const cols = [0, 1, 0, 1];
+
+  return {
+    slots: DEFAULT_LINEUP_HERO_IDS.map((heroId, slotIndex) => ({
+      slotIndex,
+      row: rows[slotIndex],
+      col: cols[slotIndex],
+      assignedHeroId: heroId,
+    })),
+  };
+}
+
+function toDateString(timestamp: number): string {
+  return new Date(timestamp).toISOString().slice(0, 10);
+}
+
+function isSaveRoot(value: unknown): value is SaveRoot {
+  if (typeof value !== 'object' || value === null) return false;
+  const record = value as Record<string, unknown>;
+  return (
+    typeof record.schemaVersion === 'number'
+    && typeof record.realms === 'object'
+    && record.realms !== null
+    && (typeof record.selectedRealmId === 'string' || record.selectedRealmId === null)
+  );
 }
 
 function readSavedSlotsRaw(): unknown[] | null {

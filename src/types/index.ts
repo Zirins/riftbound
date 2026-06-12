@@ -124,6 +124,7 @@ export interface HeroOwnershipState {
   currentXP: number;
   shardCount: number;
   equippedSigilIds: string[];  // max 2 in MVP, 6 post-MVP
+  acquiredAt?: number;       // timestamp ms — V1.1
 }
 
 // ─── Formation ───────────────────────────────────────────────────────────────
@@ -314,4 +315,104 @@ export interface GameState {
   isDefeat: boolean;
   elapsedTimeMs: number;
   firstHeroToFall: string | null;
+}
+
+// ─── V1.1 Save Root ───────────────────────────────────────────────────────────
+
+export interface SaveRoot {
+  schemaVersion: number;         // 2 for V1.1
+  realms: Record<string, RealmSaveData>;
+  selectedRealmId: string | null;
+}
+
+export interface RealmSaveData {
+  realmId: string;
+  playerName: string;
+  avatarColorIndex: number;
+  accountLevel: number;
+  accountXP: number;
+  resonanceTier: number;         // 1–10
+  inventory: PlayerInventoryV2;
+  ownedHeroes: HeroOwnershipState[];
+  currentFormation: FormationGrid;
+  clearedStages: ClearedStageRecord[];
+  pityCounters: Record<string, number>;   // bannerId → pull count since last legendary
+  arenaState: ArenaState;
+  riftChronicle: RiftChronicleState;
+  tasks: DailyTaskState[];
+  mail: MailMessage[];
+  dailyShopState: DailyShopState;
+  settings: GameSettingsV11;
+  lastSaved: number;
+}
+
+export interface PlayerInventoryV2 {
+  gold: number;
+  riftCrystals: number;
+  voidGems: number;              // reserved — V2 IAP premium currency. DO NOT render in V1.1 UI.
+  xpFragments: number;
+  energy: number;
+  maxEnergy: number;
+  lastEnergyRegenAt: number;     // timestamp ms
+  ownedSigilIds: string[];
+  heroShards: Record<string, number>;   // heroId → shard count
+}
+
+export interface ClearedStageRecord {
+  stageId: string;
+  stars: number;                 // 1–3
+  bestClearTimeMs: number;
+  firstClearedAt: number;        // timestamp
+}
+
+export interface ArenaState {
+  rankPoints: number;
+  rankTier: string;              // 'rift_initiate' | 'rift_adept' | etc.
+  attemptsUsedToday: number;
+  lastAttemptResetDate: string;  // 'YYYY-MM-DD'
+  lastRewardClaimDate: string;
+  defenseFormation: FormationGrid;
+}
+
+export interface RiftChronicleState {
+  currentStreak: number;         // days claimed in current run
+  lastClaimDate: string;         // 'YYYY-MM-DD'
+  totalDaysClaimed: number;
+}
+
+export interface DailyTaskState {
+  taskId: string;
+  currentProgress: number;
+  completed: boolean;
+  claimed: boolean;
+  date: string;                  // 'YYYY-MM-DD' — used to detect daily reset
+}
+
+export interface MailMessage {
+  id: string;
+  fromName: string;
+  subject: string;
+  body: string;
+  attachments: MailAttachment[];
+  isRead: boolean;
+  isClaimed: boolean;
+  sentAt: number;
+  expiresAt: number | null;
+}
+
+export interface MailAttachment {
+  type: 'gold' | 'crystals' | 'xpFragments' | 'shards' | 'energy';
+  heroId?: string;               // only for 'shards' type
+  amount: number;
+}
+
+export interface DailyShopState {
+  date: string;                  // 'YYYY-MM-DD'
+  purchasedItemIds: string[];
+}
+
+export interface GameSettingsV11 {
+  musicVolume: number;           // 0–100
+  sfxVolume: number;
+  defaultAutoUltimate: boolean;
 }

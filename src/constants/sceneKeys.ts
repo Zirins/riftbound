@@ -2,9 +2,26 @@
 // Scene key strings — use for navigation to avoid circular scene imports.
 
 export const SCENE_KEYS = {
-  MAIN_MENU: 'MainMenuScene',
-  FORMATION: 'FormationScene',
-  BATTLE: 'BattleScene',
-  VICTORY: 'VictoryScene',
-  DEFEAT: 'DefeatScene',
+  // V0.1 scenes (preserved)
+  MAIN_MENU:        'MainMenuScene',
+  FORMATION:        'FormationScene',
+  BATTLE:           'BattleScene',
+  VICTORY:          'VictoryScene',
+  DEFEAT:           'DefeatScene',
+
+  // V1.1 new scenes
+  REALM_SELECT:     'RealmSelectScene',
+  HUB:              'HubScene',
+  ROSTER:           'RosterScene',
+  HERO_DETAIL:      'HeroDetailScene',
+  SUMMON_TEMPLE:    'SummonTempleScene',
+  SUMMON_RESULT:    'SummonResultScene',
+  CAMPAIGN:         'CampaignScene',
+  STAGE_SELECT:     'StageSelectScene',
+  RESONANCE_ARENA:  'ResonanceArenaScene',
+  ARENA_RESULT:     'ArenaResultScene',
+  SHOP:             'ShopScene',
+  SETTINGS:         'SettingsScene',
 } as const;
+
+export type SceneKey = typeof SCENE_KEYS[keyof typeof SCENE_KEYS];
