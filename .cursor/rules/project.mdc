@@ -1,3 +1,10 @@
+<!--
+V0.1 Combat MVP is complete (Prompts 1–10 shipped).
+Active development brief is RIFTBOUND_SIGILS_v1.1_BRIEF.md.
+MASTER_GAME_BRIEF_v3_FINAL.md remains authoritative for all V0.1
+combat architecture and must not be contradicted.
+TODO: update Cursor rules for V1.1 scope before starting Prompt 11.
+-->
 ---
 description: Riftbound Sigils — Project constitution. Read before generating any code for this project.
 globs:
