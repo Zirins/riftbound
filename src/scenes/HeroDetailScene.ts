@@ -1,5 +1,5 @@
 // src/scenes/HeroDetailScene.ts
-// Full hero profile — stats, RP, progression buttons (stub actions until Phase 6).
+// Full hero profile — stats, RP, level up, star up, and dissolve.
 
 import Phaser from 'phaser';
 import {
@@ -15,9 +15,10 @@ import {
   computeRP,
   getLevelCap,
   getLevelUpCost,
+  levelUp,
 } from '../systems/HeroProgressionSystem';
 import { loadCurrentRealm } from '../systems/SaveSystem';
-import { getStarUpCost } from '../systems/ShardSystem';
+import { dissolve, getStarUpCost, getTotalShards, starUp } from '../systems/ShardSystem';
 import { ButtonPrimary } from '../ui/ButtonPrimary';
 import { HubOverlayPanel } from '../ui/HubOverlayPanel';
 import { ProgressBar } from '../ui/ProgressBar';
@@ -78,6 +79,8 @@ export class HeroDetailScene extends Phaser.Scene {
   private levelLabel: Phaser.GameObjects.Text | null = null;
   private shardLabel: Phaser.GameObjects.Text | null = null;
   private xpLabel: Phaser.GameObjects.Text | null = null;
+  private toastLabel: Phaser.GameObjects.Text | null = null;
+  private toastTimer: Phaser.Time.TimerEvent | null = null;
 
   constructor() {
     super({ key: HeroDetailScene.KEY });
@@ -101,10 +104,15 @@ export class HeroDetailScene extends Phaser.Scene {
       return;
     }
 
-    this.renderLayout(heroData, ownership, realm.inventory.heroShards[heroData.id] ?? 0);
+    this.renderLayout(heroData, ownership, realm);
   }
 
   shutdown(): void {
+    this.toastTimer?.remove();
+    this.toastTimer = null;
+    this.toastLabel?.destroy();
+    this.toastLabel = null;
+
     this.dissolveModal?.close();
     this.dissolveModal?.destroy();
     this.dissolveModal = null;
@@ -141,14 +149,19 @@ export class HeroDetailScene extends Phaser.Scene {
   private renderLayout(
     heroData: HeroData,
     ownership: HeroOwnershipState,
-    inventoryShards: number,
+    realm: NonNullable<ReturnType<typeof loadCurrentRealm>>,
   ): void {
-    const stats = computeHeroStats(ownership, heroData);
+    const stats = computeHeroStats(heroData.id);
+    if (!stats) {
+      this.scene.start(SCENE_KEYS.ROSTER);
+      return;
+    }
+
     const rp = computeRP(ownership, heroData);
     const levelCap = getLevelCap(ownership.starRank);
     const levelCost = getLevelUpCost(ownership.level);
     const starCost = getStarUpCost(ownership.starRank);
-    const totalShards = ownership.shardCount + inventoryShards;
+    const totalShards = getTotalShards(realm, heroData.id, ownership);
     const dissolveYield = DISSOLVE_SHARDS[heroData.rarity];
 
     this.backButton = new ButtonPrimary(
@@ -263,7 +276,7 @@ export class HeroDetailScene extends Phaser.Scene {
       220,
       CANVAS.HEIGHT - 48,
       levelLabel,
-      () => {},
+      () => this.handleLevelUp(),
       280,
     );
     this.levelUpButton.setEnabled(canLevel);
@@ -276,10 +289,45 @@ export class HeroDetailScene extends Phaser.Scene {
       580,
       CANVAS.HEIGHT - 48,
       starLabel,
-      () => {},
+      () => this.handleStarUp(),
       280,
     );
     this.starUpButton.setEnabled(canStar);
+  }
+
+  private handleLevelUp(): void {
+    if (levelUp(this.heroId)) {
+      this.scene.restart({ heroId: this.heroId });
+      return;
+    }
+    this.showToast('Not enough Gold or XP Fragments');
+  }
+
+  private handleStarUp(): void {
+    if (starUp(this.heroId)) {
+      this.scene.restart({ heroId: this.heroId });
+      return;
+    }
+    this.showToast('Not enough shards or Gold');
+  }
+
+  private showToast(message: string): void {
+    this.toastTimer?.remove();
+    this.toastLabel?.destroy();
+
+    this.toastLabel = this.add.text(CANVAS.WIDTH / 2, CANVAS.HEIGHT - 90, message, {
+      fontSize: '12px',
+      color: '#ffffff',
+      fontFamily: 'monospace',
+      backgroundColor: '#333355',
+      padding: { x: 10, y: 6 },
+    }).setOrigin(0.5);
+
+    this.toastTimer = this.time.delayedCall(2200, () => {
+      this.toastLabel?.destroy();
+      this.toastLabel = null;
+      this.toastTimer = null;
+    });
   }
 
   private openDissolveModal(shardYield: number): void {
@@ -304,7 +352,12 @@ export class HeroDetailScene extends Phaser.Scene {
       CANVAS.WIDTH / 2 + 80,
       CANVAS.HEIGHT / 2 + 40,
       'CONFIRM',
-      () => this.dissolveModal?.close(),
+      () => {
+        this.dissolveModal?.close();
+        if (dissolve(this.heroId)) {
+          this.scene.start(SCENE_KEYS.ROSTER);
+        }
+      },
       120,
     );
   }

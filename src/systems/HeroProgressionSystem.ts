@@ -1,5 +1,5 @@
 // src/systems/HeroProgressionSystem.ts
-// Hero level progression — Phase 5: cost/RP/stats only; levelUp wired in Phase 6.
+// Hero level progression — costs, stats, RP, and level-up mutations.
 
 import {
   LEVEL_CAP,
@@ -7,7 +7,11 @@ import {
   RP_FORMULA_WEIGHTS,
   STAR_MULTIPLIERS,
 } from '../constants/gameConfig';
+import { HEROES_DATA } from '../data/heroes';
 import type { HeroData, HeroOwnershipState } from '../types';
+import { canAfford, deduct } from './EconomySystem';
+import { loadCurrentRealm, saveCurrentRealm } from './SaveSystem';
+import { reportProgress } from './TaskSystem';
 
 export function getLevelUpCost(level: number): { gold: number; xpFragments: number } {
   const bracket = LEVEL_UP_COSTS.find(
@@ -21,7 +25,59 @@ export function getLevelCap(starRank: number): number {
   return LEVEL_CAP[starRank] ?? LEVEL_CAP[5];
 }
 
-export function computeHeroStats(
+export function computeHeroStats(heroId: string): { hp: number; attack: number; defense: number } | null {
+  const realm = loadCurrentRealm();
+  const heroData = HEROES_DATA.find((hero) => hero.id === heroId);
+  const ownership = realm?.ownedHeroes.find(
+    (hero) => hero.heroId === heroId && hero.isOwned,
+  );
+  if (!heroData || !ownership) return null;
+  return buildHeroStats(ownership, heroData);
+}
+
+export function computeRP(hero: HeroOwnershipState, heroData: HeroData): number {
+  const { hp, attack, defense } = buildHeroStats(hero, heroData);
+  const { HP_WEIGHT, ATTACK_WEIGHT, DEFENSE_WEIGHT, STARS_WEIGHT, LEVEL_WEIGHT } = RP_FORMULA_WEIGHTS;
+  return Math.floor(
+    hp * HP_WEIGHT
+    + attack * ATTACK_WEIGHT
+    + defense * DEFENSE_WEIGHT
+    + hero.starRank * STARS_WEIGHT
+    + hero.level * LEVEL_WEIGHT,
+  );
+}
+
+export function levelUp(heroId: string): boolean {
+  const realm = loadCurrentRealm();
+  if (!realm) return false;
+
+  const heroIndex = realm.ownedHeroes.findIndex(
+    (hero) => hero.heroId === heroId && hero.isOwned,
+  );
+  if (heroIndex < 0) return false;
+
+  const hero = realm.ownedHeroes[heroIndex];
+  const cap = getLevelCap(hero.starRank);
+  if (hero.level >= cap) return false;
+
+  const cost = getLevelUpCost(hero.level);
+  if (!canAfford('gold', cost.gold) || !canAfford('xpFragments', cost.xpFragments)) {
+    return false;
+  }
+
+  if (!deduct('gold', cost.gold) || !deduct('xpFragments', cost.xpFragments)) {
+    return false;
+  }
+
+  const updatedHeroes = [...realm.ownedHeroes];
+  updatedHeroes[heroIndex] = { ...hero, level: hero.level + 1 };
+
+  saveCurrentRealm({ ...realm, ownedHeroes: updatedHeroes });
+  reportProgress('task_level_hero', 1);
+  return true;
+}
+
+function buildHeroStats(
   hero: HeroOwnershipState,
   heroData: HeroData,
 ): { hp: number; attack: number; defense: number } {
@@ -32,16 +88,4 @@ export function computeHeroStats(
     attack: Math.floor((heroData.baseAttack + heroData.attackPerLevel * levelOffset) * starMult),
     defense: Math.floor((heroData.baseDefense + heroData.defensePerLevel * levelOffset) * starMult),
   };
-}
-
-export function computeRP(hero: HeroOwnershipState, heroData: HeroData): number {
-  const { hp, attack, defense } = computeHeroStats(hero, heroData);
-  const { HP_WEIGHT, ATTACK_WEIGHT, DEFENSE_WEIGHT, STARS_WEIGHT, LEVEL_WEIGHT } = RP_FORMULA_WEIGHTS;
-  return Math.floor(
-    hp * HP_WEIGHT
-    + attack * ATTACK_WEIGHT
-    + defense * DEFENSE_WEIGHT
-    + hero.starRank * STARS_WEIGHT
-    + hero.level * LEVEL_WEIGHT,
-  );
 }
