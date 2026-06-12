@@ -6,7 +6,6 @@ import { ENERGY, HEROES, STARTER } from '../constants/gameConfig';
 import type {
   FormationGrid,
   HeroOwnershipState,
-  MailMessage,
   RealmSaveData,
   SaveRoot,
 } from '../types';
@@ -180,7 +179,7 @@ export function buildDefaultSaveRoot(realmId: string, playerName: string): SaveR
       totalDaysClaimed: 0,
     },
     tasks: [],
-    mail: [buildWelcomeMail(now)],
+    mail: [],
     dailyShopState: {
       date: today,
       purchasedItemIds: [],
@@ -197,20 +196,6 @@ export function buildDefaultSaveRoot(realmId: string, playerName: string): SaveR
     schemaVersion: SCHEMA_VERSION,
     realms: { [realmId]: realm },
     selectedRealmId: realmId,
-  };
-}
-
-function buildWelcomeMail(sentAt: number): MailMessage {
-  return {
-    id: 'welcome_mail',
-    fromName: 'Argent Trial Order',
-    subject: 'Welcome to Rift City, Relic Bearer',
-    body: 'Your assignment begins. The Rift gates are active along the eastern border. Supplies enclosed — use them well.',
-    attachments: [{ type: 'crystals', amount: 300 }],
-    isRead: false,
-    isClaimed: false,
-    sentAt,
-    expiresAt: null,
   };
 }
 

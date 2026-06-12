@@ -4,7 +4,8 @@
 import Phaser from 'phaser';
 import { APP, CANVAS, UI } from '../constants/gameConfig';
 import { SCENE_KEYS } from '../constants/sceneKeys';
-import { loadSettings, saveSettings } from '../systems/SaveSystem';
+import { migrate } from '../systems/SaveMigrationSystem';
+import { hasAnySave, loadSettings, saveSettings } from '../systems/SaveSystem';
 
 export class MainMenuScene extends Phaser.Scene {
   static readonly KEY = SCENE_KEYS.MAIN_MENU;
@@ -22,6 +23,13 @@ export class MainMenuScene extends Phaser.Scene {
   }
 
   create(): void {
+    migrate();
+
+    if (hasAnySave()) {
+      this.scene.start(SCENE_KEYS.HUB);
+      return;
+    }
+
     this.cameras.main.setBackgroundColor(UI.BACKGROUND_COLOR);
 
     const settings = loadSettings();
@@ -54,7 +62,7 @@ export class MainMenuScene extends Phaser.Scene {
     this.playButton = this.add.text(
       CANVAS.WIDTH / 2,
       playY,
-      '[ PLAY ]',
+      '[ ENTER ASTERRA → ]',
       {
         fontSize: '20px',
         color: '#44ccff',
@@ -106,7 +114,7 @@ export class MainMenuScene extends Phaser.Scene {
   }
 
   private readonly onPlay = (): void => {
-    this.scene.start(SCENE_KEYS.FORMATION);
+    this.scene.start(SCENE_KEYS.REALM_SELECT);
   };
 
   private readonly onToggleSound = (): void => {

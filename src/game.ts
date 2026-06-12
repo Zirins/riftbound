@@ -5,6 +5,8 @@
 import Phaser from 'phaser';
 import { CANVAS, UI } from './constants/gameConfig';
 import { MainMenuScene } from './scenes/MainMenuScene';
+import { RealmSelectScene } from './scenes/RealmSelectScene';
+import { HubScene } from './scenes/HubScene';
 import { FormationScene } from './scenes/FormationScene';
 import { BattleScene } from './scenes/BattleScene';
 import { VictoryScene } from './scenes/VictoryScene';
@@ -18,6 +20,8 @@ export const gameConfig: Phaser.Types.Core.GameConfig = {
   parent: 'game-container',
   scene: [
     MainMenuScene,
+    RealmSelectScene,
+    HubScene,
     FormationScene,
     BattleScene,
     VictoryScene,
