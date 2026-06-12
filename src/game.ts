@@ -8,6 +8,7 @@ import { MainMenuScene } from './scenes/MainMenuScene';
 import { RealmSelectScene } from './scenes/RealmSelectScene';
 import { HubScene } from './scenes/HubScene';
 import { RosterScene } from './scenes/RosterScene';
+import { HeroDetailScene } from './scenes/HeroDetailScene';
 import { CampaignScene } from './scenes/CampaignScene';
 import { SettingsScene } from './scenes/SettingsScene';
 import { ShopScene } from './scenes/ShopScene';
@@ -29,6 +30,7 @@ export const gameConfig: Phaser.Types.Core.GameConfig = {
     RealmSelectScene,
     HubScene,
     RosterScene,
+    HeroDetailScene,
     CampaignScene,
     SettingsScene,
     ShopScene,
