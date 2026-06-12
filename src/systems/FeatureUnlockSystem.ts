@@ -36,3 +36,12 @@ export function checkUnlocks(): FeatureKey[] {
   previousUnlocks = new Set(currentlyUnlocked);
   return newlyUnlocked;
 }
+
+export function getUnlockMessage(featureKey: FeatureKey): string {
+  const gate = FEATURE_UNLOCKS[featureKey];
+  if (gate.type === 'stage_clear') {
+    const stageLabel = gate.stageId.replace('stage_', '').replace('_', '-');
+    return `Unlocks after clearing Stage ${stageLabel}`;
+  }
+  return 'Locked';
+}

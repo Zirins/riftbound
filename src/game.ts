@@ -7,6 +7,12 @@ import { CANVAS, UI } from './constants/gameConfig';
 import { MainMenuScene } from './scenes/MainMenuScene';
 import { RealmSelectScene } from './scenes/RealmSelectScene';
 import { HubScene } from './scenes/HubScene';
+import { RosterScene } from './scenes/RosterScene';
+import { CampaignScene } from './scenes/CampaignScene';
+import { SettingsScene } from './scenes/SettingsScene';
+import { ShopScene } from './scenes/ShopScene';
+import { SummonTempleScene } from './scenes/SummonTempleScene';
+import { ResonanceArenaScene } from './scenes/ResonanceArenaScene';
 import { FormationScene } from './scenes/FormationScene';
 import { BattleScene } from './scenes/BattleScene';
 import { VictoryScene } from './scenes/VictoryScene';
@@ -22,6 +28,12 @@ export const gameConfig: Phaser.Types.Core.GameConfig = {
     MainMenuScene,
     RealmSelectScene,
     HubScene,
+    RosterScene,
+    CampaignScene,
+    SettingsScene,
+    ShopScene,
+    SummonTempleScene,
+    ResonanceArenaScene,
     FormationScene,
     BattleScene,
     VictoryScene,
