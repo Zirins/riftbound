@@ -226,6 +226,41 @@ export interface WaveConfig {
   isBossWave: boolean;
 }
 
+// ─── Campaign stages (V1.1) ───────────────────────────────────────────────────
+
+export interface StageRewardConfig {
+  gold: { min: number; max: number };
+  crystals: number;
+  xpFragments: number;
+  shardDrops?: { heroId: string; chance: number }[];
+}
+
+export interface StageData {
+  id: string;
+  name: string;
+  chapterId: string;
+  energyCost: number;
+  waves: WaveConfig[];
+  rewards: StageRewardConfig;
+  unlockCondition: string | null;
+}
+
+export interface BattlePerformance {
+  heroesThatDied: number;
+  clearTimeMs: number;
+  wavesCleared: number;
+}
+
+export interface StageReward {
+  stageId: string;
+  stars: number;
+  gold: number;
+  crystals: number;
+  xpFragments: number;
+  clearTimeMs: number;
+  shardGrants: { heroId: string; amount: number }[];
+}
+
 // ─── Sigil (v1.2+, typed now for inventory) ──────────────────────────────────
 
 export interface SigilData {

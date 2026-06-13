@@ -1,15 +1,27 @@
 // src/scenes/VictoryScene.ts
-// V0.1: Reward summary, Continue button.
+// Campaign victory — displays rewards and grants via RewardSystem.
 
 import Phaser from 'phaser';
-import { CANVAS, STAGES, UI } from '../constants/gameConfig';
+import { CANVAS, UI } from '../constants/gameConfig';
 import { SCENE_KEYS } from '../constants/sceneKeys';
+import { getStageData } from '../systems/StageLoader';
+import { grantReward } from '../systems/RewardSystem';
+import type { BattlePerformance, StageReward } from '../types';
+
+interface VictorySceneData {
+  stageId?: string;
+  rewards?: StageReward | null;
+  performance?: BattlePerformance;
+  energyCost?: number;
+}
 
 export class VictoryScene extends Phaser.Scene {
   static readonly KEY = SCENE_KEYS.VICTORY;
 
+  private rewardGranted = false;
   private titleLabel!: Phaser.GameObjects.Text;
   private stageLabel!: Phaser.GameObjects.Text;
+  private starsLabel!: Phaser.GameObjects.Text;
   private rewardLabel!: Phaser.GameObjects.Text;
   private continueButton!: Phaser.GameObjects.Text;
   private continueTapZone!: Phaser.GameObjects.Zone;
@@ -18,53 +30,68 @@ export class VictoryScene extends Phaser.Scene {
     super({ key: VictoryScene.KEY });
   }
 
+  init(data: VictorySceneData): void {
+    this.rewardGranted = false;
+    this.sceneData = data;
+  }
+
+  private sceneData: VictorySceneData = {};
+
   create(): void {
     this.cameras.main.setBackgroundColor(UI.BACKGROUND_COLOR);
 
+    const stageId = this.sceneData.stageId ?? 'stage_1_1';
+    const stageData = getStageData(stageId);
+    const rewards = this.sceneData.rewards;
+
     this.titleLabel = this.add.text(
       CANVAS.WIDTH / 2,
-      CANVAS.HEIGHT / 2 - 70,
+      CANVAS.HEIGHT / 2 - 90,
       'VICTORY',
-      {
-        fontSize: '36px',
-        color: '#ffee44',
-        fontFamily: 'monospace',
-      },
+      { fontSize: '36px', color: '#ffee44', fontFamily: 'monospace' },
     ).setOrigin(0.5);
 
     this.stageLabel = this.add.text(
       CANVAS.WIDTH / 2,
-      CANVAS.HEIGHT / 2 - 20,
-      STAGES.STAGE_1.DISPLAY_NAME,
-      {
-        fontSize: '16px',
-        color: '#ffffff',
-        fontFamily: 'monospace',
-      },
+      CANVAS.HEIGHT / 2 - 45,
+      stageData?.name ?? stageId,
+      { fontSize: '14px', color: '#ffffff', fontFamily: 'monospace' },
     ).setOrigin(0.5);
 
-    // TODO(v1.1): wire to currency system — hardcoded V0.1 reward only
+    const stars = rewards?.stars ?? 0;
+    const starText = '★'.repeat(stars) + '☆'.repeat(3 - stars);
+    this.starsLabel = this.add.text(
+      CANVAS.WIDTH / 2,
+      CANVAS.HEIGHT / 2 - 15,
+      starText,
+      { fontSize: '20px', color: '#ffcc22', fontFamily: 'monospace' },
+    ).setOrigin(0.5);
+
+    const rewardLines = rewards
+      ? [
+          `Gold: +${rewards.gold}`,
+          `Crystals: +${rewards.crystals}`,
+          `XP Fragments: +${rewards.xpFragments}`,
+        ]
+      : ['No rewards'];
     this.rewardLabel = this.add.text(
       CANVAS.WIDTH / 2,
-      CANVAS.HEIGHT / 2 + 20,
-      'Gold: 500',
-      {
-        fontSize: '18px',
-        color: '#ffcc44',
-        fontFamily: 'monospace',
-      },
+      CANVAS.HEIGHT / 2 + 25,
+      rewardLines.join('\n'),
+      { fontSize: '14px', color: '#ffcc44', fontFamily: 'monospace', align: 'center' },
     ).setOrigin(0.5);
 
-    const continueY = CANVAS.HEIGHT / 2 + 70;
+    if (rewards && !this.rewardGranted) {
+      grantReward(rewards);
+      this.rewardGranted = true;
+    }
+
+    const continueY = CANVAS.HEIGHT / 2 + 95;
     this.continueButton = this.add.text(
       CANVAS.WIDTH / 2,
       continueY,
       '[ CONTINUE ]',
-      {
-        fontSize: '18px',
-        color: '#44ccff',
-        fontFamily: 'monospace',
-      },
+      { fontSize: '18px', color: '#44ccff', fontFamily: 'monospace' },
     ).setOrigin(0.5);
 
     this.continueTapZone = this.add.zone(
@@ -75,10 +102,6 @@ export class VictoryScene extends Phaser.Scene {
     );
     this.continueTapZone.setInteractive({ useHandCursor: true });
     this.continueTapZone.on('pointerup', this.onContinue, this);
-
-    // #region agent log
-    fetch('http://127.0.0.1:7764/ingest/39ea4d96-09a5-471d-9f43-5260085e1ae8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d07587'},body:JSON.stringify({sessionId:'d07587',runId:'post-fix',location:'VictoryScene.ts:create',message:'VictoryScene create',data:{mainMenuKey:SCENE_KEYS.MAIN_MENU},hypothesisId:'B,E',timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
   }
 
   shutdown(): void {
@@ -86,16 +109,12 @@ export class VictoryScene extends Phaser.Scene {
     this.continueTapZone?.destroy();
     this.titleLabel?.destroy();
     this.stageLabel?.destroy();
+    this.starsLabel?.destroy();
     this.rewardLabel?.destroy();
     this.continueButton?.destroy();
   }
 
   private readonly onContinue = (): void => {
-    const targetKey = SCENE_KEYS.MAIN_MENU;
-    const hasTarget = Boolean(this.scene.get(targetKey));
-    // #region agent log
-    fetch('http://127.0.0.1:7764/ingest/39ea4d96-09a5-471d-9f43-5260085e1ae8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d07587'},body:JSON.stringify({sessionId:'d07587',runId:'post-fix',location:'VictoryScene.ts:onContinue',message:'onContinue handler fired',data:{targetKey,hasTarget},hypothesisId:'A,B,E',timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
-    this.scene.start(targetKey);
+    this.scene.start(SCENE_KEYS.CAMPAIGN);
   };
 }

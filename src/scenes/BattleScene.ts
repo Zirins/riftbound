@@ -2,11 +2,13 @@
 // V0.1: Battlefield rendering + AutoBattleSystem combat loop.
 
 import Phaser from 'phaser';
-import { CANVAS, COMBAT, ENEMIES, FORMATION, HEROES, UI, WARDEN } from '../constants/gameConfig';
+import { CANVAS, COMBAT, ENEMIES, FORMATION, HEROES, UI, WAVES, WARDEN } from '../constants/gameConfig';
 import { SCENE_KEYS } from '../constants/sceneKeys';
 import { createBattleGameState } from '../store/GameState';
 import { AutoBattleSystem } from '../systems/AutoBattleSystem';
 import { assignCombatSlotIndices, FormationSystem, getHeroBattlePosition } from '../systems/FormationSystem';
+import { computeStageReward } from '../systems/RewardSystem';
+import { getStageData } from '../systems/StageLoader';
 import { getBattleLineupHeroIds } from '../systems/SaveSystem';
 import { UltimateSystem } from '../systems/UltimateSystem';
 import { WaveSystem } from '../systems/WaveSystem';
@@ -123,6 +125,10 @@ const HERO_SETUP_BY_ID: Record<string, HeroSetupEntry> = {
 export class BattleScene extends Phaser.Scene {
   static readonly KEY = SCENE_KEYS.BATTLE;
 
+  private stageId = 'stage_1_1';
+  private energyCost = 0;
+  private heroesDeathCount = 0;
+
   private battleBackground!: Phaser.GameObjects.Rectangle;
   private waveLabel!: Phaser.GameObjects.Text;
 
@@ -169,7 +175,22 @@ export class BattleScene extends Phaser.Scene {
     this.battleEnded = true;
     this.gameState.isVictory = true;
     this.combatActive = false;
-    this.scene.start(SCENE_KEYS.VICTORY);
+
+    const stageData = getStageData(this.stageId);
+    const waveCount = stageData?.waves.length ?? WAVES.length;
+    const performance = {
+      heroesThatDied: this.heroesDeathCount,
+      clearTimeMs: this.gameState.elapsedTimeMs,
+      wavesCleared: waveCount,
+    };
+    const rewards = computeStageReward(this.stageId, performance);
+
+    this.scene.start(SCENE_KEYS.VICTORY, {
+      stageId: this.stageId,
+      rewards,
+      performance,
+      energyCost: this.energyCost,
+    });
   };
 
   private readonly onWaveEnemiesSpawned = (payload: WaveEnemiesSpawnedPayload): void => {
@@ -208,6 +229,12 @@ export class BattleScene extends Phaser.Scene {
     super({ key: BattleScene.KEY });
   }
 
+  init(data: { stageId?: string }): void {
+    this.stageId = data.stageId ?? 'stage_1_1';
+    const stageData = getStageData(this.stageId);
+    this.energyCost = stageData?.energyCost ?? 0;
+  }
+
   create(): void {
     this.resetBattleSession();
 
@@ -242,6 +269,11 @@ export class BattleScene extends Phaser.Scene {
     this.waveSystem.on('battleVictory', this.onBattleVictory);
     this.waveSystem.on('bossHpUpdate', this.onBossHpUpdate);
 
+    const stageData = getStageData(this.stageId);
+    const waveConfigs = stageData?.waves
+      ?? ((!this.stageId || this.stageId === 'stage_1_1') ? WAVES : []);
+    this.waveSystem.init(waveConfigs.length > 0 ? waveConfigs : WAVES);
+
     this.ultimateSystem = new UltimateSystem(this);
     this.ultimateButtons = new UltimateButtons(
       this,
@@ -254,7 +286,6 @@ export class BattleScene extends Phaser.Scene {
     this.autoBattle.on('enemyKilled', this.onEnemyKilled);
     this.ultimateSystem.on('enemyKilled', this.onEnemyKilled);
 
-    this.waveSystem.startStage();
     this.syncAllVisuals();
   }
 
@@ -262,6 +293,7 @@ export class BattleScene extends Phaser.Scene {
     this.battleEnded = false;
     this.combatActive = false;
     this.isFirstWaveSpawn = true;
+    this.heroesDeathCount = 0;
     this.heroes = [];
     this.enemies = [];
     this.heroVisuals.clear();
@@ -295,8 +327,11 @@ export class BattleScene extends Phaser.Scene {
   private trackHeroDeaths(): void {
     for (const hero of this.heroes) {
       const wasAlive = this.heroAliveSnapshot.get(hero.heroId) ?? true;
-      if (wasAlive && !hero.isAlive && !this.gameState.firstHeroToFall) {
-        this.gameState.firstHeroToFall = hero.heroId;
+      if (wasAlive && !hero.isAlive) {
+        this.heroesDeathCount += 1;
+        if (!this.gameState.firstHeroToFall) {
+          this.gameState.firstHeroToFall = hero.heroId;
+        }
       }
       this.heroAliveSnapshot.set(hero.heroId, hero.isAlive);
     }
@@ -315,7 +350,12 @@ export class BattleScene extends Phaser.Scene {
     const fallenHeroId = this.gameState.firstHeroToFall ?? HEROES.KAEL.ID;
     const fallenName = HERO_SETUP_BY_ID[fallenHeroId]?.name ?? 'Unknown';
 
-    this.scene.start(SCENE_KEYS.DEFEAT, { firstHeroName: fallenName });
+    this.scene.start(SCENE_KEYS.DEFEAT, {
+      firstHeroName: fallenName,
+      stageId: this.stageId,
+      wavesCleared: this.waveSystem.getWavesCleared(),
+      energyCost: this.energyCost,
+    });
   }
 
   private spawnHeroes(): void {

@@ -10,6 +10,7 @@ import { HubScene } from './scenes/HubScene';
 import { RosterScene } from './scenes/RosterScene';
 import { HeroDetailScene } from './scenes/HeroDetailScene';
 import { CampaignScene } from './scenes/CampaignScene';
+import { StageSelectScene } from './scenes/StageSelectScene';
 import { SettingsScene } from './scenes/SettingsScene';
 import { ShopScene } from './scenes/ShopScene';
 import { SummonTempleScene } from './scenes/SummonTempleScene';
@@ -32,6 +33,7 @@ export const gameConfig: Phaser.Types.Core.GameConfig = {
     RosterScene,
     HeroDetailScene,
     CampaignScene,
+    StageSelectScene,
     SettingsScene,
     ShopScene,
     SummonTempleScene,

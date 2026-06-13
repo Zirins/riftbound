@@ -6,10 +6,10 @@ import {
   CANVAS,
   FORMATION,
   HEROES,
-  STAGES,
   UI,
 } from '../constants/gameConfig';
 import { SCENE_KEYS } from '../constants/sceneKeys';
+import { getStageData } from '../systems/StageLoader';
 import { loadFormationSlots, saveFormationSlots } from '../systems/SaveSystem';
 import type { HeroClass } from '../types';
 
@@ -113,6 +113,8 @@ function normalizeLineupSlots(slots: (string | null)[]): (string | null)[] {
 export class FormationScene extends Phaser.Scene {
   static readonly KEY = SCENE_KEYS.FORMATION;
 
+  private stageId = 'stage_1_1';
+
   private lineupStage!: Phaser.GameObjects.Rectangle;
   private lineupTitle!: Phaser.GameObjects.Text;
   private battleButton!: Phaser.GameObjects.Text;
@@ -124,6 +126,10 @@ export class FormationScene extends Phaser.Scene {
 
   constructor() {
     super({ key: FormationScene.KEY });
+  }
+
+  init(data: { stageId?: string; origin?: string }): void {
+    this.stageId = data.stageId ?? 'stage_1_1';
   }
 
   create(): void {
@@ -141,10 +147,11 @@ export class FormationScene extends Phaser.Scene {
       UI.FORMATION_LINEUP_STAGE_COLOR,
     );
 
+    const stageName = getStageData(this.stageId)?.name ?? 'Stage';
     this.lineupTitle = this.add.text(
       CANVAS.WIDTH / 2,
       UI.FORMATION_LINEUP_TITLE_Y,
-      `Team — ${STAGES.STAGE_1.DISPLAY_NAME}`,
+      `Team — ${stageName}`,
       {
         fontSize: '16px',
         color: '#ccccdd',
@@ -341,6 +348,6 @@ export class FormationScene extends Phaser.Scene {
     }
 
     saveFormationSlots(this.lineupSlots);
-    this.scene.start(SCENE_KEYS.BATTLE);
+    this.scene.start(SCENE_KEYS.BATTLE, { stageId: this.stageId });
   };
 }

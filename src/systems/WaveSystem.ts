@@ -5,7 +5,7 @@ import Phaser from 'phaser';
 import { COMBAT, ENEMIES, FORMATION, WARDEN, WAVES } from '../constants/gameConfig';
 import { getEnemyStartPosition } from './FormationSystem';
 import { WardenBossSystem } from './WardenBossSystem';
-import type { EnemyRuntimeState, HeroRuntimeState } from '../types';
+import type { EnemyRuntimeState, HeroRuntimeState, WaveConfig } from '../types';
 
 interface EnemyTemplate {
   id: string;
@@ -72,9 +72,11 @@ const ENEMY_TEMPLATES: Record<string, EnemyTemplate> = {
 };
 
 export class WaveSystem extends Phaser.Events.EventEmitter {
+  private waveConfigs: WaveConfig[] = WAVES;
   private currentWaveIndex = 0;
   private interWavePauseMs = 0;
   private spawnCounter = 0;
+  private wavesClearedCount = 0;
   private readonly wardenBoss: WardenBossSystem;
 
   constructor(scene: Phaser.Scene) {
@@ -87,12 +89,19 @@ export class WaveSystem extends Phaser.Events.EventEmitter {
   }
 
   get isBossWave(): boolean {
-    return WAVES[this.currentWaveIndex]?.isBossWave ?? false;
+    return this.waveConfigs[this.currentWaveIndex]?.isBossWave ?? false;
   }
 
-  startStage(): void {
+  getWavesCleared(): number {
+    return this.wavesClearedCount;
+  }
+
+  init(waves: WaveConfig[]): void {
+    this.waveConfigs = waves;
     this.currentWaveIndex = 0;
     this.interWavePauseMs = 0;
+    this.spawnCounter = 0;
+    this.wavesClearedCount = 0;
     this.spawnWave(0);
   }
 
@@ -141,8 +150,9 @@ export class WaveSystem extends Phaser.Events.EventEmitter {
 
   private handleWaveCleared(): void {
     this.emit('waveCleared', { waveIndex: this.currentWaveIndex });
+    this.wavesClearedCount += 1;
 
-    if (WAVES[this.currentWaveIndex].isBossWave) {
+    if (this.waveConfigs[this.currentWaveIndex].isBossWave) {
       return;
     }
 
@@ -151,10 +161,10 @@ export class WaveSystem extends Phaser.Events.EventEmitter {
   }
 
   private spawnWave(waveIndex: number): void {
-    if (waveIndex >= WAVES.length) return;
+    if (waveIndex >= this.waveConfigs.length) return;
 
     this.currentWaveIndex = waveIndex;
-    const wave = WAVES[waveIndex];
+    const wave = this.waveConfigs[waveIndex];
     const enemies = this.buildWaveEnemies(waveIndex, wave.enemies);
 
     if (wave.isBossWave) {
