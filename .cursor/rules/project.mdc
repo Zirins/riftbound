@@ -3,6 +3,7 @@ V0.1 Combat MVP is complete (Prompts 1–10 shipped).
 Active development brief: docs/RIFTBOUND_SIGILS_V1.1_FINAL_BUILD_BRIEF.md.
 V0.1 combat architecture: docs/Riftbound_Sigils_V0.1_Combat_MVP_COMPLETE.md.
 V1.1 non-negotiables appended below (Section 20). V0.1 rules remain in force.
+V2 rules appended below (additive). Source: docs/RIFTBOUND_SIGILS_V2_FINAL_BUILD_BRIEF.md.
 -->
 ---
 description: Riftbound Sigils — Project constitution. Read before generating any code for this project.
@@ -344,3 +345,31 @@ If, during a V1.1 session, the user asks Cursor to:
 - Make a scene directly import another scene file
 
 Cursor must stop, note which non-negotiable the request violates, and ask for confirmation before proceeding. These are not judgment calls — they are hard scope boundaries for V1.1.
+
+---
+
+## V2 Rules
+
+Source: `docs/RIFTBOUND_SIGILS_V2_FINAL_BUILD_BRIEF.md` Section 4 (Implementation Constitution).
+
+All V0.1 and V1.1 rules above remain in force. The following extend them for V2 development.
+
+21. All rewards route through `RewardSystem.grantRewardBundle()`. No system may directly mutate currency balances, inventory quantities, hero shards, or mail attachments.
+
+22. All currency spends route through `EconomySystem.spendCurrency()` or `spendCurrencies()`. No direct save field decrement anywhere.
+
+23. All non-currency items live in `InventorySystem`. No system tracks item quantities in its own state.
+
+24. All scene navigation uses `SCENE_KEYS` constants. No string literals in `scene.start()` or `scene.launch()` calls.
+
+25. Every UI component implements `destroy()` that removes all Phaser objects, tweens, timers, and event listeners it created. Every scene `shutdown()` calls `destroy()` on every component it instantiated.
+
+26. All date/reset logic routes through `ResetService`. No system invents its own date math.
+
+27. All progression events emit through `GameEventBus`. No system directly calls `AchievementSystem` or `RiftSeasonSystem` to report progress.
+
+28. No Covenant War code, scenes, or stubs. `CovWarSystem.ts` must not exist in V2.
+
+29. Production billing is disabled. `MonetizationService` operates in dev/test mode only unless explicitly enabled.
+
+30. No protected external IP in code, comments, UI strings, asset names, or data files.
