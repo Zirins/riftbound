@@ -1,11 +1,15 @@
 // src/systems/SaveSystem.ts
 // V0.1: localStorage team lineup + settings.
 // V1.1: SaveRoot schema via riftbound_save_root.
+// V2: schema 3 realm fields via migrateSaveV2ToV3 on load.
 
-import { ENERGY, HEROES, STARTER } from '../constants/gameConfig';
+import { HEROES, SAVE_SCHEMA } from '../constants/gameConfig';
+import { buildDefaultRealmV3 } from '../save/defaults/buildDefaultRealmV3';
+import {
+  migrateSaveV2ToV3,
+  realmNeedsV3Migration,
+} from '../save/migrations/migrateSaveV2ToV3';
 import type {
-  FormationGrid,
-  HeroOwnershipState,
   RealmSaveData,
   SaveRoot,
 } from '../types';
@@ -13,7 +17,8 @@ import type {
 const STORAGE_KEY = 'riftbound_mvp_formation';
 const SETTINGS_KEY = 'riftbound_settings';
 const SAVE_ROOT_KEY = 'riftbound_save_root';
-const SCHEMA_VERSION = 2;
+const SAVE_ROOT_BACKUP_V2_KEY = 'riftbound_save_root_backup_v2';
+const SCHEMA_VERSION = SAVE_SCHEMA.V2;
 
 const DEFAULT_LINEUP_HERO_IDS: readonly string[] = [
   HEROES.KAEL.ID,
@@ -107,10 +112,19 @@ export function loadRoot(): SaveRoot | null {
     if (!raw) return null;
     const parsed: unknown = JSON.parse(raw);
     if (!isSaveRoot(parsed)) return null;
-    return parsed;
+    return ensureRootMigrated(parsed);
   } catch {
     return null;
   }
+}
+
+/** True when save was written by a newer client — do not overwrite. */
+export function isUnsupportedSaveVersion(root: SaveRoot | null): boolean {
+  return root !== null && root.schemaVersion > SAVE_SCHEMA.V2;
+}
+
+export function getSupportedSchemaVersion(): number {
+  return SAVE_SCHEMA.V2;
 }
 
 export function saveRoot(root: SaveRoot): void {
@@ -138,60 +152,7 @@ export function hasAnySave(): boolean {
 }
 
 export function buildDefaultSaveRoot(realmId: string, playerName: string): SaveRoot {
-  const now = Date.now();
-  const today = toDateString(now);
-  const defaultFormation = buildDefaultFormationGrid();
-  const ownedHeroes = DEFAULT_LINEUP_HERO_IDS.map((heroId) => buildStarterHero(heroId, now));
-
-  const realm: RealmSaveData = {
-    realmId,
-    playerName,
-    avatarColorIndex: 0,
-    accountLevel: 1,
-    accountXP: 0,
-    resonanceTier: 1,
-    inventory: {
-      gold: STARTER.GOLD,
-      riftCrystals: STARTER.RIFT_CRYSTALS,
-      voidGems: 0,
-      xpFragments: STARTER.XP_FRAGMENTS,
-      energy: STARTER.ENERGY,
-      maxEnergy: ENERGY.MAX,
-      lastEnergyRegenAt: now,
-      ownedSigilIds: [],
-      heroShards: {},
-    },
-    ownedHeroes,
-    currentFormation: defaultFormation,
-    clearedStages: [],
-    pityCounters: {},
-    arenaState: {
-      rankPoints: 0,
-      rankTier: 'rift_initiate',
-      attemptsUsedToday: 0,
-      lastAttemptResetDate: today,
-      lastRewardClaimDate: '',
-      defenseFormation: defaultFormation,
-    },
-    riftChronicle: {
-      currentStreak: 0,
-      lastClaimDate: '',
-      totalDaysClaimed: 0,
-    },
-    tasks: [],
-    mail: [],
-    dailyShopState: {
-      date: today,
-      purchasedItemIds: [],
-    },
-    lastFreeSummonDate: '',
-    settings: {
-      musicVolume: 80,
-      sfxVolume: 80,
-      defaultAutoUltimate: false,
-    },
-    lastSaved: now,
-  };
+  const realm = buildDefaultRealmV3(realmId, playerName);
 
   return {
     schemaVersion: SCHEMA_VERSION,
@@ -200,35 +161,40 @@ export function buildDefaultSaveRoot(realmId: string, playerName: string): SaveR
   };
 }
 
-function buildStarterHero(heroId: string, acquiredAt: number): HeroOwnershipState {
-  return {
-    heroId,
-    isOwned: true,
-    starRank: 1,
-    level: 1,
-    currentXP: 0,
-    shardCount: 0,
-    equippedSigilIds: [],
-    acquiredAt,
+function ensureRootMigrated(root: SaveRoot): SaveRoot {
+  if (root.schemaVersion > SAVE_SCHEMA.V2) {
+    return root;
+  }
+
+  const needsSchemaBump = root.schemaVersion < SAVE_SCHEMA.V2;
+  const needsRealmPatch = Object.values(root.realms).some(realmNeedsV3Migration);
+
+  if (!needsSchemaBump && !needsRealmPatch) {
+    return root;
+  }
+
+  if (needsSchemaBump) {
+    backupSaveBeforeV3Migration(root);
+  }
+
+  const migratedRealms: Record<string, RealmSaveData> = {};
+  for (const [realmId, realm] of Object.entries(root.realms)) {
+    migratedRealms[realmId] = migrateSaveV2ToV3(realm);
+  }
+
+  const migrated: SaveRoot = {
+    ...root,
+    schemaVersion: SAVE_SCHEMA.V2,
+    realms: migratedRealms,
   };
+
+  saveRoot(migrated);
+  return migrated;
 }
 
-function buildDefaultFormationGrid(): FormationGrid {
-  const rows = ['front', 'front', 'back', 'back'] as const;
-  const cols = [0, 1, 0, 1];
-
-  return {
-    slots: DEFAULT_LINEUP_HERO_IDS.map((heroId, slotIndex) => ({
-      slotIndex,
-      row: rows[slotIndex],
-      col: cols[slotIndex],
-      assignedHeroId: heroId,
-    })),
-  };
-}
-
-function toDateString(timestamp: number): string {
-  return new Date(timestamp).toISOString().slice(0, 10);
+function backupSaveBeforeV3Migration(root: SaveRoot): void {
+  if (localStorage.getItem(SAVE_ROOT_BACKUP_V2_KEY)) return;
+  localStorage.setItem(SAVE_ROOT_BACKUP_V2_KEY, JSON.stringify(root));
 }
 
 function isSaveRoot(value: unknown): value is SaveRoot {

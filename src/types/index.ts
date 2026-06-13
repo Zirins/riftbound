@@ -573,6 +573,16 @@ export interface ItemCost {
   quantity: number;
 }
 
+export interface UseItemContext {
+  heroId?: string;
+}
+
+export interface UseItemResult {
+  success: boolean;
+  reason?: string;
+  rewardsGranted?: RewardBundle;
+}
+
 // ─── V2 Save Schema V3 (Section 7) ──────────────────────────────────────────
 
 /** V1.1 realm save — alias for migration contracts. */

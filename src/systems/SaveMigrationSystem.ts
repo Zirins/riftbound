@@ -1,5 +1,6 @@
 // src/systems/SaveMigrationSystem.ts
 // One-time migration from V0.1 localStorage keys to V1.1 SaveRoot schema.
+// V1.1 → V2 (schema 2 → 3) runs automatically in SaveSystem.loadRoot().
 
 import { buildDefaultSaveRoot, saveRoot } from './SaveSystem';
 import type { FormationGrid } from '../types';
