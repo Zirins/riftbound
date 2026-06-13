@@ -1,7 +1,7 @@
 // src/systems/RewardSystem.ts
 // Stage reward computation and grant.
 
-import { DISSOLVE_SHARDS } from '../constants/gameConfig';
+import { computeAccountLevel, DISSOLVE_SHARDS } from '../constants/gameConfig';
 import { HEROES_DATA } from '../data/heroes';
 import type { BattlePerformance, ClearedStageRecord, StageReward } from '../types';
 import * as Economy from './EconomySystem';
@@ -94,6 +94,7 @@ export function grantReward(reward: StageReward): void {
     ...currentRealm,
     inventory: { ...currentRealm.inventory, heroShards },
     clearedStages,
+    accountLevel: computeAccountLevel(clearedStages.length),
   });
 
   reportProgress('task_complete_stages', 1);

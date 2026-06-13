@@ -1,7 +1,8 @@
 // src/systems/RiftChronicleSystem.ts
 // 7-day login calendar rewards.
 
-import { RIFT_CHRONICLE_REWARDS } from '../constants/gameConfig';
+import { HEROES, RIFT_CHRONICLE_REWARDS } from '../constants/gameConfig';
+import { HEROES_DATA } from '../data/heroes';
 import * as Economy from './EconomySystem';
 import { loadCurrentRealm, saveCurrentRealm } from './SaveSystem';
 
@@ -84,7 +85,13 @@ function grantRandomRareShards(amount: number): void {
   const realm = loadCurrentRealm();
   if (!realm) return;
 
-  const heroId = realm.ownedHeroes.find((h) => h.isOwned)?.heroId ?? 'kael';
+  const rareOwnedIds = realm.ownedHeroes
+    .filter((hero) => hero.isOwned)
+    .map((hero) => hero.heroId)
+    .filter((heroId) => HEROES_DATA.find((data) => data.id === heroId)?.rarity === 'rare');
+
+  const pool = rareOwnedIds.length > 0 ? rareOwnedIds : [HEROES.KAEL.ID];
+  const heroId = pool[Math.floor(Math.random() * pool.length)] ?? HEROES.KAEL.ID;
   grantHeroShards(heroId, amount);
 }
 

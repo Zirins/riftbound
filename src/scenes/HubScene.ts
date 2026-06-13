@@ -2,8 +2,8 @@
 // V1.1 central hub — navigation, currency bar, feature gates, overlays.
 
 import Phaser from 'phaser';
-import { DAILY_TASKS } from '../data/tasks';
-import { CANVAS, UI } from '../constants/gameConfig';
+import { getAccountTierLabel, CANVAS, UI } from '../constants/gameConfig';
+import { HEROES_DATA } from '../data/heroes';
 import { SCENE_KEYS } from '../constants/sceneKeys';
 import type { SceneKey } from '../constants/sceneKeys';
 import * as EnergySystem from '../systems/EnergySystem';
@@ -15,11 +15,14 @@ import {
 import * as MailSystem from '../systems/MailSystem';
 import * as RiftChronicleSystem from '../systems/RiftChronicleSystem';
 import { loadCurrentRealm } from '../systems/SaveSystem';
+import { computeRP } from '../systems/HeroProgressionSystem';
 import * as TaskSystem from '../systems/TaskSystem';
 import { ButtonPrimary } from '../ui/ButtonPrimary';
 import { CurrencyBar } from '../ui/CurrencyBar';
-import { HubOverlayPanel } from '../ui/HubOverlayPanel';
+import { MailOverlay } from '../ui/MailOverlay';
 import { NotificationDot } from '../ui/NotificationDot';
+import { RiftChronicleOverlay } from '../ui/RiftChronicleOverlay';
+import { TasksOverlay } from '../ui/TasksOverlay';
 
 const AVATAR_COLORS = [0x4488ff, 0xff4422, 0x44cc66, 0xffcc22, 0x9944cc, 0xffffff];
 const ZONE_WIDTH = 200;
@@ -48,7 +51,7 @@ export class HubScene extends Phaser.Scene {
   static readonly KEY = SCENE_KEYS.HUB;
 
   private currencyBar: CurrencyBar | null = null;
-  private overlayPanel: HubOverlayPanel | null = null;
+  private activeOverlay: RiftChronicleOverlay | TasksOverlay | MailOverlay | null = null;
   private profileLabel: Phaser.GameObjects.Text | null = null;
   private toastLabel: Phaser.GameObjects.Text | null = null;
   private zoneButtons: ButtonPrimary[] = [];
@@ -64,7 +67,6 @@ export class HubScene extends Phaser.Scene {
 
   create(): void {
     this.cameras.main.setBackgroundColor(UI.BACKGROUND_COLOR);
-    this.overlayPanel = new HubOverlayPanel(this);
 
     EnergySystem.computeRegen();
     TaskSystem.resetIfNewDay();
@@ -77,8 +79,7 @@ export class HubScene extends Phaser.Scene {
   }
 
   shutdown(): void {
-    this.overlayPanel?.destroy();
-    this.overlayPanel = null;
+    this.closeActiveOverlay();
     this.currencyBar?.destroy();
     this.profileLabel?.destroy();
     this.toastLabel?.destroy();
@@ -109,9 +110,11 @@ export class HubScene extends Phaser.Scene {
 
     this.add.circle(28, 28, 14, avatarColor);
 
+    const accountLevel = realm?.accountLevel ?? 1;
+    const tierLabel = getAccountTierLabel(accountLevel);
     const rp = this.computeFormationRP();
     this.profileLabel = this.add.text(50, 28, [
-      `${realm?.playerName ?? 'Relic Bearer'}  LV${realm?.accountLevel ?? 1}`,
+      `${realm?.playerName ?? 'Relic Bearer'}  LV${accountLevel}  ${tierLabel}`,
       `RP: ${rp.toLocaleString()}`,
     ].join('  '), {
       fontSize: '12px',
@@ -205,75 +208,45 @@ export class HubScene extends Phaser.Scene {
   }
 
   private openMailOverlay(): void {
-    const realm = loadCurrentRealm();
-    const panel = this.overlayPanel;
-    if (!realm || !panel) return;
-
-    panel.open('MAIL', () => panel.close());
-
-    let y = CANVAS.HEIGHT / 2 - 40;
-    if (realm.mail.length === 0) {
-      panel.addText(CANVAS.WIDTH / 2, y, 'No messages.');
-    } else {
-      for (const mail of realm.mail) {
-        const status = mail.isClaimed ? 'Claimed' : 'Unclaimed';
-        panel.addText(CANVAS.WIDTH / 2, y, `${mail.subject} — ${status}`);
-        y += 22;
-      }
-    }
-
-    panel.addButton(CANVAS.WIDTH / 2, CANVAS.HEIGHT / 2 + 70, 'CLAIM ALL', () => {
-      for (const mail of realm.mail) {
-        if (!mail.isClaimed && mail.attachments.length > 0) {
-          MailSystem.claimAttachments(mail.id);
-        }
-      }
-      panel.close();
-      this.scene.restart();
-    }, 140);
+    this.closeActiveOverlay();
+    this.activeOverlay = new MailOverlay(
+      this,
+      () => this.handleOverlayClosed(),
+      () => this.refreshHubState(),
+    );
   }
 
   private openTasksOverlay(): void {
-    const panel = this.overlayPanel;
-    if (!panel) return;
-
-    panel.open('DAILY TASKS', () => panel.close());
-
-    let y = CANVAS.HEIGHT / 2 - 70;
-    for (const taskState of TaskSystem.getDailyTasks()) {
-      const def = DAILY_TASKS.find((d) => d.id === taskState.taskId);
-      if (!def) continue;
-
-      const progress = `${taskState.currentProgress}/${def.requiredProgress}`;
-      panel.addText(CANVAS.WIDTH / 2, y, `${def.description} (${progress})`);
-      y += 24;
-    }
+    this.closeActiveOverlay();
+    this.activeOverlay = new TasksOverlay(
+      this,
+      () => this.handleOverlayClosed(),
+      () => this.refreshHubState(),
+    );
   }
 
   private openChronicleOverlay(): void {
-    const panel = this.overlayPanel;
-    if (!panel) return;
+    this.closeActiveOverlay();
+    this.activeOverlay = new RiftChronicleOverlay(
+      this,
+      () => this.handleOverlayClosed(),
+      () => this.refreshHubState(),
+    );
+  }
 
-    const available = RiftChronicleSystem.isAvailableToday();
-    const reward = RiftChronicleSystem.getTodayReward();
+  private handleOverlayClosed(): void {
+    this.activeOverlay = null;
+    this.refreshHubState();
+  }
 
-    panel.open('RIFT CHRONICLE', () => panel.close());
+  private closeActiveOverlay(): void {
+    this.activeOverlay?.destroy();
+    this.activeOverlay = null;
+  }
 
-    const status = available ? 'Today\'s reward is ready!' : 'Already claimed today.';
-    panel.addText(CANVAS.WIDTH / 2, CANVAS.HEIGHT / 2 - 20, status);
-
-    if (reward) {
-      const summary = reward.rewards.map((r) => `${r.type} x${r.amount}`).join(', ');
-      panel.addText(CANVAS.WIDTH / 2, CANVAS.HEIGHT / 2 + 4, summary, '#88ff88');
-    }
-
-    if (available) {
-      panel.addButton(CANVAS.WIDTH / 2, CANVAS.HEIGHT / 2 + 50, 'CLAIM', () => {
-        RiftChronicleSystem.claimToday();
-        panel.close();
-        this.scene.restart();
-      }, 120);
-    }
+  private refreshHubState(): void {
+    this.refreshNotificationDots();
+    this.currencyBar?.updateValues();
   }
 
   private refreshNotificationDots(): void {
@@ -313,7 +286,8 @@ export class HubScene extends Phaser.Scene {
     for (const slot of realm.currentFormation.slots) {
       if (!slot.assignedHeroId) continue;
       const owned = realm.ownedHeroes.find((h) => h.heroId === slot.assignedHeroId);
-      if (owned) total += owned.level * 30 + owned.starRank * 150;
+      const heroData = HEROES_DATA.find((hero) => hero.id === slot.assignedHeroId);
+      if (owned && heroData) total += computeRP(owned, heroData);
     }
     return total;
   }

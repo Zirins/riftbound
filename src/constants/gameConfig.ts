@@ -441,6 +441,26 @@ export const RP_FORMULA_WEIGHTS = {
   LEVEL_WEIGHT:   30,
 } as const;
 
+// ─── Account Level & Resonance Tier (V1.1 approximation) ─────────────────────
+export const ACCOUNT_PROGRESSION = {
+  STAGES_PER_LEVEL: 5,
+  LEVELS_PER_TIER: 5,
+} as const;
+
+const ACCOUNT_TIER_ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'] as const;
+
+export function computeAccountLevel(clearedStageCount: number): number {
+  return 1 + Math.floor(clearedStageCount / ACCOUNT_PROGRESSION.STAGES_PER_LEVEL);
+}
+
+export function getAccountTierLabel(accountLevel: number): string {
+  const tierIndex = Math.min(
+    ACCOUNT_TIER_ROMAN.length - 1,
+    Math.floor((Math.max(1, accountLevel) - 1) / ACCOUNT_PROGRESSION.LEVELS_PER_TIER),
+  );
+  return `Tier ${ACCOUNT_TIER_ROMAN[tierIndex]}`;
+}
+
 // ─── Arena (V1.1) ─────────────────────────────────────────────────────────────
 export const ARENA = {
   DAILY_ATTEMPTS:       5,
