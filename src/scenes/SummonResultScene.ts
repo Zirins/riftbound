@@ -98,6 +98,7 @@ export class SummonResultScene extends Phaser.Scene {
   shutdown(): void {
     this.revealTimer?.remove();
     this.revealTimer = null;
+    this.tweens.killAll();
     for (const obj of this.cardObjects) obj.destroy();
     this.cardObjects.length = 0;
     this.summaryLabel?.destroy();

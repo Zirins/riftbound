@@ -60,6 +60,7 @@ export class HubScene extends Phaser.Scene {
   private tasksDot: NotificationDot | null = null;
   private chronicleDot: NotificationDot | null = null;
   private lockIcons: Phaser.GameObjects.Text[] = [];
+  private toastTimer: Phaser.Time.TimerEvent | null = null;
 
   constructor() {
     super({ key: HubScene.KEY });
@@ -79,6 +80,8 @@ export class HubScene extends Phaser.Scene {
   }
 
   shutdown(): void {
+    this.toastTimer?.remove();
+    this.toastTimer = null;
     this.closeActiveOverlay();
     this.currencyBar?.destroy();
     this.profileLabel?.destroy();
@@ -263,6 +266,7 @@ export class HubScene extends Phaser.Scene {
   }
 
   private showToast(message: string): void {
+    this.toastTimer?.remove();
     this.toastLabel?.destroy();
     this.toastLabel = this.add.text(CANVAS.WIDTH / 2, CANVAS.HEIGHT - 90, message, {
       fontSize: '12px',
@@ -272,9 +276,10 @@ export class HubScene extends Phaser.Scene {
       padding: { x: 8, y: 4 },
     }).setOrigin(0.5);
 
-    this.time.delayedCall(2500, () => {
+    this.toastTimer = this.time.delayedCall(UI.TOAST_DURATION_MS, () => {
       this.toastLabel?.destroy();
       this.toastLabel = null;
+      this.toastTimer = null;
     });
   }
 

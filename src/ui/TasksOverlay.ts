@@ -177,6 +177,7 @@ export class TasksOverlay {
   }
 
   private destroyContent(): void {
+    for (const button of this.overlayButtons) button.zone.off('pointerup');
     this.overlayButtons.length = 0;
 
     for (const bar of this.progressBars) bar.destroy();

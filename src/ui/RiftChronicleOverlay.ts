@@ -207,6 +207,7 @@ export class RiftChronicleOverlay {
   }
 
   private destroyContent(): void {
+    for (const button of this.overlayButtons) button.zone.off('pointerup');
     this.overlayButtons.length = 0;
     this.container?.destroy(true);
     this.container = null;

@@ -326,6 +326,9 @@ export const UI = {
   SOUND_TOGGLE_ZONE_WIDTH: 120,
   SOUND_TOGGLE_ZONE_OFFSET_X: 50,
   SOUND_TOGGLE_ZONE_OFFSET_Y: 10,
+  TOAST_DURATION_MS: 2500,
+  SHORT_TOAST_DURATION_MS: 2200,
+  SCENE_RESTART_DELAY_MS: 400,
 } as const;
 
 // ─── Stages ───────────────────────────────────────────────────────────────────

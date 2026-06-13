@@ -109,6 +109,7 @@ export class ModalBase {
   }
 
   destroy(): void {
+    for (const button of this.buttons) button.zone.off('pointerup');
     this.buttons.length = 0;
     this.container.destroy(true);
   }

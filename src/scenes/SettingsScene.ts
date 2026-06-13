@@ -121,6 +121,7 @@ export class SettingsScene extends Phaser.Scene {
     this.musicSlider = null;
     this.sfxSlider = null;
 
+    this.autoUltimateZone?.off('pointerup');
     this.autoUltimateZone?.destroy();
     this.autoUltimateToggle?.destroy();
     this.autoUltimateLabel?.destroy();

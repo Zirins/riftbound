@@ -34,6 +34,7 @@ export class ShopScene extends Phaser.Scene {
   private readonly cards: ShopCardUi[] = [];
   private toastLabel: Phaser.GameObjects.Text | null = null;
   private toastTimer: Phaser.Time.TimerEvent | null = null;
+  private restartTimer: Phaser.Time.TimerEvent | null = null;
 
   constructor() {
     super({ key: ShopScene.KEY });
@@ -79,6 +80,8 @@ export class ShopScene extends Phaser.Scene {
   }
 
   shutdown(): void {
+    this.restartTimer?.remove();
+    this.restartTimer = null;
     this.toastTimer?.remove();
     this.toastLabel?.destroy();
     for (const card of this.cards) {
@@ -139,7 +142,11 @@ export class ShopScene extends Phaser.Scene {
   private handlePurchase(itemId: string): void {
     if (ShopSystem.purchase(itemId)) {
       this.showToast('Purchased!');
-      this.time.delayedCall(400, () => this.scene.restart());
+      this.restartTimer?.remove();
+      this.restartTimer = this.time.delayedCall(UI.SCENE_RESTART_DELAY_MS, () => {
+        this.restartTimer = null;
+        this.scene.restart();
+      });
       return;
     }
     this.showToast('Cannot purchase — insufficient funds or already sold.');
@@ -155,7 +162,7 @@ export class ShopScene extends Phaser.Scene {
       backgroundColor: '#333355',
       padding: { x: 10, y: 6 },
     }).setOrigin(0.5);
-    this.toastTimer = this.time.delayedCall(2000, () => {
+    this.toastTimer = this.time.delayedCall(UI.SHORT_TOAST_DURATION_MS, () => {
       this.toastLabel?.destroy();
       this.toastLabel = null;
       this.toastTimer = null;

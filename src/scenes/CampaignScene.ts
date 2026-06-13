@@ -55,7 +55,10 @@ export class CampaignScene extends Phaser.Scene {
   }
 
   shutdown(): void {
-    for (const zone of this.nodeZones) zone.destroy();
+    for (const zone of this.nodeZones) {
+      zone.off('pointerup');
+      zone.destroy();
+    }
     this.nodeZones.length = 0;
     this.backButton?.destroy();
     this.backButton = null;

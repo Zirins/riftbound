@@ -21,6 +21,7 @@ export class ResonanceArenaScene extends Phaser.Scene {
   private readonly challengeButtons: ButtonPrimary[] = [];
   private toastLabel: Phaser.GameObjects.Text | null = null;
   private toastTimer: Phaser.Time.TimerEvent | null = null;
+  private restartTimer: Phaser.Time.TimerEvent | null = null;
 
   constructor() {
     super({ key: ResonanceArenaScene.KEY });
@@ -159,7 +160,11 @@ export class ResonanceArenaScene extends Phaser.Scene {
   private handleClaimReward(): void {
     if (ArenaMatch.claimDailyReward()) {
       this.showToast('Daily reward claimed!');
-      this.time.delayedCall(400, () => this.scene.restart());
+      this.restartTimer?.remove();
+      this.restartTimer = this.time.delayedCall(UI.SCENE_RESTART_DELAY_MS, () => {
+        this.restartTimer = null;
+        this.scene.restart();
+      });
       return;
     }
     this.showToast('Daily reward not available.');
@@ -177,7 +182,7 @@ export class ResonanceArenaScene extends Phaser.Scene {
       padding: { x: 8, y: 4 },
     }).setOrigin(0.5);
 
-    this.toastTimer = this.time.delayedCall(2200, () => {
+    this.toastTimer = this.time.delayedCall(UI.SHORT_TOAST_DURATION_MS, () => {
       this.toastLabel?.destroy();
       this.toastLabel = null;
       this.toastTimer = null;
@@ -185,6 +190,8 @@ export class ResonanceArenaScene extends Phaser.Scene {
   }
 
   shutdown(): void {
+    this.restartTimer?.remove();
+    this.restartTimer = null;
     this.toastTimer?.remove();
     this.toastTimer = null;
     this.toastLabel?.destroy();

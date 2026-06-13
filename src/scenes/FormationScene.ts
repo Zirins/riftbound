@@ -231,6 +231,7 @@ export class FormationScene extends Phaser.Scene {
     this.battleTapZone?.destroy();
 
     for (const slot of this.lineupVisuals) {
+      slot.heroTapZone?.off('pointerup');
       slot.platform.destroy();
       slot.heroCircle?.destroy();
       slot.heroName?.destroy();
@@ -239,6 +240,7 @@ export class FormationScene extends Phaser.Scene {
     this.lineupVisuals.length = 0;
 
     for (const portrait of this.rosterVisuals) {
+      portrait.tapZone.off('pointerup');
       portrait.tapZone.destroy();
       portrait.circle.destroy();
       portrait.label.destroy();

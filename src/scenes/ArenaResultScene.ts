@@ -102,6 +102,7 @@ export class ArenaResultScene extends Phaser.Scene {
   }
 
   shutdown(): void {
+    this.continueTapZone?.off('pointerup');
     this.continueTapZone?.destroy();
     this.continueTapZone = null;
     this.result = null;

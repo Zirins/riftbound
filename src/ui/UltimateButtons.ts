@@ -98,6 +98,7 @@ export class UltimateButtons {
   destroy(): void {
     this.hudBackground?.destroy();
     for (const portrait of this.portraits) {
+      portrait.tapZone.off('pointerdown');
       portrait.tapZone.destroy();
       portrait.circle.destroy();
       portrait.glow.destroy();
