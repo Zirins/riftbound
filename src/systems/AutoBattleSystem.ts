@@ -198,6 +198,20 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
       const target = getHeroTarget(hero, enemies);
       if (!target) continue;
 
+      if (hero.heroClass === 'assassin') {
+        this.tickAssassinAttack(hero, target, enemies);
+        continue;
+      }
+
+      if (hero.heroClass === 'mage') {
+        const damage = this.calculateHeroDamage(hero, target.defense);
+        this.projectiles.push(
+          createHeroProjectile(this.scene, hero, target, damage, this.getHeroColor(hero.heroId)),
+        );
+        hero.attackCooldownRemaining = hero.attackCooldown;
+        continue;
+      }
+
       if (this.isRangedHero(hero.heroClass)) {
         const damage = this.calculateHeroDamage(hero, target.defense);
         this.projectiles.push(
@@ -443,10 +457,6 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
 
     if (options.skipFollowUp) return;
 
-    if (attacker.heroId === R.ID && attacker.attackCounter % R.MARK_HIT_COUNT === 0) {
-      this.applyRenMark(attacker, enemies);
-    }
-
     if (attacker.heroId === MK.ID) {
       this.marekSquallIdleMs.set(attacker.heroId, 0);
       const squall = attacker.activeBuffs.find((buff) => buff.id === 'gathering_squall');
@@ -465,6 +475,48 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
     if (attacker.heroId === SO.ID) {
       this.applySolenneSplash(attacker, enemy, enemies, finalDamage);
     }
+  }
+
+  private tickAssassinAttack(
+    hero: HeroRuntimeState,
+    target: EnemyRuntimeState,
+    enemies: EnemyRuntimeState[],
+  ): void {
+    const procInterval = hero.heroId === R.ID ? R.MARK_HIT_COUNT : 4;
+    const isDashProc = hero.heroId === R.ID
+      && hero.attackCounter % procInterval === procInterval - 1;
+
+    if (isDashProc) {
+      this.executeAssassinDashStrike(hero, target, enemies);
+      return;
+    }
+
+    const damage = this.calculateHeroDamage(hero, target.defense);
+    this.projectiles.push(
+      createHeroProjectile(this.scene, hero, target, damage, this.getHeroColor(hero.heroId)),
+    );
+    hero.attackCooldownRemaining = hero.attackCooldown;
+  }
+
+  private executeAssassinDashStrike(
+    hero: HeroRuntimeState,
+    target: EnemyRuntimeState,
+    enemies: EnemyRuntimeState[],
+  ): void {
+    const homeX = hero.targetX;
+    const homeY = hero.targetY;
+    const engageDist = hero.radius + target.radius + 4;
+
+    hero.x = Math.max(hero.radius, target.x - engageDist);
+    hero.y = target.y;
+
+    const damage = this.calculateHeroDamage(hero, target.defense);
+    this.applyDamageToEnemy(target, damage, hero, enemies, { skipFollowUp: true });
+    this.applyRenMark(hero, enemies);
+
+    hero.x = homeX;
+    hero.y = homeY;
+    hero.attackCooldownRemaining = hero.attackCooldown;
   }
 
   private applyRenMark(
