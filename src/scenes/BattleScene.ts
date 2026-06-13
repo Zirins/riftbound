@@ -8,6 +8,7 @@ import { createBattleGameState } from '../store/GameState';
 import { AutoBattleSystem } from '../systems/AutoBattleSystem';
 import { assignCombatSlotIndices, FormationSystem, getHeroBattlePosition } from '../systems/FormationSystem';
 import { computeStageReward } from '../systems/RewardSystem';
+import { buildArenaWaveConfig } from '../systems/ArenaMatchSystem';
 import { getStageData } from '../systems/StageLoader';
 import { getBattleLineupHeroIds } from '../systems/SaveSystem';
 import { UltimateSystem } from '../systems/UltimateSystem';
@@ -126,6 +127,7 @@ export class BattleScene extends Phaser.Scene {
   static readonly KEY = SCENE_KEYS.BATTLE;
 
   private stageId = 'stage_1_1';
+  private arenaOpponentId: string | null = null;
   private energyCost = 0;
   private heroesDeathCount = 0;
 
@@ -175,6 +177,11 @@ export class BattleScene extends Phaser.Scene {
     this.battleEnded = true;
     this.gameState.isVictory = true;
     this.combatActive = false;
+
+    if (this.stageId === 'arena') {
+      this.scene.start(SCENE_KEYS.ARENA_RESULT, { win: true });
+      return;
+    }
 
     const stageData = getStageData(this.stageId);
     const waveCount = stageData?.waves.length ?? WAVES.length;
@@ -229,8 +236,9 @@ export class BattleScene extends Phaser.Scene {
     super({ key: BattleScene.KEY });
   }
 
-  init(data: { stageId?: string }): void {
+  init(data: { stageId?: string; arenaOpponentId?: string }): void {
     this.stageId = data.stageId ?? 'stage_1_1';
+    this.arenaOpponentId = data.arenaOpponentId ?? null;
     const stageData = getStageData(this.stageId);
     this.energyCost = stageData?.energyCost ?? 0;
   }
@@ -253,6 +261,14 @@ export class BattleScene extends Phaser.Scene {
       fontFamily: 'monospace',
     }).setOrigin(0.5, 0);
 
+    if (this.stageId === 'arena') {
+      this.add.text(CANVAS.WIDTH / 2, 18, 'Rival formation defeated by Riftborn — hold the line!', {
+        fontSize: '10px',
+        color: '#888899',
+        fontFamily: 'monospace',
+      }).setOrigin(0.5);
+    }
+
     this.spawnHeroes();
     this.gameState = createBattleGameState(this.heroes, this.enemies);
 
@@ -270,8 +286,10 @@ export class BattleScene extends Phaser.Scene {
     this.waveSystem.on('bossHpUpdate', this.onBossHpUpdate);
 
     const stageData = getStageData(this.stageId);
-    const waveConfigs = stageData?.waves
-      ?? ((!this.stageId || this.stageId === 'stage_1_1') ? WAVES : []);
+    const waveConfigs = this.stageId === 'arena' && this.arenaOpponentId
+      ? buildArenaWaveConfig(this.arenaOpponentId)
+      : (stageData?.waves
+        ?? ((!this.stageId || this.stageId === 'stage_1_1') ? WAVES : []));
     this.waveSystem.init(waveConfigs.length > 0 ? waveConfigs : WAVES);
 
     this.ultimateSystem = new UltimateSystem(this);
@@ -349,6 +367,11 @@ export class BattleScene extends Phaser.Scene {
 
     const fallenHeroId = this.gameState.firstHeroToFall ?? HEROES.KAEL.ID;
     const fallenName = HERO_SETUP_BY_ID[fallenHeroId]?.name ?? 'Unknown';
+
+    if (this.stageId === 'arena') {
+      this.scene.start(SCENE_KEYS.ARENA_RESULT, { win: false });
+      return;
+    }
 
     this.scene.start(SCENE_KEYS.DEFEAT, {
       firstHeroName: fallenName,

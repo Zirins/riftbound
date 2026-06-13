@@ -165,7 +165,7 @@ export class WaveSystem extends Phaser.Events.EventEmitter {
 
     this.currentWaveIndex = waveIndex;
     const wave = this.waveConfigs[waveIndex];
-    const enemies = this.buildWaveEnemies(waveIndex, wave.enemies);
+    const enemies = this.buildWaveEnemies(waveIndex, wave.enemies, wave.statScale ?? 1);
 
     if (wave.isBossWave) {
       this.wardenBoss.reset();
@@ -190,6 +190,7 @@ export class WaveSystem extends Phaser.Events.EventEmitter {
   private buildWaveEnemies(
     waveIndex: number,
     definitions: { enemyId: string; count: number }[],
+    statScale = 1,
   ): EnemyRuntimeState[] {
     const enemies: EnemyRuntimeState[] = [];
     let slotIndex = 0;
@@ -202,16 +203,19 @@ export class WaveSystem extends Phaser.Events.EventEmitter {
         const position = this.getSpawnPosition(slotIndex);
         this.spawnCounter += 1;
         const instanceId = `${definition.enemyId}_w${waveIndex}_${this.spawnCounter}`;
+        const scaledHp = Math.round(template.hp * statScale);
+        const scaledAttack = Math.round(template.attack * statScale);
+        const scaledDefense = Math.round(template.defense * statScale);
 
         enemies.push({
           enemyId: definition.enemyId,
           instanceId,
           x: position.x,
           y: position.y,
-          currentHP: template.hp,
-          maxHP: template.hp,
-          attack: template.attack,
-          defense: template.defense,
+          currentHP: scaledHp,
+          maxHP: scaledHp,
+          attack: scaledAttack,
+          defense: scaledDefense,
           moveSpeed: template.speed,
           attackCooldown: template.attackCooldown,
           attackRange: template.attackRange,

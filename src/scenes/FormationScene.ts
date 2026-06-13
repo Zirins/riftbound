@@ -10,6 +10,7 @@ import {
 } from '../constants/gameConfig';
 import { SCENE_KEYS } from '../constants/sceneKeys';
 import { getStageData } from '../systems/StageLoader';
+import { getOpponentById } from '../systems/ArenaMatchSystem';
 import { loadFormationSlots, saveFormationSlots } from '../systems/SaveSystem';
 import type { HeroClass } from '../types';
 
@@ -114,6 +115,7 @@ export class FormationScene extends Phaser.Scene {
   static readonly KEY = SCENE_KEYS.FORMATION;
 
   private stageId = 'stage_1_1';
+  private arenaOpponentId: string | null = null;
 
   private lineupStage!: Phaser.GameObjects.Rectangle;
   private lineupTitle!: Phaser.GameObjects.Text;
@@ -128,8 +130,9 @@ export class FormationScene extends Phaser.Scene {
     super({ key: FormationScene.KEY });
   }
 
-  init(data: { stageId?: string; origin?: string }): void {
+  init(data: { stageId?: string; origin?: string; arenaOpponentId?: string }): void {
     this.stageId = data.stageId ?? 'stage_1_1';
+    this.arenaOpponentId = data.arenaOpponentId ?? null;
   }
 
   create(): void {
@@ -147,7 +150,9 @@ export class FormationScene extends Phaser.Scene {
       UI.FORMATION_LINEUP_STAGE_COLOR,
     );
 
-    const stageName = getStageData(this.stageId)?.name ?? 'Stage';
+    const stageName = this.stageId === 'arena'
+      ? `Arena — ${getOpponentById(this.arenaOpponentId ?? '')?.displayName ?? 'Rival'}`
+      : (getStageData(this.stageId)?.name ?? 'Stage');
     this.lineupTitle = this.add.text(
       CANVAS.WIDTH / 2,
       UI.FORMATION_LINEUP_TITLE_Y,
@@ -348,6 +353,9 @@ export class FormationScene extends Phaser.Scene {
     }
 
     saveFormationSlots(this.lineupSlots);
-    this.scene.start(SCENE_KEYS.BATTLE, { stageId: this.stageId });
+    this.scene.start(SCENE_KEYS.BATTLE, {
+      stageId: this.stageId,
+      arenaOpponentId: this.arenaOpponentId ?? undefined,
+    });
   };
 }

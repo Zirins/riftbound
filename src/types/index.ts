@@ -224,6 +224,7 @@ export interface WaveConfig {
   waveIndex: number;
   enemies: { enemyId: string; count: number }[];
   isBossWave: boolean;
+  statScale?: number;
 }
 
 // ─── Campaign stages (V1.1) ───────────────────────────────────────────────────
@@ -408,6 +409,15 @@ export interface ArenaState {
   lastAttemptResetDate: string;  // 'YYYY-MM-DD'
   lastRewardClaimDate: string;
   defenseFormation: FormationGrid;
+}
+
+export interface ArenaMatchResult {
+  win: boolean;
+  rankPointsDelta: number;
+  newRankPoints: number;
+  newTier: string;
+  rewardGold: number;
+  rewardCrystals: number;
 }
 
 export interface RiftChronicleState {
