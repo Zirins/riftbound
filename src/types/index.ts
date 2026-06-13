@@ -583,6 +583,27 @@ export interface UseItemResult {
   rewardsGranted?: RewardBundle;
 }
 
+export type GameEvent =
+  | { type: 'stage_cleared'; stageId: string; stars: number; swept: boolean }
+  | { type: 'arena_won'; opponentId: string }
+  | { type: 'hero_summoned'; heroId: string; rarity: HeroRarity; duplicate: boolean }
+  | { type: 'hero_star_up'; heroId: string; newStar: number }
+  | { type: 'hero_awakened'; heroId: string; awakeningLevel: number }
+  | { type: 'sigil_upgraded'; sigilId: string; newLevel: number }
+  | { type: 'sigil_dissolved'; sigilId: string; rarity: SigilRarity }
+  | { type: 'covenant_joined'; covenantId: string }
+  | { type: 'covenant_contributed'; amount: number; currency: CurrencyType }
+  | { type: 'friend_gift_sent'; friendId: string }
+  | { type: 'rift_season_tier_claimed'; tier: number };
+
+export interface ResetResult {
+  dailyResetApplied: boolean;
+  weeklyResetApplied: boolean;
+  dailyDateKey: string;
+  weeklyWeekKey: string;
+  handlersRun: string[];
+}
+
 // ─── V2 Save Schema V3 (Section 7) ──────────────────────────────────────────
 
 /** V1.1 realm save — alias for migration contracts. */

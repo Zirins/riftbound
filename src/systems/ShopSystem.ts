@@ -3,12 +3,10 @@
 
 import { SHOP_ITEMS, type ShopItemDefinition } from '../data/shopItems';
 import { HEROES_DATA } from '../data/heroes';
+import type { RealmSaveDataV3 } from '../types';
+import { getLocalDateKey } from '../save/utils/saveDateUtils';
 import * as Economy from './EconomySystem';
 import { loadCurrentRealm, saveCurrentRealm } from './SaveSystem';
-
-function todayString(): string {
-  return new Date().toISOString().slice(0, 10);
-}
 
 function createSeededRng(seed: string): () => number {
   let state = 0;
@@ -22,24 +20,29 @@ function createSeededRng(seed: string): () => number {
   };
 }
 
+export function resetDaily(save: RealmSaveDataV3, dateKey: string): void {
+  if (save.dailyShopState.date === dateKey) return;
+
+  save.dailyShopState = {
+    date: dateKey,
+    purchasedItemIds: [],
+  };
+}
+
 export function resetIfNewDay(): void {
   const realm = loadCurrentRealm();
   if (!realm) return;
 
-  const today = todayString();
-  if (realm.dailyShopState.date === today) return;
+  const save = realm as RealmSaveDataV3;
+  const dateKey = getLocalDateKey();
+  if (save.dailyShopState.date === dateKey) return;
 
-  saveCurrentRealm({
-    ...realm,
-    dailyShopState: {
-      date: today,
-      purchasedItemIds: [],
-    },
-  });
+  resetDaily(save, dateKey);
+  saveCurrentRealm(save);
 }
 
 export function getDailyStock(): ShopItemDefinition[] {
-  const today = todayString();
+  const today = getLocalDateKey();
   const rng = createSeededRng(`shop-${today}`);
   const stockCount = 5 + Math.floor(rng() * 2);
 

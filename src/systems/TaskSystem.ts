@@ -2,13 +2,10 @@
 // Daily task progress, reset, and claims.
 
 import { DAILY_TASKS } from '../data/tasks';
-import type { DailyTaskState } from '../types';
+import type { DailyTaskState, RealmSaveDataV3 } from '../types';
+import { getLocalDateKey } from '../save/utils/saveDateUtils';
 import * as Economy from './EconomySystem';
 import { loadCurrentRealm, saveCurrentRealm } from './SaveSystem';
-
-function todayString(): string {
-  return new Date().toISOString().slice(0, 10);
-}
 
 function buildFreshTasks(date: string): DailyTaskState[] {
   return DAILY_TASKS.map((task) => ({
@@ -20,20 +17,27 @@ function buildFreshTasks(date: string): DailyTaskState[] {
   }));
 }
 
+export function resetDaily(save: RealmSaveDataV3, dateKey: string): void {
+  const needsReset = save.tasks.length === 0
+    || save.tasks.some((task) => task.date !== dateKey);
+
+  if (!needsReset) return;
+
+  save.tasks = buildFreshTasks(dateKey);
+}
+
 export function resetIfNewDay(): void {
   const realm = loadCurrentRealm();
   if (!realm) return;
 
-  const today = todayString();
-  const needsReset = realm.tasks.length === 0
-    || realm.tasks.some((task) => task.date !== today);
+  const save = realm as RealmSaveDataV3;
+  const dateKey = getLocalDateKey();
+  if (save.tasks.length > 0 && save.tasks.every((task) => task.date === dateKey)) {
+    return;
+  }
 
-  if (!needsReset) return;
-
-  saveCurrentRealm({
-    ...realm,
-    tasks: buildFreshTasks(today),
-  });
+  resetDaily(save, dateKey);
+  saveCurrentRealm(save);
 }
 
 export function getDailyTasks(): DailyTaskState[] {

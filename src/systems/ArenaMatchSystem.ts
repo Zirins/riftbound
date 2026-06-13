@@ -4,7 +4,8 @@
 import { ARENA } from '../constants/gameConfig';
 import { ARENA_OPPONENTS, type ArenaOpponent } from '../data/arenaOpponents';
 import { HEROES_DATA } from '../data/heroes';
-import type { ArenaMatchResult, WaveConfig } from '../types';
+import type { ArenaMatchResult, RealmSaveDataV3, WaveConfig } from '../types';
+import { getLocalDateKey } from '../save/utils/saveDateUtils';
 import * as Economy from './EconomySystem';
 import { computeRP } from './HeroProgressionSystem';
 import { getBattleLineupHeroIds, loadCurrentRealm, saveCurrentRealm } from './SaveSystem';
@@ -13,7 +14,7 @@ const BASELINE_FORMATION_RP = 8_000;
 const OPPONENT_RP_TOLERANCE = 0.3;
 
 function todayString(): string {
-  return new Date().toISOString().slice(0, 10);
+  return getLocalDateKey();
 }
 
 function createSeededRng(seed: string): () => number {
@@ -28,21 +29,26 @@ function createSeededRng(seed: string): () => number {
   };
 }
 
+export function resetDaily(save: RealmSaveDataV3, dateKey: string): void {
+  if (save.arenaState.lastAttemptResetDate === dateKey) return;
+
+  save.arenaState = {
+    ...save.arenaState,
+    attemptsUsedToday: 0,
+    lastAttemptResetDate: dateKey,
+  };
+}
+
 export function resetIfNewDay(): void {
   const realm = loadCurrentRealm();
   if (!realm) return;
 
-  const today = todayString();
-  if (realm.arenaState.lastAttemptResetDate === today) return;
+  const save = realm as RealmSaveDataV3;
+  const dateKey = getLocalDateKey();
+  if (save.arenaState.lastAttemptResetDate === dateKey) return;
 
-  saveCurrentRealm({
-    ...realm,
-    arenaState: {
-      ...realm.arenaState,
-      attemptsUsedToday: 0,
-      lastAttemptResetDate: today,
-    },
-  });
+  resetDaily(save, dateKey);
+  saveCurrentRealm(save);
 }
 
 export function getPlayerFormationRP(): number {
