@@ -22,6 +22,20 @@ export const SCENE_KEYS = {
   ARENA_RESULT:     'ArenaResultScene',
   SHOP:             'ShopScene',
   SETTINGS:         'SettingsScene',
+
+  // V2 new scenes
+  SIGIL:            'SigilScene',
+  SIGIL_UPGRADE:    'SigilUpgradeScene',
+  ACHIEVEMENTS:     'AchievementsScene',
+  INVENTORY:        'InventoryScene',
+  VOID_TRIAL:       'VoidTrialScene',
+  COVENANT_HUB:     'CovHubScene',
+  COVENANT_MEMBER:  'CovMemberScene',
+  COVENANT_BOSS:    'CovBossScene',
+  COVENANT_SHOP:    'CovShopScene',
+  FRIENDS:          'FriendScene',
+  PATRON:           'PatronScene',
+  RIFT_SEASON:      'RiftSeasonScene',
 } as const;
 
 export type SceneKey = typeof SCENE_KEYS[keyof typeof SCENE_KEYS];

@@ -361,7 +361,7 @@ export interface GameState {
 // ─── V1.1 Save Root ───────────────────────────────────────────────────────────
 
 export interface SaveRoot {
-  schemaVersion: number;         // 2 for V1.1
+  schemaVersion: number;         // 2 for V1.1, 3 for V2
   realms: Record<string, RealmSaveData>;
   selectedRealmId: string | null;
 }
@@ -466,4 +466,591 @@ export interface GameSettingsV11 {
   musicVolume: number;           // 0–100
   sfxVolume: number;
   defaultAutoUltimate: boolean;
+}
+
+// ─── V2 Core Type Contracts (Section 8) ───────────────────────────────────────
+
+export type CurrencyType =
+  | 'gold'
+  | 'rift_crystal'
+  | 'void_gem'
+  | 'energy'
+  | 'arena_coin'
+  | 'covenant_coin'
+  | 'friendship_point';
+
+export type InventoryItemType =
+  | 'xp_fragment'
+  | 'sigil_dust'
+  | 'awakening_crystal'
+  | 'hero_shard'
+  | 'sigil_box'
+  | 'reward_box'
+  | 'event_item'
+  | 'material';
+
+export type RewardSource =
+  | 'campaign_clear'
+  | 'campaign_sweep'
+  | 'daily_task'
+  | 'weekly_task'
+  | 'achievement'
+  | 'rift_chronicle'
+  | 'offline_reward'
+  | 'arena_match'
+  | 'arena_season'
+  | 'void_trial'
+  | 'covenant_contribution'
+  | 'covenant_boss'
+  | 'covenant_shop'
+  | 'friend_gift'
+  | 'rift_season'
+  | 'gacha_pull'
+  | 'iap_purchase'
+  | 'dev_grant';
+
+export interface CurrencyReward {
+  type: CurrencyType;
+  amount: number;
+}
+
+export interface ItemReward {
+  itemId: string;
+  quantity: number;
+}
+
+export interface HeroShardReward {
+  heroId: string;
+  quantity: number;
+}
+
+export interface HeroReward {
+  heroId: string;
+  duplicateShardQuantity?: number;
+}
+
+export interface SigilReward {
+  sigilDefinitionId: string;
+  rarityOverride?: EquipmentSigilRarity;
+  level?: number;
+}
+
+export interface RewardBundle {
+  source: RewardSource;
+  currencies?: CurrencyReward[];
+  items?: ItemReward[];
+  heroShards?: HeroShardReward[];
+  heroes?: HeroReward[];
+  sigils?: SigilReward[];
+  mailAttachments?: RewardBundle[];
+}
+
+export interface GrantResult {
+  success: boolean;
+  grantedBundle: RewardBundle;
+  errors?: string[];
+}
+
+export interface RewardPreview {
+  bundle: RewardBundle;
+  wouldGrantNewHeroes: string[];
+}
+
+export type SpendReason = string;
+
+export interface CurrencyCost {
+  type: CurrencyType;
+  amount: number;
+}
+
+export interface SpendResult {
+  success: boolean;
+  reason?: string;
+}
+
+export interface ItemCost {
+  itemId: string;
+  quantity: number;
+}
+
+// ─── V2 Save Schema V3 (Section 7) ──────────────────────────────────────────
+
+/** V1.1 realm save — alias for migration contracts. */
+export type RealmSaveDataV2 = RealmSaveData;
+
+export interface PlayerInventoryV3 extends PlayerInventoryV2 {
+  itemQuantities: Record<string, number>;
+  arenaCoins: number;
+  covenantCoins: number;
+  friendshipPoints: number;
+}
+
+export type EquipmentSigilRarity =
+  | 'common'
+  | 'uncommon'
+  | 'rare'
+  | 'epic'
+  | 'legendary';
+
+export interface SigilStatRoll {
+  statType: SigilStatType;
+  value: number;
+}
+
+export type SigilStatType =
+  | 'hp'
+  | 'hpPercent'
+  | 'attack'
+  | 'attackPercent'
+  | 'defense'
+  | 'defensePercent'
+  | 'attackSpeedPercent'
+  | 'energyGain';
+
+export interface SigilStatDefinition {
+  statType: SigilStatType;
+  value: number;
+}
+
+export interface SigilPassiveModifier {
+  passiveEffectId: string;
+  value: number;
+}
+
+export type SigilDropSource =
+  | 'campaign'
+  | 'void_trial'
+  | 'covenant_boss'
+  | 'shop'
+  | 'gacha'
+  | 'dev_grant';
+
+export interface SigilDefinition {
+  id: string;
+  name: string;
+  rarity: EquipmentSigilRarity;
+  element: ElementType;
+  primaryStat: SigilStatDefinition;
+  secondaryStatPool: SigilStatType[];
+  passiveModifier?: SigilPassiveModifier;
+  dropSources: SigilDropSource[];
+}
+
+export interface OwnedSigil {
+  instanceId: string;
+  definitionId: string;
+  level: number;
+  breakthroughLevel: 0 | 1 | 2 | 3;
+  secondaryStats: SigilStatRoll[];
+  equippedHeroId?: string;
+  equippedSlotIndex?: 0 | 1;
+}
+
+export interface SigilOwnershipState {
+  ownedSigils: OwnedSigil[];
+  nextInstanceId: number;
+}
+
+export interface HeroAwakeningState {
+  heroId: string;
+  awakeningLevel: 0 | 1 | 2 | 3;
+}
+
+export interface BondState {
+  activatedBondIds: string[];
+}
+
+export interface AchievementSaveState {
+  completedAchievementIds: string[];
+  claimedAchievementIds: string[];
+}
+
+export interface WeeklyTaskEntry {
+  taskId: string;
+  currentProgress: number;
+  completed: boolean;
+  claimed: boolean;
+}
+
+export interface WeeklyTaskSaveState {
+  weekKey: string;
+  tasks: WeeklyTaskEntry[];
+}
+
+export interface OfflineRewardState {
+  lastClaimAt: number;
+  pendingGold: number;
+  pendingXpFragments: number;
+  pendingEnergy: number;
+}
+
+export interface CovenantBossState {
+  bossId: string;
+  currentHp: number;
+  maxHp: number;
+  attemptsUsedThisWeek: number;
+  lastWeeklyResetWeekKey: string;
+  defeatedThisWeek: boolean;
+}
+
+export interface CovenantShopState {
+  weekKey: string;
+  purchasedItemCounts: Record<string, number>;
+}
+
+export interface CovenantState {
+  covId: string | null;
+  covName: string | null;
+  covLevel: number;
+  covXP: number;
+  memberCount: number;
+  members: CovenantMember[];
+  personalContributionToday: number;
+  lastContributionDate: string;
+  covCoins: number;
+  bossState: CovenantBossState;
+  shopState: CovenantShopState;
+}
+
+export interface CovenantMember {
+  id: string;
+  name: string;
+  role: 'leader' | 'member' | 'npc';
+  resonancePower: number;
+  lastActiveText: string;
+  weeklyContribution: number;
+}
+
+export interface FriendState {
+  friendIds: string[];
+  sentGiftToday: string[];
+  receivedGiftToday: string[];
+  friendshipPoints: number;
+  lastGiftResetDate: string;
+  shopPurchasesThisWeek: Record<string, number>;
+  lastShopResetWeekKey: string;
+}
+
+export interface PatronState {
+  patronPoints: number;
+  patronTier: number;
+  dailyGiftClaimedDate: string;
+}
+
+export interface RiftSeasonState {
+  seasonId: string;
+  seasonStartDate: string;
+  seasonEndDate: string;
+  currentXp: number;
+  claimedFreeTiers: number[];
+  claimedPremiumTiers: number[];
+  premiumUnlocked: boolean;
+}
+
+export interface FeaturedBannerState {
+  currentBannerId: string;
+  bannerStartDate: string;
+  bannerEndDate: string;
+  pityCounter: number;
+  guaranteedFeatured: boolean;
+  totalPullsOnCurrentBanner: number;
+}
+
+export interface VoidTrialState {
+  highestFloorCleared: number;
+  firstClearClaimedFloors: number[];
+  attemptsUsedToday: number;
+  lastAttemptResetDate: string;
+  lastWeeklyRewardWeekKey: string;
+  weeklyHighestFloor: number;
+}
+
+export interface MonetizationState {
+  foundersPackClaimed: boolean;
+  monthlyCardActiveUntil: string | null;
+  monthlyCardDailyClaimsRemaining: number;
+  growthFundPurchased: boolean;
+  growthFundClaimedMilestones: number[];
+  testPurchaseHistory: string[];
+}
+
+export interface WorldFeedState {
+  dateKey: string;
+  messageSeed: number;
+  displayedIndex: number;
+}
+
+export interface ResetState {
+  lastDailyResetDate: string;
+  lastWeeklyResetWeekKey: string;
+  lastSeasonId: string;
+}
+
+export interface FormationPreset {
+  id: string;
+  name: string;
+  mode?: 'campaign' | 'arena' | 'boss' | 'custom';
+  slots: FormationSlot[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RealmSaveDataV3 extends RealmSaveData {
+  inventory: PlayerInventoryV3;
+  sigilState: SigilOwnershipState;
+  awakeningState: Record<string, HeroAwakeningState>;
+  bondState: BondState;
+  formationPresets: FormationPreset[];
+  achievementState: AchievementSaveState;
+  weeklyTaskState: WeeklyTaskSaveState;
+  offlineRewardState: OfflineRewardState;
+  covenantState: CovenantState;
+  friendState: FriendState;
+  patronState: PatronState;
+  riftSeasonState: RiftSeasonState;
+  featuredBannerState: FeaturedBannerState;
+  voidTrialState: VoidTrialState;
+  monetizationState: MonetizationState;
+  worldFeedState: WorldFeedState;
+  resetState: ResetState;
+}
+
+// ─── V2 Hero Combat Kit (Section 11) ──────────────────────────────────────────
+
+export type HeroRole =
+  | 'frontline_tank'
+  | 'bruiser'
+  | 'assassin'
+  | 'ranged_dps'
+  | 'caster'
+  | 'support'
+  | 'healer'
+  | 'controller'
+  | 'summoner';
+
+/** V2 kit class axis — distinct from V1.1 HeroClass combat roles. */
+export type KitHeroClass =
+  | 'vanguard'
+  | 'striker'
+  | 'mystic'
+  | 'warden'
+  | 'oracle';
+
+export type ElementType =
+  | 'iron'
+  | 'flame'
+  | 'storm'
+  | 'frost'
+  | 'stone'
+  | 'void'
+  | 'light'
+  | 'blood'
+  | 'time'
+  | 'venom'
+  | 'lunar';
+
+export type SkillType = 'passive' | 'ultimate' | 'side';
+
+export type SkillTrigger =
+  | 'always_on'
+  | 'combat_start'
+  | 'cooldown'
+  | 'energy_full'
+  | 'manual_or_auto_ultimate'
+  | 'on_hit'
+  | 'on_crit'
+  | 'on_kill'
+  | 'on_death'
+  | 'on_revive'
+  | 'on_ally_low_hp'
+  | 'after_seconds'
+  | 'on_status_applied';
+
+export type TargetRule =
+  | 'nearest_enemy'
+  | 'lowest_hp_enemy'
+  | 'highest_atk_enemy'
+  | 'backline_enemy'
+  | 'frontline_enemy'
+  | 'densest_enemy_cluster'
+  | 'random_enemy'
+  | 'self'
+  | 'lowest_hp_ally'
+  | 'all_allies'
+  | 'all_enemies'
+  | 'area_forward_box'
+  | 'area_circle';
+
+export type SkillTag =
+  | 'damage'
+  | 'heal'
+  | 'shield'
+  | 'summon'
+  | 'dash'
+  | 'buff'
+  | 'debuff'
+  | 'control'
+  | 'execute'
+  | 'revive'
+  | 'lifesteal'
+  | 'energy_gain'
+  | 'damage_over_time'
+  | 'area';
+
+export interface HeroStats {
+  hp: number;
+  attack: number;
+  defense: number;
+  attackSpeed?: number;
+  critChance?: number;
+  critDamage?: number;
+  dodgeChance?: number;
+  energyGain?: number;
+}
+
+export interface TargetingProfile {
+  defaultTargetRule: TargetRule;
+  fallbackTargetRule?: TargetRule;
+}
+
+export interface HeroAIProfile {
+  ultimatePriority:
+    | 'asap'
+    | 'execute'
+    | 'ally_low_hp'
+    | 'enemy_clustered'
+    | 'boss_only'
+    | 'manual_preferred';
+  sideSkillPriority: string[];
+  allowedAutoSkills?: string[];
+  restrictedAutoSkills?: string[];
+}
+
+export interface AreaDefinition {
+  shape: 'circle' | 'box' | 'cone' | 'line';
+  radius?: number;
+  width?: number;
+  height?: number;
+  offsetX?: number;
+  offsetY?: number;
+}
+
+export interface SkillEffect {
+  effectType:
+    | 'damage'
+    | 'heal'
+    | 'shield'
+    | 'apply_status'
+    | 'remove_status'
+    | 'summon_unit'
+    | 'move_to_target'
+    | 'gain_energy'
+    | 'revive'
+    | 'stat_modifier';
+  scaling?: {
+    stat: 'atk' | 'maxHp' | 'def' | 'currentHpMissing';
+    multiplier: number;
+  };
+  flatAmount?: number;
+  durationMs?: number;
+  statusId?: string;
+  summonId?: string;
+  maxTargets?: number;
+  area?: AreaDefinition;
+}
+
+export interface HeroSkill {
+  id: string;
+  heroId: string;
+  name: string;
+  type: SkillType;
+  description: string;
+  trigger: SkillTrigger;
+  cooldownMs?: number;
+  initialCooldownMs?: number;
+  energyCost?: number;
+  targetRule: TargetRule;
+  effects: SkillEffect[];
+  tags: SkillTag[];
+}
+
+export interface SkillModifier {
+  targetSkillId: string;
+  modifierType:
+    | 'increase_multiplier'
+    | 'increase_duration'
+    | 'add_status'
+    | 'add_effect'
+    | 'reduce_cooldown'
+    | 'increase_target_count'
+    | 'upgrade_summon';
+  value: number | string | SkillEffect;
+}
+
+export interface AwakeningLevelData {
+  level: 1 | 2 | 3;
+  requiredStarRank: 5;
+  costs: {
+    gold: number;
+    awakeningCrystals: number;
+  };
+  statBonuses: Partial<HeroStats>;
+  skillModifiers: SkillModifier[];
+  description: string;
+}
+
+export interface HeroCombatKit {
+  heroId: string;
+  role: HeroRole;
+  classType: KitHeroClass;
+  element: ElementType;
+  targetingProfile: TargetingProfile;
+  aiProfile: HeroAIProfile;
+  passive: HeroSkill;
+  ultimate: HeroSkill;
+  sideSkills: [HeroSkill, HeroSkill, HeroSkill];
+  awakeningTrack: [AwakeningLevelData, AwakeningLevelData, AwakeningLevelData];
+}
+
+// ─── V2 Status Effects (Section 13.3) ─────────────────────────────────────────
+
+export type StatusEffectId =
+  | 'stun'
+  | 'silence'
+  | 'wound'
+  | 'burn'
+  | 'shielded'
+  | 'haste'
+  | 'slow'
+  | 'vulnerable'
+  | 'damage_reduction'
+  | 'atk_up'
+  | 'def_up';
+
+export interface StatusEffectDefinition {
+  id: StatusEffectId;
+  name: string;
+  description: string;
+  isDebuff: boolean;
+  maxStacks?: number;
+}
+
+export interface RuntimeStatusEffect {
+  id: string;
+  statusId: StatusEffectId;
+  value: number;
+  durationRemainingMs: number;
+  stacks: number;
+  sourceHeroId?: string;
+}
+
+export interface AwakeningCost {
+  gold: number;
+  awakeningCrystals: number;
+}
+
+export interface AwakeningResult {
+  success: boolean;
+  newLevel: 0 | 1 | 2 | 3;
+  reason?: string;
 }

@@ -343,7 +343,7 @@ export const STAGES = {
 export const APP = {
   ID: 'com.riftboundsigils.game',
   NAME: 'Riftbound Sigils',
-  VERSION: '1.1.0',
+  VERSION: '2.0.0',
   WEB_DIR: 'dist',
 } as const;
 
@@ -561,4 +561,91 @@ export const HERO_NEW = {
     SQUALL_STACK: 12, SQUALL_MAX_STACKS: 8, SQUALL_RESET_TIME: 2000,
     ULTIMATE_DAMAGE: 520, CLEAVE_Y_RANGE: 60, STAGGER_DURATION: 2000, STAGGER_SPEED_REDUCE: 0.30,
   },
+} as const;
+
+// ─── V2 Save Schema ───────────────────────────────────────────────────────────
+export const SAVE_SCHEMA = {
+  V1_1: 2,
+  V2: 3,
+} as const;
+
+// ─── V2 Sigil Equipment ───────────────────────────────────────────────────────
+export const SIGIL = {
+  MAX_LEVEL: 10,
+  SLOTS_PER_HERO_V2: 2,
+  BREAKTHROUGH_LEVELS: [4, 7, 10],
+  DISSOLVE_DUST: { common: 2, uncommon: 5, rare: 10, epic: 20, legendary: 50 },
+  LEVEL_COST_GOLD: [500, 1000, 2000, 3500, 5000, 8000, 12000, 18000, 25000, 35000],
+  BREAKTHROUGH_DUST: [0, 0, 0, 20, 0, 0, 40, 0, 0, 80],
+} as const;
+
+// ─── V2 Awakening ─────────────────────────────────────────────────────────────
+export const AWAKENING = {
+  REQUIRED_STAR_RANK: 5,
+  MAX_LEVEL: 3,
+  CRYSTAL_COSTS: [10, 25, 50],
+  GOLD_COSTS: [50_000, 150_000, 400_000],
+} as const;
+
+// ─── V2 Resonance Bonds ───────────────────────────────────────────────────────
+export const BONDS = {
+  FACTION_THRESHOLDS: [2, 4, 6, 8, 10],
+  FACTION_BONUSES: { atkPercent: [0.02, 0.04, 0.06, 0.09, 0.12] },
+  CLASS_THRESHOLDS: [2, 4],
+  COLLECTION_THRESHOLDS: [5, 8, 10],
+  COLLECTION_BONUSES: { hpPercent: [0.03, 0.06, 0.10] },
+} as const;
+
+// ─── V2 Formation Presets ─────────────────────────────────────────────────────
+export const FORMATION_PRESETS = {
+  MAX_PRESETS: 5,
+} as const;
+
+// ─── V2 Battle Stat Caps ──────────────────────────────────────────────────────
+export const BATTLE_STAT_CAPS = {
+  CRIT_CHANCE: 0.75,
+  CRIT_DAMAGE: 2.50,
+  DODGE_CHANCE: 0.50,
+  DAMAGE_REDUCTION: 0.70,
+  ATTACK_SPEED_BONUS: 1.00,
+  ENERGY_GAIN_BONUS: 1.00,
+  HEALING_REDUCTION: 0.80,
+} as const;
+
+// ─── V2 Void Trial ────────────────────────────────────────────────────────────
+export const VOID_TRIAL = {
+  MAX_FLOOR: 20,
+  DAILY_ATTEMPTS: 3,
+} as const;
+
+// ─── V2 Rift Season (Battle Pass) ───────────────────────────────────────────
+export const RIFT_SEASON = {
+  TOTAL_TIERS: 30,
+  XP_PER_TIER: 100,
+  SEASON_DURATION_DAYS: 30,
+  PREMIUM_TRACK_COST_VOID_GEMS: 800,
+} as const;
+
+// ─── V2 Featured Banner ───────────────────────────────────────────────────────
+export const FEATURED_BANNER = {
+  DURATION_DAYS: 14,
+  SOFT_PITY_START: 60,
+  HARD_PITY: 120,
+} as const;
+
+// ─── V2 Offline Rewards ───────────────────────────────────────────────────────
+export const OFFLINE = {
+  MIN_HOURS_TO_TRIGGER: 2,
+  MAX_HOURS: 12,
+  GOLD_PER_HOUR: 500,
+  XP_PER_HOUR: 5,
+  ENERGY_PER_HOUR: 3,
+} as const;
+
+// ─── V2 Monetization Flags ────────────────────────────────────────────────────
+export const MONETIZATION_FLAGS = {
+  ENABLE_STORE_UI: true,
+  ENABLE_TEST_BILLING: true,
+  ENABLE_PRODUCTION_BILLING: false,
+  ENABLE_DEV_PURCHASES: true,
 } as const;
