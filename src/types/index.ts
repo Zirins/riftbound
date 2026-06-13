@@ -377,6 +377,7 @@ export interface RealmSaveData {
   tasks: DailyTaskState[];
   mail: MailMessage[];
   dailyShopState: DailyShopState;
+  lastFreeSummonDate: string;    // 'YYYY-MM-DD' — daily free summon tracking
   settings: GameSettingsV11;
   lastSaved: number;
 }

@@ -184,6 +184,7 @@ export function buildDefaultSaveRoot(realmId: string, playerName: string): SaveR
       date: today,
       purchasedItemIds: [],
     },
+    lastFreeSummonDate: '',
     settings: {
       musicVolume: 80,
       sfxVolume: 80,

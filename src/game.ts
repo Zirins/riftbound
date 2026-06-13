@@ -14,6 +14,7 @@ import { StageSelectScene } from './scenes/StageSelectScene';
 import { SettingsScene } from './scenes/SettingsScene';
 import { ShopScene } from './scenes/ShopScene';
 import { SummonTempleScene } from './scenes/SummonTempleScene';
+import { SummonResultScene } from './scenes/SummonResultScene';
 import { ResonanceArenaScene } from './scenes/ResonanceArenaScene';
 import { FormationScene } from './scenes/FormationScene';
 import { BattleScene } from './scenes/BattleScene';
@@ -37,6 +38,7 @@ export const gameConfig: Phaser.Types.Core.GameConfig = {
     SettingsScene,
     ShopScene,
     SummonTempleScene,
+    SummonResultScene,
     ResonanceArenaScene,
     FormationScene,
     BattleScene,
