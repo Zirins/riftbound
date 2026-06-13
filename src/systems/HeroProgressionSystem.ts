@@ -65,14 +65,25 @@ export function levelUp(heroId: string): boolean {
     return false;
   }
 
-  if (!deduct('gold', cost.gold) || !deduct('xpFragments', cost.xpFragments)) {
+  const goldDeductOk = deduct('gold', cost.gold);
+  const xpDeductOk = deduct('xpFragments', cost.xpFragments);
+  if (!goldDeductOk || !xpDeductOk) {
     return false;
   }
 
-  const updatedHeroes = [...realm.ownedHeroes];
-  updatedHeroes[heroIndex] = { ...hero, level: hero.level + 1 };
+  const currentRealm = loadCurrentRealm();
+  if (!currentRealm) return false;
 
-  saveCurrentRealm({ ...realm, ownedHeroes: updatedHeroes });
+  const currentHeroIndex = currentRealm.ownedHeroes.findIndex(
+    (entry) => entry.heroId === heroId && entry.isOwned,
+  );
+  if (currentHeroIndex < 0) return false;
+
+  const currentHero = currentRealm.ownedHeroes[currentHeroIndex];
+  const updatedHeroes = [...currentRealm.ownedHeroes];
+  updatedHeroes[currentHeroIndex] = { ...currentHero, level: currentHero.level + 1 };
+
+  saveCurrentRealm({ ...currentRealm, ownedHeroes: updatedHeroes });
   reportProgress('task_level_hero', 1);
   return true;
 }
