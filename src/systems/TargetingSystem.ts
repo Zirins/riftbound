@@ -35,6 +35,13 @@ export function getEnemyTarget(
   heroes: HeroRuntimeState[],
 ): HeroRuntimeState | null {
   const living = heroes.filter((hero) => hero.isAlive);
+  if (living.length === 0) return null;
+
+  const tauntTarget = living.find((hero) =>
+    hero.activeBuffs.some((buff) => buff.type === 'taunt' && buff.durationRemaining > 0),
+  );
+  if (tauntTarget) return tauntTarget;
+
   return findNearest(enemy, living);
 }
 
@@ -69,11 +76,20 @@ function findLowestHpEnemy(
   hero: HeroRuntimeState,
   enemies: EnemyRuntimeState[],
 ): EnemyRuntimeState | null {
+  if (enemies.length === 0) return null;
   return enemies.reduce((best, enemy) => {
     if (enemy.currentHP < best.currentHP) return enemy;
     if (enemy.currentHP > best.currentHP) return best;
     return getDistance(hero, enemy) < getDistance(hero, best) ? enemy : best;
   });
+}
+
+export function findLowestHpLivingEnemy(
+  hero: HeroRuntimeState,
+  enemies: EnemyRuntimeState[],
+): EnemyRuntimeState | null {
+  const living = enemies.filter((enemy) => enemy.isAlive);
+  return findLowestHpEnemy(hero, living);
 }
 
 function findDensestClusterEnemy(

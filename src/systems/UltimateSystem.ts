@@ -2,9 +2,20 @@
 // Energy ultimates — manual tap via UltimateButtons only.
 
 import Phaser from 'phaser';
-import { CANVAS, COMBAT, HEROES, UI } from '../constants/gameConfig';
-import { getNearestLivingEnemy } from './TargetingSystem';
+import { CANVAS, COMBAT, HERO_NEW, HEROES, UI } from '../constants/gameConfig';
+import { findLowestHpLivingEnemy, getNearestLivingEnemy } from './TargetingSystem';
 import type { EnemyRuntimeState, GameState, HeroRuntimeState } from '../types';
+
+const R = HERO_NEW.REN;
+const SO = HERO_NEW.SOLENNE;
+const V = HERO_NEW.VEYRA;
+const T = HERO_NEW.THANE;
+const C = HERO_NEW.CAIRA;
+const MK = HERO_NEW.MAREK;
+
+const REN_MARK_PREFIX = `mark_${R.ID}_`;
+const SOLENNE_LINE_HALF_HEIGHT = 50;
+const CAIRA_SHIELD_DURATION = 3000;
 
 interface NyraBarrageState {
   heroId: string;
@@ -36,6 +47,24 @@ export class UltimateSystem extends Phaser.Events.EventEmitter {
         break;
       case HEROES.NYRA.ID:
         this.startNyraVoidBarrage(hero, gameState);
+        break;
+      case R.ID:
+        this.fireRenQuietusDash(hero, gameState);
+        break;
+      case SO.ID:
+        this.fireSolenneSunthreadBurst(hero, gameState);
+        break;
+      case V.ID:
+        this.fireVeyraMirrorHex(hero, gameState);
+        break;
+      case T.ID:
+        this.fireThaneIronbarkStand(hero, gameState);
+        break;
+      case C.ID:
+        this.fireCairaVeilOfMorning(hero, gameState);
+        break;
+      case MK.ID:
+        this.fireMarekStormreignCleave(hero, gameState);
         break;
       default:
         return;
@@ -76,6 +105,218 @@ export class UltimateSystem extends Phaser.Events.EventEmitter {
       object.setDepth(UI.ULTIMATE_VFX_DEPTH);
     }
     this.vfxObjects.push(object);
+  }
+
+  private fireRenQuietusDash(hero: HeroRuntimeState, gameState: GameState): void {
+    const target = this.getRenDashTarget(hero, gameState.enemies);
+    if (!target) return;
+
+    const engageDist = hero.radius + target.radius + 4;
+    const dashX = Math.max(hero.radius, target.x - engageDist);
+    hero.x = dashX;
+    hero.y = target.y;
+    hero.targetX = dashX;
+    hero.targetY = target.y;
+
+    const effectiveDefense = target.defense * (1 - R.ARMOR_PIERCE);
+    const damage = Math.max(COMBAT.MIN_DAMAGE, R.ULTIMATE_DAMAGE - effectiveDefense);
+    this.applyUltimateDamage(target, damage, hero);
+
+    target.activeDebuffs = target.activeDebuffs.filter(
+      (debuff) => !(debuff.type === 'mark' && debuff.id.startsWith(REN_MARK_PREFIX)),
+    );
+
+    const trail = this.scene.add.circle(hero.x, hero.y, hero.radius, R.COLOR, 0.85);
+    this.trackVfx(trail);
+    this.scene.tweens.add({
+      targets: trail,
+      x: target.x,
+      y: target.y,
+      alpha: 0,
+      duration: UI.ULTIMATE_VFX_DURATION / 2,
+      onComplete: () => trail.destroy(),
+    });
+  }
+
+  private fireSolenneSunthreadBurst(hero: HeroRuntimeState, gameState: GameState): void {
+    const yBand = SOLENNE_LINE_HALF_HEIGHT;
+    const lineWidth = CANVAS.WIDTH - CANVAS.HERO_ZONE_END;
+    const lineCenterX = CANVAS.HERO_ZONE_END + lineWidth / 2;
+
+    for (const enemy of gameState.enemies) {
+      if (!enemy.isAlive) continue;
+      if (Math.abs(enemy.y - hero.y) > yBand) continue;
+
+      this.applyUltimateDamage(enemy, SO.ULTIMATE_DAMAGE, hero);
+      enemy.activeDebuffs.push({
+        id: `slow_${enemy.instanceId}_${Date.now()}`,
+        type: 'slow',
+        value: SO.SLOW_AMOUNT,
+        durationRemaining: SO.SLOW_DURATION,
+      });
+    }
+
+    const line = this.scene.add.rectangle(
+      lineCenterX,
+      hero.y,
+      lineWidth,
+      yBand * 2,
+      SO.COLOR,
+      UI.SOLAR_REND_LINE_ALPHA,
+    );
+    line.setStrokeStyle(3, 0x88bbff, 1);
+    this.trackVfx(line);
+    this.scene.tweens.add({
+      targets: line,
+      alpha: 0,
+      duration: UI.ULTIMATE_VFX_DURATION,
+      onComplete: () => line.destroy(),
+    });
+  }
+
+  private fireVeyraMirrorHex(hero: HeroRuntimeState, gameState: GameState): void {
+    for (const enemy of gameState.enemies) {
+      if (!enemy.isAlive) continue;
+
+      this.applyUltimateDamage(enemy, V.ULTIMATE_DAMAGE, hero);
+      enemy.activeDebuffs.push({
+        id: `hex_${enemy.instanceId}_${Date.now()}`,
+        type: 'attackReduce',
+        value: V.HEX_DAMAGE_REDUCTION,
+        durationRemaining: V.HEX_DURATION,
+      });
+    }
+
+    const shard = this.scene.add.circle(
+      CANVAS.HERO_ZONE_END + 120,
+      CANVAS.BATTLE_HEIGHT / 2,
+      80,
+      V.COLOR,
+      0.35,
+    );
+    shard.setStrokeStyle(4, 0xff88cc, 0.9);
+    this.trackVfx(shard);
+    this.scene.tweens.add({
+      targets: shard,
+      alpha: 0,
+      scale: 1.4,
+      duration: UI.ULTIMATE_VFX_DURATION,
+      onComplete: () => shard.destroy(),
+    });
+
+    void hero;
+  }
+
+  private fireThaneIronbarkStand(hero: HeroRuntimeState, gameState: GameState): void {
+    hero.activeBuffs.push({
+      id: `taunt_${hero.heroId}_${Date.now()}`,
+      type: 'taunt',
+      value: 1,
+      durationRemaining: T.TAUNT_DURATION,
+    });
+    hero.activeBuffs.push({
+      id: `shield_${hero.heroId}_${Date.now()}`,
+      type: 'shield',
+      value: T.SHIELD_VALUE,
+      durationRemaining: T.TAUNT_DURATION,
+    });
+
+    const pulse = this.scene.add.circle(hero.x, hero.y, hero.radius, T.COLOR, 0.6);
+    pulse.setStrokeStyle(5, 0xaabb66, 1);
+    this.trackVfx(pulse);
+    this.scene.tweens.add({
+      targets: pulse,
+      radius: hero.radius * 2.2,
+      alpha: 0,
+      duration: UI.ULTIMATE_VFX_DURATION,
+      onComplete: () => pulse.destroy(),
+    });
+
+    void gameState;
+  }
+
+  private fireCairaVeilOfMorning(hero: HeroRuntimeState, gameState: GameState): void {
+    for (const ally of gameState.heroes) {
+      if (!ally.isAlive) continue;
+
+      ally.currentHP = Math.min(ally.maxHP, ally.currentHP + C.ULTIMATE_HEAL);
+      ally.activeBuffs.push({
+        id: `shield_${ally.heroId}_${Date.now()}`,
+        type: 'shield',
+        value: C.SHIELD_VALUE,
+        durationRemaining: CAIRA_SHIELD_DURATION,
+      });
+      if (ally.activeDebuffs.length > 0) {
+        ally.activeDebuffs = ally.activeDebuffs.slice(1);
+      }
+
+      const pulse = this.scene.add.circle(
+        ally.x,
+        ally.y,
+        ally.radius,
+        C.COLOR,
+        UI.RIFT_BLOOM_PULSE_ALPHA,
+      );
+      pulse.setStrokeStyle(4, 0xfff8cc, 1);
+      this.trackVfx(pulse);
+      this.scene.tweens.add({
+        targets: pulse,
+        radius: ally.radius * 2,
+        alpha: 0,
+        duration: UI.ULTIMATE_VFX_DURATION,
+        onComplete: () => pulse.destroy(),
+      });
+    }
+
+    void hero;
+  }
+
+  private fireMarekStormreignCleave(hero: HeroRuntimeState, gameState: GameState): void {
+    const yBand = MK.CLEAVE_Y_RANGE;
+
+    for (const enemy of gameState.enemies) {
+      if (!enemy.isAlive) continue;
+      if (Math.abs(enemy.y - hero.y) > yBand) continue;
+
+      this.applyUltimateDamage(enemy, MK.ULTIMATE_DAMAGE, hero);
+      enemy.activeDebuffs.push({
+        id: `stagger_${enemy.instanceId}_${Date.now()}`,
+        type: 'stagger',
+        value: MK.STAGGER_SPEED_REDUCE,
+        durationRemaining: MK.STAGGER_DURATION,
+      });
+    }
+
+    const cleave = this.scene.add.rectangle(
+      hero.x + 90,
+      hero.y,
+      180,
+      yBand * 2,
+      MK.COLOR,
+      0.45,
+    );
+    cleave.setStrokeStyle(3, 0x66ccff, 1);
+    this.trackVfx(cleave);
+    this.scene.tweens.add({
+      targets: cleave,
+      x: hero.x + 140,
+      alpha: 0,
+      duration: UI.ULTIMATE_VFX_DURATION / 2,
+      onComplete: () => cleave.destroy(),
+    });
+  }
+
+  private getRenDashTarget(
+    hero: HeroRuntimeState,
+    enemies: EnemyRuntimeState[],
+  ): EnemyRuntimeState | null {
+    const living = enemies.filter((enemy) => enemy.isAlive);
+    const marked = living.find((enemy) =>
+      enemy.activeDebuffs.some(
+        (debuff) => debuff.type === 'mark' && debuff.id.startsWith(REN_MARK_PREFIX),
+      ),
+    );
+    return marked ?? findLowestHpLivingEnemy(hero, living);
   }
 
   private fireKaelIronPulse(hero: HeroRuntimeState, gameState: GameState): void {

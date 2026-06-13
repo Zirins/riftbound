@@ -5,6 +5,12 @@ import Phaser from 'phaser';
 import { CANVAS, COMBAT, HEROES, UI } from '../constants/gameConfig';
 import type { GameState, HeroRuntimeState } from '../types';
 
+export interface HudPortraitConfig {
+  id: string;
+  name: string;
+  color: number;
+}
+
 interface PortraitButton {
   heroId: string;
   glow: Phaser.GameObjects.Arc;
@@ -12,13 +18,6 @@ interface PortraitButton {
   label: Phaser.GameObjects.Text;
   tapZone: Phaser.GameObjects.Zone;
 }
-
-const PORTRAIT_HEROES = [
-  { id: HEROES.KAEL.ID, name: 'Kael', color: HEROES.KAEL.COLOR },
-  { id: HEROES.SURA.ID, name: 'Sura', color: HEROES.SURA.COLOR },
-  { id: HEROES.MIRA.ID, name: 'Mira', color: HEROES.MIRA.COLOR },
-  { id: HEROES.NYRA.ID, name: 'Nyra', color: HEROES.NYRA.COLOR },
-] as const;
 
 export class UltimateButtons {
   private readonly portraits: PortraitButton[] = [];
@@ -30,7 +29,7 @@ export class UltimateButtons {
     private readonly onFireUltimate: (heroId: string) => void,
   ) {}
 
-  create(): void {
+  create(portraits: readonly HudPortraitConfig[]): void {
     const hudDepth = UI.HUD_DEPTH;
 
     this.hudBackground = this.scene.add.rectangle(
@@ -45,7 +44,7 @@ export class UltimateButtons {
 
     const tapWidth = UI.HUD_PORTRAIT_RADIUS * 2;
 
-    PORTRAIT_HEROES.forEach((hero, index) => {
+    portraits.forEach((hero, index) => {
       const x = UI.HUD_PORTRAIT_START_X + index * UI.HUD_PORTRAIT_SPACING;
       const y = UI.HUD_PORTRAIT_Y;
 

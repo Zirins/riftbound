@@ -35,9 +35,11 @@ export type FormationRow = 'front' | 'back';
 export type BuffType =
   | 'shield'
   | 'attackBuff'
+  | 'defenseBuff'
   | 'speedBuff'
   | 'healOverTime'
-  | 'energyRegen';
+  | 'energyRegen'
+  | 'taunt';
 
 export type DebuffType =
   | 'burn'
@@ -45,7 +47,10 @@ export type DebuffType =
   | 'taunt'
   | 'silence'
   | 'stun'
-  | 'bleed';
+  | 'bleed'
+  | 'mark'
+  | 'attackReduce'
+  | 'stagger';
 
 // ─── Static hero definition (data layer, not runtime) ────────────────────────
 

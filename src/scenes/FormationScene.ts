@@ -11,8 +11,10 @@ import { SCENE_KEYS } from '../constants/sceneKeys';
 import { HEROES_DATA } from '../data/heroes';
 import { getStageData } from '../systems/StageLoader';
 import { getOpponentById } from '../systems/ArenaMatchSystem';
-import { loadFormationSlots, loadCurrentRealm, saveFormationSlots } from '../systems/SaveSystem';
-import type { HeroClass } from '../types';
+import { loadCurrentRealm, saveCurrentRealm, saveFormationSlots } from '../systems/SaveSystem';
+import type { FormationGrid, HeroClass } from '../types';
+
+const DEFAULT_LINEUP_HERO_IDS = ['kael', 'sura', 'mira', 'nyra'] as const;
 
 interface RosterHero {
   id: string;
@@ -47,6 +49,70 @@ const FRONTLINE_SORT_PRIORITY: Record<HeroClass, number> = {
 
 function getFrontlineSortPriority(heroClass: HeroClass): number {
   return FRONTLINE_SORT_PRIORITY[heroClass];
+}
+
+function getOwnedHeroIds(): Set<string> {
+  const realm = loadCurrentRealm();
+  return new Set(
+    (realm?.ownedHeroes ?? [])
+      .filter((hero) => hero.isOwned)
+      .map((hero) => hero.heroId),
+  );
+}
+
+function isFormationEmpty(formation: FormationGrid): boolean {
+  return formation.slots.every((slot) => !slot.assignedHeroId);
+}
+
+function buildDefaultLineupSlots(): (string | null)[] {
+  return [...DEFAULT_LINEUP_HERO_IDS];
+}
+
+function loadLineupFromCurrentFormation(): (string | null)[] {
+  const realm = loadCurrentRealm();
+  const ownedIds = getOwnedHeroIds();
+  const formation = realm?.currentFormation;
+
+  if (!formation?.slots?.length || isFormationEmpty(formation)) {
+    return buildDefaultLineupSlots();
+  }
+
+  const slots: (string | null)[] = Array.from(
+    { length: FORMATION.LINEUP_SLOT_COUNT },
+    () => null,
+  );
+
+  for (const slot of formation.slots) {
+    if (slot.slotIndex < 0 || slot.slotIndex >= FORMATION.LINEUP_SLOT_COUNT) continue;
+    const heroId = slot.assignedHeroId;
+    if (heroId && ownedIds.has(heroId)) {
+      slots[slot.slotIndex] = heroId;
+    }
+  }
+
+  const assignedCount = slots.filter((entry): entry is string => entry !== null).length;
+  if (assignedCount === 0) {
+    return buildDefaultLineupSlots();
+  }
+
+  return slots;
+}
+
+function persistCurrentFormation(lineupSlots: (string | null)[]): void {
+  const realm = loadCurrentRealm();
+  if (!realm) return;
+
+  const updatedSlots = realm.currentFormation.slots.map((slot) => ({
+    ...slot,
+    assignedHeroId: lineupSlots[slot.slotIndex] ?? null,
+  }));
+
+  saveCurrentRealm({
+    ...realm,
+    currentFormation: { slots: updatedSlots },
+  });
+
+  saveFormationSlots(lineupSlots);
 }
 
 function loadOwnedRosterHeroes(): RosterHero[] {
@@ -134,10 +200,6 @@ export class FormationScene extends Phaser.Scene {
 
     this.rosterHeroes = loadOwnedRosterHeroes();
     this.createLineupPlatforms();
-    // #region agent log
-    const ownedFromSave = loadCurrentRealm()?.ownedHeroes.filter((h) => h.isOwned).map((h) => h.heroId) ?? [];
-    fetch('http://127.0.0.1:7764/ingest/39ea4d96-09a5-471d-9f43-5260085e1ae8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d07587'},body:JSON.stringify({sessionId:'d07587',runId:'post-fix',location:'FormationScene.ts:create',message:'owned heroes vs dynamic roster',data:{ownedCount:ownedFromSave.length,ownedIds:ownedFromSave,dynamicRosterCount:this.rosterHeroes.length,dynamicRosterIds:this.rosterHeroes.map((h)=>h.id)},timestamp:Date.now(),hypothesisId:'A-B'})}).catch(()=>{});
-    // #endregion
     this.createRosterStrip();
 
     const battleY = CANVAS.BATTLE_HEIGHT / 2;
@@ -159,7 +221,7 @@ export class FormationScene extends Phaser.Scene {
       UI.SCENE_NAV_BUTTON_HEIGHT,
     );
 
-    this.lineupSlots = this.normalizeLineupSlots(loadFormationSlots());
+    this.lineupSlots = loadLineupFromCurrentFormation();
     this.refreshLineupVisuals();
     this.updateBattleButton();
   }
@@ -215,11 +277,6 @@ export class FormationScene extends Phaser.Scene {
     return slots;
   }
 
-  private normalizeLineupSlots(slots: (string | null)[]): (string | null)[] {
-    const selectedHeroIds = slots.filter((slot): slot is string => slot !== null);
-    return this.buildRightAlignedLineup(selectedHeroIds);
-  }
-
   private createLineupPlatforms(): void {
     FORMATION.LINEUP_SLOT_POSITIONS.forEach((slotPosition) => {
       const platform = this.add.rectangle(
@@ -254,9 +311,6 @@ export class FormationScene extends Phaser.Scene {
 
       this.rosterVisuals.push({ circle, label, tapZone });
     });
-    // #region agent log
-    fetch('http://127.0.0.1:7764/ingest/39ea4d96-09a5-471d-9f43-5260085e1ae8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d07587'},body:JSON.stringify({sessionId:'d07587',runId:'post-fix',location:'FormationScene.ts:createRosterStrip',message:'roster strip rendered',data:{renderedCount:this.rosterVisuals.length,rosterIds:this.rosterHeroes.map((h)=>h.id)},timestamp:Date.now(),hypothesisId:'A-C-D'})}).catch(()=>{});
-    // #endregion
   }
 
   private onRosterTapped(heroId: string): void {
@@ -279,6 +333,7 @@ export class FormationScene extends Phaser.Scene {
 
   private applySelectedHeroIds(selectedHeroIds: string[]): void {
     this.lineupSlots = this.buildRightAlignedLineup(selectedHeroIds);
+    persistCurrentFormation(this.lineupSlots);
     this.refreshLineupVisuals();
     this.updateBattleButton();
   }
@@ -363,7 +418,7 @@ export class FormationScene extends Phaser.Scene {
       return;
     }
 
-    saveFormationSlots(this.lineupSlots);
+    persistCurrentFormation(this.lineupSlots);
     this.scene.start(SCENE_KEYS.BATTLE, {
       stageId: this.stageId,
       arenaOpponentId: this.arenaOpponentId ?? undefined,

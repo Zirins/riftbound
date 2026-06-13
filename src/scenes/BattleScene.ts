@@ -17,7 +17,7 @@ import { UltimateSystem } from '../systems/UltimateSystem';
 import { WaveSystem } from '../systems/WaveSystem';
 import { BossBar } from '../ui/BossBar';
 import { drawEnergyBar } from '../ui/EnergyBar';
-import { UltimateButtons } from '../ui/UltimateButtons';
+import { UltimateButtons, type HudPortraitConfig } from '../ui/UltimateButtons';
 import type { EnemyRuntimeState, GameState, HeroClass, HeroLineupEntry, HeroRuntimeState } from '../types';
 
 interface HeroSetupEntry {
@@ -265,10 +265,6 @@ export class BattleScene extends Phaser.Scene {
     this.sceneFormation = data.formation ?? null;
     const stageData = getStageData(this.stageId);
     this.energyCost = stageData?.energyCost ?? 0;
-    // #region agent log
-    const resolvedLineup = resolveBattleLineupHeroIds(this.sceneFormation);
-    fetch('http://127.0.0.1:7764/ingest/39ea4d96-09a5-471d-9f43-5260085e1ae8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d07587'},body:JSON.stringify({sessionId:'d07587',runId:'post-fix',location:'BattleScene.ts:init',message:'formation inputs at battle start',data:{sceneFormation:data.formation??null,resolvedLineup,rawFormation:readRawFormationSlots(),passedFormation:!!data.formation},timestamp:Date.now(),hypothesisId:'A-B'})}).catch(()=>{});
-    // #endregion
   }
 
   create(): void {
@@ -326,7 +322,7 @@ export class BattleScene extends Phaser.Scene {
       this.gameState,
       (heroId) => this.ultimateSystem.fireUltimate(heroId, this.gameState),
     );
-    this.ultimateButtons.create();
+    this.ultimateButtons.create(this.buildHudPortraits());
 
     this.autoBattle = new AutoBattleSystem(this);
     this.autoBattle.on('enemyKilled', this.onEnemyKilled);
@@ -409,13 +405,19 @@ export class BattleScene extends Phaser.Scene {
     });
   }
 
+  private buildHudPortraits(): HudPortraitConfig[] {
+    return this.heroes.map((hero) => {
+      const setup = buildHeroSetupEntry(hero.heroId);
+      return {
+        id: hero.heroId,
+        name: setup?.name ?? hero.heroId,
+        color: setup?.color ?? 0xffffff,
+      };
+    });
+  }
+
   private spawnHeroes(): void {
     const lineupHeroIds = resolveBattleLineupHeroIds(this.sceneFormation);
-    const lookupResults = lineupHeroIds.map((heroId) => ({
-      heroId,
-      hasHeroData: !!HEROES_DATA.find((hero) => hero.id === heroId),
-      hasSetup: !!buildHeroSetupEntry(heroId),
-    }));
     const lineupEntries: HeroLineupEntry[] = lineupHeroIds.flatMap((heroId) => {
       const setup = buildHeroSetupEntry(heroId);
       if (!setup) return [];
@@ -462,9 +464,6 @@ export class BattleScene extends Phaser.Scene {
       visual.energyBar = this.add.graphics();
       this.heroVisuals.set(setup.id, visual);
     }
-    // #region agent log
-    fetch('http://127.0.0.1:7764/ingest/39ea4d96-09a5-471d-9f43-5260085e1ae8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d07587'},body:JSON.stringify({sessionId:'d07587',runId:'post-fix',location:'BattleScene.ts:spawnHeroes',message:'heroes spawned in battle',data:{lineupHeroIds,lookupResults,spawnedHeroIds:this.heroes.map((h)=>h.heroId),spawnedCount:this.heroes.length,spawnedColors:this.heroes.map((h)=>buildHeroSetupEntry(h.heroId)?.color)},timestamp:Date.now(),hypothesisId:'A-C-D'})}).catch(()=>{});
-    // #endregion
   }
 
   private createEnemyVisual(enemy: EnemyRuntimeState): UnitVisual {
