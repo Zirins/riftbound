@@ -19,7 +19,8 @@ export function getStartPosition(slotIndex: number): { x: number; y: number } {
 }
 
 export function getEnemyStartPosition(slotIndex: number): { x: number; y: number } {
-  const position = FORMATION.ENEMY_POSITIONS[slotIndex];
+  const wrappedIndex = slotIndex % FORMATION.ENEMY_POSITIONS.length;
+  const position = FORMATION.ENEMY_POSITIONS[wrappedIndex];
   return { x: position.x, y: position.y };
 }
 
