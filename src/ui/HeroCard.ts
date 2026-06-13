@@ -29,6 +29,7 @@ export class HeroCard {
   private readonly starRating: StarRating | null;
   private readonly zone: Phaser.GameObjects.Zone;
   private readonly onTap: () => void;
+  private readonly tapGuard?: () => boolean;
 
   constructor(
     scene: Phaser.Scene,
@@ -38,8 +39,10 @@ export class HeroCard {
     ownershipState: HeroOwnershipState | null,
     rp: number,
     onTap: () => void,
+    tapGuard?: () => boolean,
   ) {
     this.onTap = onTap;
+    this.tapGuard = tapGuard;
     const owned = ownershipState?.isOwned ?? false;
 
     this.badge = new RarityBadge(
@@ -106,6 +109,18 @@ export class HeroCard {
   }
 
   private readonly handlePointerUp = (): void => {
+    if (this.tapGuard?.()) return;
     this.onTap();
   };
+
+  reparentTo(container: Phaser.GameObjects.Container): void {
+    this.badge.reparentTo(container);
+    container.add(this.circle);
+    if (this.unknownLabel) container.add(this.unknownLabel);
+    container.add(this.nameLabel);
+    container.add(this.rpLabel);
+    container.add(this.classLabel);
+    this.starRating?.reparentTo(container);
+    container.add(this.zone);
+  }
 }

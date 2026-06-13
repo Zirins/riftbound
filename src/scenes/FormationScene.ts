@@ -13,6 +13,7 @@ import { getStageData } from '../systems/StageLoader';
 import { getOpponentById } from '../systems/ArenaMatchSystem';
 import { loadCurrentRealm, saveCurrentRealm, saveFormationSlots } from '../systems/SaveSystem';
 import type { FormationGrid, HeroClass } from '../types';
+import { HorizontalDragScroll } from '../ui/HorizontalDragScroll';
 
 const DEFAULT_LINEUP_HERO_IDS = ['kael', 'sura', 'mira', 'nyra'] as const;
 
@@ -134,14 +135,33 @@ function loadOwnedRosterHeroes(): RosterHero[] {
   });
 }
 
-function getRosterStripLayout(count: number): { startX: number; spacing: number } {
-  if (count <= 1) {
-    return { startX: CANVAS.WIDTH / 2, spacing: 0 };
+function getNaturalRosterStripMetrics(count: number): {
+  startX: number;
+  spacing: number;
+  contentWidth: number;
+} {
+  const spacing = UI.FORMATION_ROSTER_SPACING;
+  const radius = UI.FORMATION_HERO_PREVIEW_RADIUS;
+  const padding = 20;
+
+  if (count <= 0) {
+    return { startX: CANVAS.WIDTH / 2, spacing: 0, contentWidth: 0 };
   }
-  const maxSpan = CANVAS.WIDTH - 60;
-  const spacing = Math.min(UI.FORMATION_ROSTER_SPACING, maxSpan / (count - 1));
-  const startX = (CANVAS.WIDTH - spacing * (count - 1)) / 2;
-  return { startX, spacing };
+
+  if (count === 1) {
+    return {
+      startX: CANVAS.WIDTH / 2,
+      spacing: 0,
+      contentWidth: radius * 2 + padding * 2,
+    };
+  }
+
+  const startX = padding + radius;
+  return {
+    startX,
+    spacing,
+    contentWidth: startX + (count - 1) * spacing + radius + padding,
+  };
 }
 
 export class FormationScene extends Phaser.Scene {
@@ -157,6 +177,7 @@ export class FormationScene extends Phaser.Scene {
 
   private lineupSlots: (string | null)[] = [null, null, null, null];
   private rosterHeroes: RosterHero[] = [];
+  private rosterScroll: HorizontalDragScroll | null = null;
   private readonly lineupVisuals: LineupSlotVisual[] = [];
   private readonly rosterVisuals: RosterVisual[] = [];
 
@@ -247,6 +268,9 @@ export class FormationScene extends Phaser.Scene {
     }
     this.rosterVisuals.length = 0;
 
+    this.rosterScroll?.destroy();
+    this.rosterScroll = null;
+
     this.lineupStage?.destroy();
     this.lineupTitle?.destroy();
     this.battleButton?.destroy();
@@ -294,10 +318,23 @@ export class FormationScene extends Phaser.Scene {
   }
 
   private createRosterStrip(): void {
-    const { startX, spacing } = getRosterStripLayout(this.rosterHeroes.length);
+    const { startX, spacing, contentWidth } = getNaturalRosterStripMetrics(this.rosterHeroes.length);
+    const rosterViewportX = 30;
+    const rosterViewportWidth = CANVAS.WIDTH - 60;
+
+    this.rosterScroll = new HorizontalDragScroll(
+      this,
+      rosterViewportX,
+      UI.FORMATION_ROSTER_Y - 45,
+      rosterViewportWidth,
+      90,
+    );
+    this.rosterScroll.setContentWidth(contentWidth);
 
     this.rosterHeroes.forEach((hero, index) => {
-      const x = startX + index * spacing;
+      const x = this.rosterHeroes.length <= 1
+        ? startX
+        : startX + index * spacing;
       const y = UI.FORMATION_ROSTER_Y;
 
       const circle = this.add.circle(x, y, UI.FORMATION_HERO_PREVIEW_RADIUS, hero.color);
@@ -309,8 +346,12 @@ export class FormationScene extends Phaser.Scene {
 
       const tapZone = this.add.zone(x, y, UI.FORMATION_HERO_PREVIEW_RADIUS * 2, 50);
       tapZone.setInteractive({ useHandCursor: true });
-      tapZone.on('pointerup', () => this.onRosterTapped(hero.id));
+      tapZone.on('pointerup', () => {
+        if (this.rosterScroll?.shouldConsumeTap()) return;
+        this.onRosterTapped(hero.id);
+      });
 
+      this.rosterScroll!.container.add([circle, label, tapZone]);
       this.rosterVisuals.push({ circle, label, tapZone });
     });
   }

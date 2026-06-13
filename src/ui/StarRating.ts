@@ -26,6 +26,12 @@ export class StarRating {
     this.update(stars);
   }
 
+  reparentTo(container: Phaser.GameObjects.Container): void {
+    for (const star of this.stars) {
+      container.add(star);
+    }
+  }
+
   update(stars: number): void {
     this.currentStars = Math.max(0, Math.min(5, stars));
     for (let i = 0; i < 5; i++) {

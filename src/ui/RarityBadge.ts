@@ -27,6 +27,10 @@ export class RarityBadge {
     this.border.setFillStyle(0x000000, 0);
   }
 
+  reparentTo(container: Phaser.GameObjects.Container): void {
+    container.add(this.border);
+  }
+
   setRarity(rarity: HeroRarity): void {
     this.border.setStrokeStyle(2, RARITY_COLORS[rarity]);
   }

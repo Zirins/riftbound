@@ -9,15 +9,19 @@ import { computeRP } from '../systems/HeroProgressionSystem';
 import { loadCurrentRealm } from '../systems/SaveSystem';
 import { ButtonPrimary } from '../ui/ButtonPrimary';
 import { HERO_CARD_WIDTH, HeroCard } from '../ui/HeroCard';
+import { HorizontalDragScroll } from '../ui/HorizontalDragScroll';
 
 const CARD_GAP = 6;
 const CARD_ROW_Y = 185;
 const CARD_START_X = 52;
+const SCROLL_VIEWPORT_Y = 90;
+const SCROLL_VIEWPORT_HEIGHT = 200;
 
 export class RosterScene extends Phaser.Scene {
   static readonly KEY = SCENE_KEYS.ROSTER;
 
   private backButton: ButtonPrimary | null = null;
+  private heroScroll: HorizontalDragScroll | null = null;
   private readonly heroCards: HeroCard[] = [];
   private toastLabel: Phaser.GameObjects.Text | null = null;
   private toastTimer: Phaser.Time.TimerEvent | null = null;
@@ -56,6 +60,18 @@ export class RosterScene extends Phaser.Scene {
       fontFamily: 'monospace',
     }).setOrigin(0.5);
 
+    this.heroScroll = new HorizontalDragScroll(
+      this,
+      0,
+      SCROLL_VIEWPORT_Y,
+      CANVAS.WIDTH,
+      SCROLL_VIEWPORT_HEIGHT,
+    );
+
+    const contentWidth = CARD_START_X
+      + rosterEntries.length * (HERO_CARD_WIDTH + CARD_GAP);
+    this.heroScroll.setContentWidth(contentWidth);
+
     rosterEntries.forEach((entry, index) => {
       const x = CARD_START_X + index * (HERO_CARD_WIDTH + CARD_GAP) + HERO_CARD_WIDTH / 2;
       const card = new HeroCard(
@@ -66,7 +82,9 @@ export class RosterScene extends Phaser.Scene {
         entry.ownership,
         entry.rp,
         () => this.handleHeroTap(entry.heroData.id, entry.ownership !== null),
+        () => this.heroScroll?.shouldConsumeTap() ?? false,
       );
+      card.reparentTo(this.heroScroll!.container);
       this.heroCards.push(card);
     });
 
@@ -88,6 +106,9 @@ export class RosterScene extends Phaser.Scene {
 
     for (const card of this.heroCards) card.destroy();
     this.heroCards.length = 0;
+
+    this.heroScroll?.destroy();
+    this.heroScroll = null;
 
     this.backButton?.destroy();
     this.backButton = null;
