@@ -2,15 +2,17 @@
 // V0.1: Battlefield rendering + AutoBattleSystem combat loop.
 
 import Phaser from 'phaser';
-import { CANVAS, COMBAT, ENEMIES, FORMATION, HEROES, UI, WAVES, WARDEN } from '../constants/gameConfig';
+import { CANVAS, COMBAT, ENEMIES, FORMATION, UI, WAVES, WARDEN } from '../constants/gameConfig';
 import { SCENE_KEYS } from '../constants/sceneKeys';
+import { HEROES_DATA } from '../data/heroes';
 import { createBattleGameState } from '../store/GameState';
 import { AutoBattleSystem } from '../systems/AutoBattleSystem';
 import { assignCombatSlotIndices, FormationSystem, getHeroBattlePosition } from '../systems/FormationSystem';
+import { computeHeroStats } from '../systems/HeroProgressionSystem';
 import { computeStageReward } from '../systems/RewardSystem';
 import { buildArenaWaveConfig } from '../systems/ArenaMatchSystem';
 import { getStageData } from '../systems/StageLoader';
-import { getBattleLineupHeroIds } from '../systems/SaveSystem';
+import { loadCurrentRealm } from '../systems/SaveSystem';
 import { UltimateSystem } from '../systems/UltimateSystem';
 import { WaveSystem } from '../systems/WaveSystem';
 import { BossBar } from '../ui/BossBar';
@@ -68,66 +70,87 @@ const ENEMY_LABELS: Record<string, string> = {
   [WARDEN.ID]: 'Warden',
 };
 
-const HERO_SETUP_BY_ID: Record<string, HeroSetupEntry> = {
-  [HEROES.KAEL.ID]: {
-    id: HEROES.KAEL.ID,
-    name: 'Kael',
-    heroClass: 'tank',
-    color: HEROES.KAEL.COLOR,
-    radius: HEROES.KAEL.RADIUS,
-    baseHP: HEROES.KAEL.BASE_HP,
-    baseAttack: HEROES.KAEL.BASE_ATTACK,
-    baseDefense: HEROES.KAEL.BASE_DEFENSE,
-    attackCooldown: HEROES.KAEL.ATTACK_COOLDOWN,
+const FORMATION_STORAGE_KEY = 'riftbound_mvp_formation';
+const LINEUP_SLOT_COUNT = 4;
+const DEFAULT_LINEUP_HERO_IDS = ['kael', 'sura', 'mira', 'nyra'];
+
+function readRawFormationSlots(): (string | null)[] | null {
+  try {
+    const raw = localStorage.getItem(FORMATION_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length !== LINEUP_SLOT_COUNT) return null;
+    return parsed.map((entry) => (
+      typeof entry === 'string' && entry.length > 0 ? entry : null
+    ));
+  } catch {
+    return null;
+  }
+}
+
+function isCompleteLineup(heroIds: string[]): boolean {
+  return heroIds.length === LINEUP_SLOT_COUNT && new Set(heroIds).size === LINEUP_SLOT_COUNT;
+}
+
+function resolveBattleLineupHeroIds(sceneFormation?: (string | null)[] | null): string[] {
+  if (sceneFormation && sceneFormation.length === LINEUP_SLOT_COUNT) {
+    const heroIds = sceneFormation.filter((slot): slot is string => slot !== null);
+    if (isCompleteLineup(heroIds) && heroIds.every((id) => HEROES_DATA.some((hero) => hero.id === id))) {
+      return heroIds;
+    }
+  }
+
+  const rawSlots = readRawFormationSlots();
+  if (rawSlots) {
+    const heroIds = rawSlots.filter((slot): slot is string => slot !== null);
+    if (isCompleteLineup(heroIds) && heroIds.every((id) => HEROES_DATA.some((hero) => hero.id === id))) {
+      return heroIds;
+    }
+  }
+
+  const realm = loadCurrentRealm();
+  if (realm) {
+    const heroIds = realm.currentFormation.slots
+      .map((slot) => slot.assignedHeroId)
+      .filter((id): id is string => !!id);
+    if (isCompleteLineup(heroIds) && heroIds.every((id) => HEROES_DATA.some((hero) => hero.id === id))) {
+      return heroIds;
+    }
+  }
+
+  return [...DEFAULT_LINEUP_HERO_IDS];
+}
+
+function buildHeroSetupEntry(heroId: string): HeroSetupEntry | null {
+  const heroData = HEROES_DATA.find((hero) => hero.id === heroId);
+  if (!heroData) return null;
+
+  const stats = computeHeroStats(heroId);
+  return {
+    id: heroData.id,
+    name: heroData.name,
+    heroClass: heroData.heroClass,
+    color: heroData.color,
+    radius: heroData.radius,
+    baseHP: stats?.hp ?? heroData.baseHP,
+    baseAttack: stats?.attack ?? heroData.baseAttack,
+    baseDefense: stats?.defense ?? heroData.baseDefense,
+    attackCooldown: heroData.attackCooldown,
     attackRange: COMBAT.MELEE_ATTACK_RANGE,
-    moveSpeed: HEROES.KAEL.SPEED,
-  },
-  [HEROES.SURA.ID]: {
-    id: HEROES.SURA.ID,
-    name: 'Sura',
-    heroClass: 'fighter',
-    color: HEROES.SURA.COLOR,
-    radius: HEROES.SURA.RADIUS,
-    baseHP: HEROES.SURA.BASE_HP,
-    baseAttack: HEROES.SURA.BASE_ATTACK,
-    baseDefense: HEROES.SURA.BASE_DEFENSE,
-    attackCooldown: HEROES.SURA.ATTACK_COOLDOWN,
-    attackRange: COMBAT.MELEE_ATTACK_RANGE,
-    moveSpeed: HEROES.SURA.SPEED,
-  },
-  [HEROES.MIRA.ID]: {
-    id: HEROES.MIRA.ID,
-    name: 'Mira',
-    heroClass: 'support',
-    color: HEROES.MIRA.COLOR,
-    radius: HEROES.MIRA.RADIUS,
-    baseHP: HEROES.MIRA.BASE_HP,
-    baseAttack: HEROES.MIRA.BASE_ATTACK,
-    baseDefense: HEROES.MIRA.BASE_DEFENSE,
-    attackCooldown: HEROES.MIRA.HEAL_COOLDOWN,
-    attackRange: COMBAT.MELEE_ATTACK_RANGE,
-    moveSpeed: HEROES.MIRA.SPEED,
-  },
-  [HEROES.NYRA.ID]: {
-    id: HEROES.NYRA.ID,
-    name: 'Nyra',
-    heroClass: 'ranger',
-    color: HEROES.NYRA.COLOR,
-    radius: HEROES.NYRA.RADIUS,
-    baseHP: HEROES.NYRA.BASE_HP,
-    baseAttack: HEROES.NYRA.BASE_ATTACK,
-    baseDefense: HEROES.NYRA.BASE_DEFENSE,
-    attackCooldown: HEROES.NYRA.ATTACK_COOLDOWN,
-    attackRange: COMBAT.MELEE_ATTACK_RANGE,
-    moveSpeed: HEROES.NYRA.SPEED,
-  },
-};
+    moveSpeed: heroData.moveSpeed,
+  };
+}
+
+function getHeroDisplayName(heroId: string): string {
+  return HEROES_DATA.find((hero) => hero.id === heroId)?.name ?? 'Unknown';
+}
 
 export class BattleScene extends Phaser.Scene {
   static readonly KEY = SCENE_KEYS.BATTLE;
 
   private stageId = 'stage_1_1';
   private arenaOpponentId: string | null = null;
+  private sceneFormation: (string | null)[] | null = null;
   private energyCost = 0;
   private heroesDeathCount = 0;
 
@@ -236,11 +259,16 @@ export class BattleScene extends Phaser.Scene {
     super({ key: BattleScene.KEY });
   }
 
-  init(data: { stageId?: string; arenaOpponentId?: string }): void {
+  init(data: { stageId?: string; arenaOpponentId?: string; formation?: (string | null)[] }): void {
     this.stageId = data.stageId ?? 'stage_1_1';
     this.arenaOpponentId = data.arenaOpponentId ?? null;
+    this.sceneFormation = data.formation ?? null;
     const stageData = getStageData(this.stageId);
     this.energyCost = stageData?.energyCost ?? 0;
+    // #region agent log
+    const resolvedLineup = resolveBattleLineupHeroIds(this.sceneFormation);
+    fetch('http://127.0.0.1:7764/ingest/39ea4d96-09a5-471d-9f43-5260085e1ae8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d07587'},body:JSON.stringify({sessionId:'d07587',runId:'post-fix',location:'BattleScene.ts:init',message:'formation inputs at battle start',data:{sceneFormation:data.formation??null,resolvedLineup,rawFormation:readRawFormationSlots(),passedFormation:!!data.formation},timestamp:Date.now(),hypothesisId:'A-B'})}).catch(()=>{});
+    // #endregion
   }
 
   create(): void {
@@ -365,8 +393,8 @@ export class BattleScene extends Phaser.Scene {
     this.gameState.isDefeat = true;
     this.combatActive = false;
 
-    const fallenHeroId = this.gameState.firstHeroToFall ?? HEROES.KAEL.ID;
-    const fallenName = HERO_SETUP_BY_ID[fallenHeroId]?.name ?? 'Unknown';
+    const fallenHeroId = this.gameState.firstHeroToFall ?? DEFAULT_LINEUP_HERO_IDS[0];
+    const fallenName = getHeroDisplayName(fallenHeroId);
 
     if (this.stageId === 'arena') {
       this.scene.start(SCENE_KEYS.ARENA_RESULT, { win: false });
@@ -382,20 +410,26 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private spawnHeroes(): void {
-    const lineupHeroIds = getBattleLineupHeroIds();
+    const lineupHeroIds = resolveBattleLineupHeroIds(this.sceneFormation);
+    const lookupResults = lineupHeroIds.map((heroId) => ({
+      heroId,
+      hasHeroData: !!HEROES_DATA.find((hero) => hero.id === heroId),
+      hasSetup: !!buildHeroSetupEntry(heroId),
+    }));
     const lineupEntries: HeroLineupEntry[] = lineupHeroIds.flatMap((heroId) => {
-      const setup = HERO_SETUP_BY_ID[heroId];
+      const setup = buildHeroSetupEntry(heroId);
       if (!setup) return [];
       return [{ heroId: setup.id, heroClass: setup.heroClass }];
     });
     const combatSlotByHeroId = assignCombatSlotIndices(lineupEntries);
 
     for (const heroId of lineupHeroIds) {
-      const setup = HERO_SETUP_BY_ID[heroId];
+      const setup = buildHeroSetupEntry(heroId);
       if (!setup) continue;
 
       const combatSlotIndex = combatSlotByHeroId.get(heroId) ?? FORMATION.COMBAT_FRONT_SLOT_INDICES[0];
       const position = getHeroBattlePosition(combatSlotIndex);
+      const healCooldown = setup.heroClass === 'support' ? setup.attackCooldown : 0;
 
       const hero: HeroRuntimeState = {
         heroId: setup.id,
@@ -415,7 +449,7 @@ export class BattleScene extends Phaser.Scene {
         currentEnergy: 0,
         isAlive: true,
         attackCooldownRemaining: 0,
-        healCooldownRemaining: HEROES.MIRA.HEAL_COOLDOWN,
+        healCooldownRemaining: healCooldown,
         ultimateReady: false,
         attackCounter: 0,
         activeBuffs: [],
@@ -428,6 +462,9 @@ export class BattleScene extends Phaser.Scene {
       visual.energyBar = this.add.graphics();
       this.heroVisuals.set(setup.id, visual);
     }
+    // #region agent log
+    fetch('http://127.0.0.1:7764/ingest/39ea4d96-09a5-471d-9f43-5260085e1ae8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d07587'},body:JSON.stringify({sessionId:'d07587',runId:'post-fix',location:'BattleScene.ts:spawnHeroes',message:'heroes spawned in battle',data:{lineupHeroIds,lookupResults,spawnedHeroIds:this.heroes.map((h)=>h.heroId),spawnedCount:this.heroes.length,spawnedColors:this.heroes.map((h)=>buildHeroSetupEntry(h.heroId)?.color)},timestamp:Date.now(),hypothesisId:'A-C-D'})}).catch(()=>{});
+    // #endregion
   }
 
   private createEnemyVisual(enemy: EnemyRuntimeState): UnitVisual {
@@ -558,6 +595,8 @@ export class BattleScene extends Phaser.Scene {
       visual.hpBar.destroy();
     }
 
+    this.sceneFormation = null;
+    this.energyCost = 0;
     this.resetBattleSession();
   }
 }
