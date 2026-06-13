@@ -182,6 +182,15 @@ export class HubScene extends Phaser.Scene {
       120,
     );
 
+    const inventoryButton = new ButtonPrimary(
+      this,
+      580,
+      340,
+      '🎒 BAG',
+      () => this.onInventoryTap(),
+      100,
+    );
+
     const quickBattle = new ButtonPrimary(
       this,
       700,
@@ -191,7 +200,16 @@ export class HubScene extends Phaser.Scene {
       180,
     );
 
-    this.bottomButtons.push(mailButton, tasksButton, settingsButton, quickBattle);
+    this.bottomButtons.push(mailButton, tasksButton, settingsButton, inventoryButton, quickBattle);
+  }
+
+  private onInventoryTap(): void {
+    if (!isUnlocked('INVENTORY')) {
+      this.showToast(getUnlockMessage('INVENTORY'));
+      return;
+    }
+
+    this.scene.start(SCENE_KEYS.INVENTORY);
   }
 
   private onZoneTap(zone: HubZoneConfig): void {

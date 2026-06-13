@@ -498,6 +498,7 @@ export const FEATURE_UNLOCKS = {
   SUMMON_TEMPLE:      { type: 'stage_clear', stageId: 'stage_1_2' },
   DAILY_TASKS:        { type: 'stage_clear', stageId: 'stage_1_2' },
   CELESTIAL_MARKET:   { type: 'stage_clear', stageId: 'stage_1_3' },
+  INVENTORY:          { type: 'stage_clear', stageId: 'stage_1_3' },
   RESONANCE_ARENA:    { type: 'stage_clear', stageId: 'stage_1_5' },
   MAIL:               { type: 'always' },
   RIFT_CHRONICLE:     { type: 'always' },
