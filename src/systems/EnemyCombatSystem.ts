@@ -11,6 +11,7 @@ import type { EnemyRuntimeState, HeroRuntimeState } from '../types';
 import { enemyRef, ensureBattleHero, heroRef, isUnitAlive } from './battleStateUtils';
 import { StatusEffectSystem } from './StatusEffectSystem';
 import { getEnemyTarget } from './TargetingSystem';
+import { clampEnemyPosition, clampHeroPosition } from './BattlefieldBounds';
 
 interface SkillCooldownState {
   remainingMs: number;
@@ -411,6 +412,7 @@ export class EnemyCombatSystem {
           this.applyDamageToHero(hero, damage);
           if (!caster.bossTraits?.knockbackImmune) {
             hero.x = Math.max(0, hero.x - 24);
+            clampHeroPosition(hero);
           }
         }
       },
@@ -449,7 +451,7 @@ export class EnemyCombatSystem {
     const scaledAttack = Math.round(template.attack * statScale);
     const scaledDefense = Math.round(template.defense * statScale);
 
-    return {
+    const summoned: EnemyRuntimeState = {
       enemyId,
       instanceId: `${enemyId}_summon_${this.spawnCounter}`,
       x,
@@ -472,6 +474,8 @@ export class EnemyCombatSystem {
       isBoss: template.isBoss,
       bossTraits: template.bossTraits,
     };
+    clampEnemyPosition(summoned);
+    return summoned;
   }
 
   private tickTelegraphs(

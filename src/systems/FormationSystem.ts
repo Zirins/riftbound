@@ -4,6 +4,7 @@
 import Phaser from 'phaser';
 import { CANVAS, FORMATION } from '../constants/gameConfig';
 import type { EnemyRuntimeState, HeroClass, HeroLineupEntry, HeroRuntimeState } from '../types';
+import { clampEnemyPosition, clampHeroPosition } from './BattlefieldBounds';
 
 interface WalkInUnit {
   runtime: HeroRuntimeState | EnemyRuntimeState;
@@ -97,6 +98,7 @@ export class FormationSystem extends Phaser.Events.EventEmitter {
     for (const hero of heroes) {
       hero.x = hero.targetX;
       hero.y = hero.targetY;
+      clampHeroPosition(hero);
     }
   }
 
@@ -225,6 +227,11 @@ export class FormationSystem extends Phaser.Events.EventEmitter {
     for (const unit of this.walkInUnits) {
       unit.runtime.x = unit.targetX;
       unit.runtime.y = unit.targetY;
+      if ('heroId' in unit.runtime) {
+        clampHeroPosition(unit.runtime);
+      } else {
+        clampEnemyPosition(unit.runtime);
+      }
       if ('targetX' in unit.runtime) {
         unit.runtime.targetX = unit.targetX;
         unit.runtime.targetY = unit.targetY;

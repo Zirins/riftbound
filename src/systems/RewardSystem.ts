@@ -49,6 +49,10 @@ export function computeStageReward(
 
   const isFirstClear = !clearedStages.some((record) => record.stageId === stageId);
 
+  if (import.meta.env.DEV && !isFirstClear && (stage.rewards.firstClearItems?.length ?? 0) > 0) {
+    console.info('[RewardSystem] first-clear items skipped — stage already in clearedStages', { stageId });
+  }
+
   const shardGrants: { heroId: string; amount: number }[] = [];
   for (const drop of stage.rewards.shardDrops ?? []) {
     if (Math.random() < drop.chance) {

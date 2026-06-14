@@ -143,8 +143,6 @@ function getHeroDisplayName(heroId: string): string {
 
 export class BattleScene extends Phaser.Scene {
   static readonly KEY = SCENE_KEYS.BATTLE;
-  private static nextBattleInstanceId = 0;
-  private battleInstanceId = 0;
 
   private stageId = 'stage_1_1';
   private arenaOpponentId: string | null = null;
@@ -173,6 +171,7 @@ export class BattleScene extends Phaser.Scene {
   private battleLoopActive = false;
   private readonly processedEnemyKills = new Set<string>();
   private readonly heroAliveSnapshot = new Map<string, boolean>();
+  private readonly combatSlotByHeroId = new Map<string, number>();
 
   private readonly onFormationReady = (): void => {
     this.combatActive = true;
@@ -195,9 +194,6 @@ export class BattleScene extends Phaser.Scene {
   };
 
   private readonly onWaveCleared = (): void => {
-    // #region agent log
-    fetch('http://127.0.0.1:7764/ingest/39ea4d96-09a5-471d-9f43-5260085e1ae8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d07587'},body:JSON.stringify({sessionId:'d07587',location:'BattleScene.ts:onWaveCleared',message:'wave cleared handler',data:{battleInstanceId:this.battleInstanceId,combatActiveBefore:this.combatActive,interWavePause:this.waveSystem?.isInterWavePause},timestamp:Date.now(),hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
     this.combatActive = false;
     this.formationSystem.cancelWalkIn();
     this.enemyCombat.reset();
@@ -235,9 +231,6 @@ export class BattleScene extends Phaser.Scene {
   };
 
   private readonly onWaveEnemiesSpawned = (payload: WaveEnemiesSpawnedPayload): void => {
-    // #region agent log
-    fetch('http://127.0.0.1:7764/ingest/39ea4d96-09a5-471d-9f43-5260085e1ae8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d07587'},body:JSON.stringify({sessionId:'d07587',location:'BattleScene.ts:onWaveEnemiesSpawned',message:'wave enemies spawned',data:{battleInstanceId:this.battleInstanceId,waveIndex:payload.waveIndex,waveNumber:payload.waveNumber,enemyCount:payload.enemies.length},timestamp:Date.now(),hypothesisId:'D'})}).catch(()=>{});
-    // #endregion
     this.processedEnemyKills.clear();
     this.enemyCombat.reset();
     this.clearEnemyState();
@@ -256,6 +249,9 @@ export class BattleScene extends Phaser.Scene {
 
     this.combatActive = false;
     this.autoBattle.clearProjectiles();
+    if (payload.waveIndex > 0) {
+      this.resetHeroFormationHomes();
+    }
     this.formationSystem.snapHeroesToBattlePositions(this.heroes);
     this.formationSystem.animateEnemyWalkIn(this.enemies);
   };
@@ -284,8 +280,6 @@ export class BattleScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.battleInstanceId = BattleScene.nextBattleInstanceId + 1;
-    BattleScene.nextBattleInstanceId = this.battleInstanceId;
     this.teardownBattleSystems();
     this.resetBattleSession();
 
@@ -354,15 +348,9 @@ export class BattleScene extends Phaser.Scene {
 
     this.syncAllVisuals();
     this.battleLoopActive = true;
-    // #region agent log
-    fetch('http://127.0.0.1:7764/ingest/39ea4d96-09a5-471d-9f43-5260085e1ae8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d07587'},body:JSON.stringify({sessionId:'d07587',location:'BattleScene.ts:create',message:'battle create complete',data:{battleInstanceId:this.battleInstanceId,heroIds:this.heroes.map((h)=>h.heroId),stageId:this.stageId,waveCount:waveConfigs.length},timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
   }
 
   private teardownBattleSystems(): void {
-    // #region agent log
-    fetch('http://127.0.0.1:7764/ingest/39ea4d96-09a5-471d-9f43-5260085e1ae8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d07587'},body:JSON.stringify({sessionId:'d07587',location:'BattleScene.ts:teardownBattleSystems',message:'teardown battle systems',data:{battleInstanceId:this.battleInstanceId,hadAutoBattle:!!this.autoBattle,hadWaveSystem:!!this.waveSystem,battleLoopWasActive:this.battleLoopActive},timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
     this.battleLoopActive = false;
     this.processedEnemyKills.clear();
 
@@ -384,6 +372,16 @@ export class BattleScene extends Phaser.Scene {
     this.bossBar?.destroy();
   }
 
+  private resetHeroFormationHomes(): void {
+    for (const hero of this.heroes) {
+      const slotIndex = this.combatSlotByHeroId.get(hero.heroId);
+      if (slotIndex === undefined) continue;
+      const position = getHeroBattlePosition(slotIndex);
+      hero.targetX = position.x;
+      hero.targetY = position.y;
+    }
+  }
+
   private resetBattleSession(): void {
     this.battleEnded = false;
     this.combatActive = false;
@@ -393,6 +391,7 @@ export class BattleScene extends Phaser.Scene {
     this.heroVisuals.clear();
     this.enemyVisuals.clear();
     this.heroAliveSnapshot.clear();
+    this.combatSlotByHeroId.clear();
   }
 
   update(_time: number, delta: number): void {
@@ -502,6 +501,7 @@ export class BattleScene extends Phaser.Scene {
       if (!setup) continue;
 
       const combatSlotIndex = combatSlotByHeroId.get(heroId) ?? FORMATION.COMBAT_FRONT_SLOT_INDICES[0];
+      this.combatSlotByHeroId.set(heroId, combatSlotIndex);
       const position = getHeroBattlePosition(combatSlotIndex);
       const healCooldown = setup.heroClass === 'support' ? setup.attackCooldown : 0;
 

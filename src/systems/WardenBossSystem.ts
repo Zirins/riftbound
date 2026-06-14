@@ -4,6 +4,7 @@
 import Phaser from 'phaser';
 import { ENEMIES, FORMATION, UI, WARDEN } from '../constants/gameConfig';
 import type { EnemyRuntimeState, HeroRuntimeState } from '../types';
+import { clampEnemyPosition } from './BattlefieldBounds';
 
 interface PendingSlam {
   impactX: number;
@@ -134,7 +135,7 @@ export class WardenBossSystem {
   ): EnemyRuntimeState {
     this.spawnCounter += 1;
 
-    return {
+    const grunt: EnemyRuntimeState = {
       enemyId: ENEMIES.GRUNT.ID,
       instanceId: `${ENEMIES.GRUNT.ID}_summon_${this.spawnCounter}`,
       x: warden.x + offsetX,
@@ -151,6 +152,8 @@ export class WardenBossSystem {
       attackCooldownRemaining: 0,
       activeDebuffs: [],
     };
+    clampEnemyPosition(grunt);
+    return grunt;
   }
 
   private clearPendingSlams(): void {

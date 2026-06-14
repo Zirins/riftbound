@@ -35,6 +35,7 @@ import {
 } from './TargetingSystem';
 import { StatusEffectSystem } from './StatusEffectSystem';
 import { SummonUnitSystem } from './SummonUnitSystem';
+import { clampHeroPosition } from './BattlefieldBounds';
 
 const PASSIVE_EVENT_TRIGGERS: Partial<Record<BattleEvent['type'], SkillTrigger>> = {
   combat_start: 'combat_start',
@@ -232,8 +233,7 @@ export class SkillSystem {
             const engageDist = caster.radius + target.unit.radius + 4;
             caster.x = Math.max(caster.radius, target.unit.x - engageDist);
             caster.y = target.unit.y;
-            caster.targetX = caster.x;
-            caster.targetY = caster.y;
+            clampHeroPosition(caster);
           }
           results.push({
             effectType: 'move_to_target',

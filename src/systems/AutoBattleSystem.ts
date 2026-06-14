@@ -21,6 +21,7 @@ import {
   snapshotDeadEnemyIds,
 } from './battleStateUtils';
 import { SideSkillVfxSystem } from './SideSkillVfxSystem';
+import { clampAllBattleUnits, clampEnemyPosition, clampHeroPosition } from './BattlefieldBounds';
 import { SkillSystem } from './SkillSystem';
 import { StatusEffectSystem } from './StatusEffectSystem';
 import type { EnemyCombatSystem } from './EnemyCombatSystem';
@@ -84,6 +85,7 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
     this.tickEnemies(heroes, enemies, delta);
     this.syncUltimateReady(heroes);
     this.flushProjectileCleanups();
+    clampAllBattleUnits(heroes, enemies);
   }
 
   queueTargetCleanup(instanceId: string): void {
@@ -343,11 +345,13 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
     if (dist <= stopDistance + step) {
       enemy.x = target.x - (dx / dist) * stopDistance;
       enemy.y = target.y - (dy / dist) * stopDistance;
+      clampEnemyPosition(enemy);
       return;
     }
 
     enemy.x += (dx / dist) * step;
     enemy.y += (dy / dist) * step;
+    clampEnemyPosition(enemy);
   }
 
   private getV2SlowMultiplier(unit: EnemyRuntimeState): number {
@@ -491,8 +495,7 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
     hero.y = dy > 0
       ? Math.min(engageY, nextY)
       : Math.max(engageY, nextY);
-    hero.targetX = hero.x;
-    hero.targetY = hero.y;
+    clampHeroPosition(hero);
   }
 
   private applyRangerStandoff(
@@ -517,8 +520,7 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
 
     hero.x = Math.max(0, Math.min(CANVAS.HERO_ZONE_END - hero.radius, nextX));
     hero.y = nextY;
-    hero.targetX = hero.x;
-    hero.targetY = hero.y;
+    clampHeroPosition(hero);
   }
 
   private applyDamageToEnemy(
@@ -619,6 +621,7 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
 
     hero.x = Math.max(hero.radius, target.x - engageDist);
     hero.y = target.y;
+    clampHeroPosition(hero);
 
     const damage = this.calculateHeroDamage(hero, target.defense);
     this.applyDamageToEnemy(target, damage, hero, enemies, { skipFollowUp: true });
@@ -626,6 +629,7 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
 
     hero.x = homeX;
     hero.y = homeY;
+    clampHeroPosition(hero);
     hero.attackCooldownRemaining = hero.attackCooldown;
   }
 

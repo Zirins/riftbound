@@ -29,9 +29,6 @@ export class SideSkillVfxSystem {
         targets: result.targets.map((target) => target.unitId),
         effects: result.effects.map((effect) => effect.effectType),
       });
-      // #region agent log
-      fetch('http://127.0.0.1:7764/ingest/39ea4d96-09a5-471d-9f43-5260085e1ae8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d07587'},body:JSON.stringify({sessionId:'d07587',location:'SideSkillVfxSystem.ts:playCastFeedback',message:'side skill cast',data:{heroId:hero.heroId,sceneKey:this.scene.scene.key,sceneActive:this.scene.scene.isActive(),sceneVisible:this.scene.scene.isVisible()},timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
     }
 
     const casterRing = this.scene.add.circle(hero.x, hero.y, hero.radius + 6, SIDE_SKILL_RING_COLOR, 0.45);
