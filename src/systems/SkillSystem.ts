@@ -3,6 +3,7 @@
 
 import { COMBAT } from '../constants/gameConfig';
 import { getHeroCombatKit } from '../data/heroKits';
+import { AwakeningModifierSystem } from './AwakeningModifierSystem';
 import { getStatusEffectDefinition, isKnownStatusEffect } from '../data/statusEffects';
 import type {
   BattleEvent,
@@ -57,15 +58,7 @@ export class SkillSystem {
     }
 
     const awakeningLevel = save.awakeningState[hero.heroId]?.awakeningLevel ?? 0;
-    const runtimeKit: RuntimeHeroKit = {
-      kit,
-      awakeningLevel,
-      cooldowns: kit.sideSkills.map((sideSkill) => ({
-        skillId: sideSkill.id,
-        remainingMs: sideSkill.initialCooldownMs ?? sideSkill.cooldownMs ?? 0,
-        totalCooldownMs: sideSkill.cooldownMs ?? 0,
-      })),
-    };
+    const runtimeKit = AwakeningModifierSystem.buildRuntimeHeroKit(kit, awakeningLevel);
 
     hero.runtimeKit = runtimeKit;
     hero.v2StatusEffects = hero.v2StatusEffects ?? [];

@@ -1,15 +1,23 @@
 // src/scenes/HeroDetailScene.ts
-// Full hero profile — stats, RP, level up, star up, and dissolve.
+// Full hero profile — stats, RP, level up, star up, dissolve, and awakening.
 
 import Phaser from 'phaser';
 import {
+  AWAKENING,
   CANVAS,
   DISSOLVE_SHARDS,
   UI,
 } from '../constants/gameConfig';
 import { SCENE_KEYS } from '../constants/sceneKeys';
+import {
+  AWAKENING_CRYSTAL_ITEM_ID,
+  formatSkillModifier,
+  getAwakeningLevelData,
+} from '../data/awakeningData';
+import { getHeroCombatKit } from '../data/heroKits';
 import { FACTION_LABELS, HEROES_DATA } from '../data/heroes';
-import { canAfford } from '../systems/EconomySystem';
+import { AwakeningSystem, awakenHero } from '../systems/AwakeningSystem';
+import { canAfford, EconomySystem } from '../systems/EconomySystem';
 import {
   computeHeroStats,
   computeRP,
@@ -17,13 +25,16 @@ import {
   getLevelUpCost,
   levelUp,
 } from '../systems/HeroProgressionSystem';
+import { InventorySystem } from '../systems/InventorySystem';
 import { loadCurrentRealm } from '../systems/SaveSystem';
 import { dissolve, getStarUpCost, getTotalShards, starUp } from '../systems/ShardSystem';
 import { ButtonPrimary } from '../ui/ButtonPrimary';
 import { HubOverlayPanel } from '../ui/HubOverlayPanel';
 import { ProgressBar } from '../ui/ProgressBar';
 import { StarRating } from '../ui/StarRating';
-import type { HeroData, HeroOwnershipState } from '../types';
+import type { HeroData, HeroOwnershipState, RealmSaveDataV3 } from '../types';
+
+type HeroDetailTab = 'overview' | 'awakening';
 
 const CLASS_LABELS: Record<HeroData['heroClass'], string> = {
   tank: 'Tank',
@@ -60,21 +71,31 @@ const ULTIMATE_LABELS: Record<string, string> = {
   stormreign_cleave: 'Stormreign Cleave — front-row devastating cleave',
 };
 
+const TAB_WIDTH = 140;
+const TAB_HEIGHT = 28;
+const TAB_GAP = 8;
+
 export class HeroDetailScene extends Phaser.Scene {
   static readonly KEY = SCENE_KEYS.HERO_DETAIL;
 
   private heroId = '';
+  private activeTab: HeroDetailTab = 'overview';
 
   private backButton: ButtonPrimary | null = null;
   private dissolveButton: ButtonPrimary | null = null;
   private levelUpButton: ButtonPrimary | null = null;
   private starUpButton: ButtonPrimary | null = null;
+  private awakenButton: ButtonPrimary | null = null;
   private starRating: StarRating | null = null;
   private xpBar: ProgressBar | null = null;
   private dissolveModal: HubOverlayPanel | null = null;
 
   private portrait: Phaser.GameObjects.Arc | null = null;
   private readonly statTexts: Phaser.GameObjects.Text[] = [];
+  private readonly awakeningTexts: Phaser.GameObjects.Text[] = [];
+  private readonly tabBackgrounds: Phaser.GameObjects.Rectangle[] = [];
+  private readonly tabLabels: Phaser.GameObjects.Text[] = [];
+  private readonly tabZones: Phaser.GameObjects.Zone[] = [];
   private rpLabel: Phaser.GameObjects.Text | null = null;
   private levelLabel: Phaser.GameObjects.Text | null = null;
   private shardLabel: Phaser.GameObjects.Text | null = null;
@@ -86,8 +107,9 @@ export class HeroDetailScene extends Phaser.Scene {
     super({ key: HeroDetailScene.KEY });
   }
 
-  init(data: { heroId?: string }): void {
+  init(data: { heroId?: string; tab?: HeroDetailTab }): void {
     this.heroId = data.heroId ?? '';
+    this.activeTab = data.tab ?? 'overview';
   }
 
   create(): void {
@@ -104,7 +126,13 @@ export class HeroDetailScene extends Phaser.Scene {
       return;
     }
 
-    this.renderLayout(heroData, ownership, realm);
+    const save = realm as RealmSaveDataV3;
+    this.renderChrome(heroData, ownership, save);
+    if (this.activeTab === 'overview') {
+      this.renderOverviewTab(heroData, ownership, save);
+    } else {
+      this.renderAwakeningTab(heroData, ownership, save);
+    }
   }
 
   shutdown(): void {
@@ -121,10 +149,12 @@ export class HeroDetailScene extends Phaser.Scene {
     this.dissolveButton?.destroy();
     this.levelUpButton?.destroy();
     this.starUpButton?.destroy();
+    this.awakenButton?.destroy();
     this.backButton = null;
     this.dissolveButton = null;
     this.levelUpButton = null;
     this.starUpButton = null;
+    this.awakenButton = null;
 
     this.starRating?.destroy();
     this.xpBar?.destroy();
@@ -144,24 +174,26 @@ export class HeroDetailScene extends Phaser.Scene {
 
     for (const text of this.statTexts) text.destroy();
     this.statTexts.length = 0;
+
+    for (const text of this.awakeningTexts) text.destroy();
+    this.awakeningTexts.length = 0;
+
+    for (const zone of this.tabZones) {
+      zone.removeAllListeners();
+      zone.destroy();
+    }
+    this.tabZones.length = 0;
+    for (const bg of this.tabBackgrounds) bg.destroy();
+    this.tabBackgrounds.length = 0;
+    for (const label of this.tabLabels) label.destroy();
+    this.tabLabels.length = 0;
   }
 
-  private renderLayout(
+  private renderChrome(
     heroData: HeroData,
-    ownership: HeroOwnershipState,
-    realm: NonNullable<ReturnType<typeof loadCurrentRealm>>,
+    _ownership: HeroOwnershipState,
+    save: RealmSaveDataV3,
   ): void {
-    const stats = computeHeroStats(heroData.id);
-    if (!stats) {
-      this.scene.start(SCENE_KEYS.ROSTER);
-      return;
-    }
-
-    const rp = computeRP(ownership, heroData);
-    const levelCap = getLevelCap(ownership.starRank);
-    const levelCost = getLevelUpCost(ownership.level);
-    const starCost = getStarUpCost(ownership.starRank);
-    const totalShards = getTotalShards(realm, heroData.id, ownership);
     const dissolveYield = DISSOLVE_SHARDS[heroData.rarity];
 
     this.backButton = new ButtonPrimary(
@@ -188,17 +220,72 @@ export class HeroDetailScene extends Phaser.Scene {
       fontFamily: 'monospace',
     }).setOrigin(0.5);
 
-    this.portrait = this.add.circle(110, 120, heroData.radius, heroData.color);
+    this.renderTabBar(save);
+  }
 
-    this.starRating = new StarRating(this, 220, 88, ownership.starRank);
+  private renderTabBar(save: RealmSaveDataV3): void {
+    const tabs: { id: HeroDetailTab; label: string }[] = [
+      { id: 'overview', label: 'OVERVIEW' },
+      { id: 'awakening', label: 'AWAKENING' },
+    ];
+    const startX = CANVAS.WIDTH / 2 - (tabs.length * TAB_WIDTH + (tabs.length - 1) * TAB_GAP) / 2;
 
-    this.levelLabel = this.add.text(220, 108, `LV ${ownership.level} / ${levelCap}`, {
+    tabs.forEach((tab, index) => {
+      const x = startX + index * (TAB_WIDTH + TAB_GAP) + TAB_WIDTH / 2;
+      const y = 64;
+      const isSelected = this.activeTab === tab.id;
+      const unlocked = tab.id !== 'awakening' || AwakeningSystem.isUnlocked(save, this.heroId);
+
+      const bg = this.add.rectangle(x, y, TAB_WIDTH, TAB_HEIGHT, isSelected ? 0x334466 : 0x222233)
+        .setStrokeStyle(1, isSelected ? 0x6688aa : 0x444466);
+      const label = this.add.text(x, y, tab.label, {
+        fontSize: '10px',
+        color: unlocked ? (isSelected ? '#ffffff' : '#aaaaaa') : '#666677',
+        fontFamily: 'monospace',
+      }).setOrigin(0.5);
+
+      const zone = this.add.zone(x, y, TAB_WIDTH, TAB_HEIGHT);
+      zone.setInteractive({ useHandCursor: true });
+      zone.on('pointerup', () => {
+        if (this.activeTab !== tab.id) {
+          this.scene.restart({ heroId: this.heroId, tab: tab.id });
+        }
+      });
+
+      this.tabBackgrounds.push(bg);
+      this.tabLabels.push(label);
+      this.tabZones.push(zone);
+    });
+  }
+
+  private renderOverviewTab(
+    heroData: HeroData,
+    ownership: HeroOwnershipState,
+    save: RealmSaveDataV3,
+  ): void {
+    const stats = computeHeroStats(heroData.id);
+    if (!stats) {
+      this.scene.start(SCENE_KEYS.ROSTER);
+      return;
+    }
+
+    const rp = computeRP(ownership, heroData);
+    const levelCap = getLevelCap(ownership.starRank);
+    const levelCost = getLevelUpCost(ownership.level);
+    const starCost = getStarUpCost(ownership.starRank);
+    const totalShards = getTotalShards(save, heroData.id, ownership);
+
+    this.portrait = this.add.circle(110, 130, heroData.radius, heroData.color);
+
+    this.starRating = new StarRating(this, 220, 98, ownership.starRank);
+
+    this.levelLabel = this.add.text(220, 118, `LV ${ownership.level} / ${levelCap}`, {
       fontSize: '13px',
       color: '#ffffff',
       fontFamily: 'monospace',
     });
 
-    this.rpLabel = this.add.text(520, 98, `RP: ${rp.toLocaleString()}`, {
+    this.rpLabel = this.add.text(520, 108, `RP: ${rp.toLocaleString()}`, {
       fontSize: '14px',
       color: '#ffcc44',
       fontFamily: 'monospace',
@@ -206,35 +293,35 @@ export class HeroDetailScene extends Phaser.Scene {
 
     const metaLine = `Class: ${CLASS_LABELS[heroData.heroClass]}   Faction: ${FACTION_LABELS[heroData.faction]}   Anima Form: ${heroData.animaForm}`;
     this.statTexts.push(
-      this.add.text(220, 128, metaLine, {
+      this.add.text(220, 138, metaLine, {
         fontSize: '10px',
         color: '#aaaacc',
         fontFamily: 'monospace',
       }),
     );
 
-    this.add.line(0, 0, 40, 155, CANVAS.WIDTH - 40, 155, 0x444466).setOrigin(0);
+    this.add.line(0, 0, 40, 165, CANVAS.WIDTH - 40, 165, 0x444466).setOrigin(0);
 
     this.statTexts.push(
-      this.add.text(60, 172, `HP: ${stats.hp.toLocaleString()}   ATK: ${stats.attack}   DEF: ${stats.defense}`, {
+      this.add.text(60, 182, `HP: ${stats.hp.toLocaleString()}   ATK: ${stats.attack}   DEF: ${stats.defense}`, {
         fontSize: '12px',
         color: '#ffffff',
         fontFamily: 'monospace',
       }),
     );
 
-    this.add.line(0, 0, 40, 198, CANVAS.WIDTH - 40, 198, 0x444466).setOrigin(0);
+    this.add.line(0, 0, 40, 208, CANVAS.WIDTH - 40, 208, 0x444466).setOrigin(0);
 
     const passiveText = PASSIVE_LABELS[heroData.passiveId] ?? heroData.passiveId;
     const ultimateText = ULTIMATE_LABELS[heroData.ultimateId] ?? heroData.ultimateId;
     this.statTexts.push(
-      this.add.text(60, 212, `Passive: ${passiveText}`, {
+      this.add.text(60, 222, `Passive: ${passiveText}`, {
         fontSize: '10px',
         color: '#ccccdd',
         fontFamily: 'monospace',
         wordWrap: { width: CANVAS.WIDTH - 100 },
       }),
-      this.add.text(60, 232, `Ultimate: ${ultimateText}`, {
+      this.add.text(60, 242, `Ultimate: ${ultimateText}`, {
         fontSize: '10px',
         color: '#ccccdd',
         fontFamily: 'monospace',
@@ -242,21 +329,21 @@ export class HeroDetailScene extends Phaser.Scene {
       }),
     );
 
-    this.add.line(0, 0, 40, 258, CANVAS.WIDTH - 40, 258, 0x444466).setOrigin(0);
+    this.add.line(0, 0, 40, 268, CANVAS.WIDTH - 40, 268, 0x444466).setOrigin(0);
 
     const xpTarget = 100;
     const xpProgress = xpTarget > 0 ? Math.min(1, ownership.currentXP / xpTarget) : 0;
-    this.xpBar = new ProgressBar(this, 60, 278, 280, 8, 0x44aa66, 0x333344);
+    this.xpBar = new ProgressBar(this, 60, 288, 280, 8, 0x44aa66, 0x333344);
     this.xpBar.setProgress(xpProgress);
 
-    this.xpLabel = this.add.text(60, 292, `XP: ${ownership.currentXP} / ${xpTarget}`, {
+    this.xpLabel = this.add.text(60, 302, `XP: ${ownership.currentXP} / ${xpTarget}`, {
       fontSize: '10px',
       color: '#888899',
       fontFamily: 'monospace',
     });
 
     const shardNeed = starCost?.shards ?? 0;
-    this.shardLabel = this.add.text(400, 278, `Shards: ${totalShards} / ${shardNeed || '—'}`, {
+    this.shardLabel = this.add.text(400, 288, `Shards: ${totalShards} / ${shardNeed || '—'}`, {
       fontSize: '11px',
       color: '#aaaacc',
       fontFamily: 'monospace',
@@ -295,9 +382,118 @@ export class HeroDetailScene extends Phaser.Scene {
     this.starUpButton.setEnabled(canStar);
   }
 
+  private renderAwakeningTab(
+    heroData: HeroData,
+    ownership: HeroOwnershipState,
+    save: RealmSaveDataV3,
+  ): void {
+    const kit = getHeroCombatKit(heroData.id);
+    const awakeningLevel = AwakeningSystem.getAwakeningLevel(save, heroData.id);
+    const unlocked = AwakeningSystem.isUnlocked(save, heroData.id);
+    let y = 100;
+
+    const pushText = (
+      text: string,
+      options: Phaser.Types.GameObjects.Text.TextStyle & { wordWrap?: { width: number } } = {},
+    ): void => {
+      const label = this.add.text(60, y, text, {
+        fontSize: '11px',
+        color: '#ccccdd',
+        fontFamily: 'monospace',
+        ...options,
+      });
+      this.awakeningTexts.push(label);
+      y += options.wordWrap ? 44 : 22;
+    };
+
+    if (!unlocked) {
+      pushText('AWAKENING LOCKED', { fontSize: '14px', color: '#ff8888' });
+      pushText(`Requires ${AWAKENING.REQUIRED_STAR_RANK}★ star rank (current: ${ownership.starRank}★)`, {
+        color: '#ffaaaa',
+      });
+      pushText('Reach max star rank to unlock hero awakening progression.', {
+        wordWrap: { width: CANVAS.WIDTH - 120 },
+      });
+      pushText('Materials needed per level: Gold + Awakening Crystals.', { color: '#888899' });
+      return;
+    }
+
+    pushText(`AWAKENING — Level ${awakeningLevel} / ${AWAKENING.MAX_LEVEL}`, {
+      fontSize: '14px',
+      color: '#ffcc66',
+    });
+
+    if (awakeningLevel > 0) {
+      const currentData = getAwakeningLevelData(heroData.id, awakeningLevel as 1 | 2 | 3);
+      if (currentData) {
+        pushText(currentData.description, {
+          wordWrap: { width: CANVAS.WIDTH - 120 },
+          color: '#aaaacc',
+        });
+      }
+
+      pushText('Active skill modifiers:', { color: '#ffffff', fontSize: '12px' });
+      const applied = AwakeningSystem.getSkillModifiers(save, heroData.id);
+      if (kit && applied.length > 0) {
+        for (const modifier of applied) {
+          pushText(`• ${formatSkillModifier(modifier, kit)}`, { color: '#88ccff' });
+        }
+      } else {
+        pushText('• None', { color: '#888899' });
+      }
+    } else {
+      pushText('This hero has not been awakened yet.', { color: '#aaaacc' });
+    }
+
+    if (awakeningLevel < AWAKENING.MAX_LEVEL) {
+      y += 8;
+      const nextLevel = (awakeningLevel + 1) as 1 | 2 | 3;
+      const nextData = getAwakeningLevelData(heroData.id, nextLevel);
+      const cost = AwakeningSystem.getNextAwakeningCost(heroData.id, awakeningLevel);
+      const goldBalance = EconomySystem.getCurrencyBalance(save, 'gold');
+      const crystalBalance = InventorySystem.getQuantity(save, AWAKENING_CRYSTAL_ITEM_ID);
+
+      pushText(`Next: Awakening Lv${nextLevel}`, { color: '#ffffff', fontSize: '12px' });
+      if (nextData) {
+        pushText(nextData.description, {
+          wordWrap: { width: CANVAS.WIDTH - 120 },
+          color: '#aaaacc',
+        });
+        if (kit) {
+          pushText('Skill preview:', { color: '#ffffff', fontSize: '12px' });
+          for (const modifier of nextData.skillModifiers) {
+            pushText(`• ${formatSkillModifier(modifier, kit)}`, { color: '#aaddaa' });
+          }
+        }
+      }
+
+      pushText(
+        `Cost: ${cost.gold.toLocaleString()} Gold + ${cost.awakeningCrystals} Awakening Crystals`,
+        { color: '#ffdd88' },
+      );
+      pushText(
+        `You have: ${goldBalance.toLocaleString()} Gold, ${crystalBalance} Crystals`,
+        { color: '#888899' },
+      );
+
+      const eligible = AwakeningSystem.isEligible(save, heroData.id);
+      this.awakenButton = new ButtonPrimary(
+        this,
+        CANVAS.WIDTH / 2,
+        CANVAS.HEIGHT - 48,
+        `AWAKEN — Lv${nextLevel}`,
+        () => this.handleAwaken(),
+        220,
+      );
+      this.awakenButton.setEnabled(eligible);
+    } else {
+      pushText('MAX AWAKENING REACHED', { color: '#88ff88', fontSize: '12px' });
+    }
+  }
+
   private handleLevelUp(): void {
     if (levelUp(this.heroId)) {
-      this.scene.restart({ heroId: this.heroId });
+      this.scene.restart({ heroId: this.heroId, tab: this.activeTab });
       return;
     }
     this.showToast('Not enough Gold or XP Fragments');
@@ -305,10 +501,19 @@ export class HeroDetailScene extends Phaser.Scene {
 
   private handleStarUp(): void {
     if (starUp(this.heroId)) {
-      this.scene.restart({ heroId: this.heroId });
+      this.scene.restart({ heroId: this.heroId, tab: this.activeTab });
       return;
     }
     this.showToast('Not enough shards or Gold');
+  }
+
+  private handleAwaken(): void {
+    const result = awakenHero(this.heroId);
+    if (result.success) {
+      this.scene.restart({ heroId: this.heroId, tab: 'awakening' });
+      return;
+    }
+    this.showToast(result.reason ?? 'Cannot awaken hero');
   }
 
   private showToast(message: string): void {
