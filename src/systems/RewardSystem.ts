@@ -162,6 +162,39 @@ export function grantReward(reward: StageReward): void {
   checkUnlocks();
 }
 
+/** Grants sweep rewards without mutating cleared-stage records or star ratings. */
+export function grantSweepReward(save: RealmSaveDataV3, reward: StageReward): GrantResult {
+  const bundle: RewardBundle = {
+    source: 'campaign_sweep',
+    currencies: [
+      { type: 'gold', amount: reward.gold },
+      { type: 'rift_crystal', amount: reward.crystals },
+    ],
+    heroShards: reward.shardGrants.map((grant) => ({
+      heroId: grant.heroId,
+      quantity: grant.amount,
+    })),
+    sigils: reward.sigilGrants.map((grant) => ({
+      sigilDefinitionId: grant.sigilDefinitionId,
+      level: grant.level,
+    })),
+    items: reward.xpFragments > 0
+      ? [{ itemId: 'xp_fragment', quantity: reward.xpFragments }]
+      : [],
+  };
+
+  return RewardSystem.grantRewardBundle(save, bundle);
+}
+
+export function buildSweepPerformance(stageId: string): BattlePerformance {
+  const stage = getStageData(stageId);
+  return {
+    heroesThatDied: 0,
+    clearTimeMs: 60_000,
+    wavesCleared: stage?.waves.length ?? 1,
+  };
+}
+
 export class RewardSystem {
   static grantRewardBundle(save: RealmSaveDataV3, bundle: RewardBundle): GrantResult {
     if (import.meta.env.DEV) {

@@ -288,6 +288,21 @@ export interface StageReward {
   firstClearItemGrants: { itemId: string; quantity: number }[];
 }
 
+export interface SweepValidation {
+  canSweep: boolean;
+  reason?: string;
+  energyRequired: number;
+  energyAvailable: number;
+}
+
+export interface SweepResult {
+  success: boolean;
+  reason?: string;
+  sweepCount: number;
+  energySpent: number;
+  rewards: StageReward[];
+}
+
 // ─── Sigil (v1.2+, typed now for inventory) ──────────────────────────────────
 
 export interface SigilData {

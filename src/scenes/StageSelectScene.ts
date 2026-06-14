@@ -1,5 +1,5 @@
 // src/scenes/StageSelectScene.ts
-// Stage detail, energy check, and battle launch.
+// Stage detail, energy check, sweep, and battle launch.
 
 import Phaser from 'phaser';
 import { CANVAS, UI } from '../constants/gameConfig';
@@ -9,6 +9,8 @@ import { ENEMY_DISPLAY_LABELS, getEnemyDisplayName, isBossEnemyId } from '../dat
 import * as EnergySystem from '../systems/EnergySystem';
 import { getStageData } from '../systems/StageLoader';
 import { loadCurrentRealm } from '../systems/SaveSystem';
+import { SweepSystem } from '../systems/SweepSystem';
+import type { RealmSaveDataV3, StageReward } from '../types';
 import { ButtonPrimary } from '../ui/ButtonPrimary';
 
 export class StageSelectScene extends Phaser.Scene {
@@ -17,6 +19,8 @@ export class StageSelectScene extends Phaser.Scene {
   private stageId = '';
   private backButton: ButtonPrimary | null = null;
   private battleButton: ButtonPrimary | null = null;
+  private sweep1Button: ButtonPrimary | null = null;
+  private sweep10Button: ButtonPrimary | null = null;
   private toastLabel: Phaser.GameObjects.Text | null = null;
   private toastTimer: Phaser.Time.TimerEvent | null = null;
 
@@ -38,9 +42,17 @@ export class StageSelectScene extends Phaser.Scene {
       return;
     }
 
-    const realm = loadCurrentRealm();
-    const cleared = realm?.clearedStages.find((record) => record.stageId === this.stageId);
-    const energy = realm?.inventory.energy ?? 0;
+    const realm = loadCurrentRealm() as RealmSaveDataV3 | null;
+    if (!realm) {
+      this.scene.start(SCENE_KEYS.CAMPAIGN);
+      return;
+    }
+
+    const cleared = realm.clearedStages.find((record) => record.stageId === this.stageId);
+    const energy = realm.inventory.energy;
+    const sweepUnlocked = SweepSystem.isSweepUnlocked(realm, this.stageId);
+    const sweep1Validation = SweepSystem.canSweep(realm, this.stageId, 1);
+    const sweep10Validation = SweepSystem.canSweep(realm, this.stageId, 10);
 
     this.backButton = new ButtonPrimary(
       this,
@@ -60,7 +72,7 @@ export class StageSelectScene extends Phaser.Scene {
     const bestStars = cleared
       ? '★'.repeat(cleared.stars) + '☆'.repeat(3 - cleared.stars)
       : '—';
-    this.add.text(60, 72, `Best: ${bestStars}   Waves: ${stage.waves.length}   Energy Cost: ${stage.energyCost}   Your Energy: ${energy}/${realm?.inventory.maxEnergy ?? 150}`, {
+    this.add.text(60, 72, `Best: ${bestStars}   Waves: ${stage.waves.length}   Energy Cost: ${stage.energyCost}   Your Energy: ${energy}/${realm.inventory.maxEnergy}`, {
       fontSize: '10px',
       color: '#aaaacc',
       fontFamily: 'monospace',
@@ -112,11 +124,39 @@ export class StageSelectScene extends Phaser.Scene {
       wordWrap: { width: CANVAS.WIDTH - 200 },
     });
 
+    if (sweepUnlocked) {
+      this.add.text(60, 248, 'Sweep unlocked (3★) — instant rewards, no battle', {
+        fontSize: '10px',
+        color: '#88ccff',
+        fontFamily: 'monospace',
+      });
+
+      this.sweep1Button = new ButtonPrimary(
+        this,
+        CANVAS.WIDTH - 330,
+        CANVAS.HEIGHT - 48,
+        `SWEEP 1× (${stage.energyCost}⚡)`,
+        () => this.handleSweep(1),
+        150,
+      );
+      this.sweep1Button.setEnabled(sweep1Validation.canSweep);
+
+      this.sweep10Button = new ButtonPrimary(
+        this,
+        CANVAS.WIDTH - 160,
+        CANVAS.HEIGHT - 48,
+        `SWEEP 10× (${stage.energyCost * 10}⚡)`,
+        () => this.handleSweep(10),
+        150,
+      );
+      this.sweep10Button.setEnabled(sweep10Validation.canSweep);
+    }
+
     const canBattle = EnergySystem.hasEnough(stage.energyCost);
     this.battleButton = new ButtonPrimary(
       this,
       CANVAS.WIDTH - 120,
-      CANVAS.HEIGHT - 48,
+      sweepUnlocked ? CANVAS.HEIGHT - 96 : CANVAS.HEIGHT - 48,
       `BATTLE → (${stage.energyCost}⚡)`,
       () => this.handleBattle(stage.energyCost),
       200,
@@ -129,10 +169,14 @@ export class StageSelectScene extends Phaser.Scene {
     this.toastLabel?.destroy();
     this.backButton?.destroy();
     this.battleButton?.destroy();
+    this.sweep1Button?.destroy();
+    this.sweep10Button?.destroy();
     this.toastTimer = null;
     this.toastLabel = null;
     this.backButton = null;
     this.battleButton = null;
+    this.sweep1Button = null;
+    this.sweep10Button = null;
   }
 
   private handleBattle(energyCost: number): void {
@@ -145,6 +189,45 @@ export class StageSelectScene extends Phaser.Scene {
       return;
     }
     this.scene.start(SCENE_KEYS.FORMATION, { stageId: this.stageId });
+  }
+
+  private handleSweep(count: 1 | 10): void {
+    EnergySystem.computeRegen();
+    const realm = loadCurrentRealm() as RealmSaveDataV3 | null;
+    if (!realm) {
+      this.showToast('No save loaded.');
+      return;
+    }
+
+    const validation = SweepSystem.canSweep(realm, this.stageId, count);
+    if (!validation.canSweep) {
+      this.showToast(validation.reason ?? 'Cannot sweep this stage.');
+      return;
+    }
+
+    const result = SweepSystem.sweep(realm, this.stageId, count);
+    if (!result.success) {
+      this.showToast(result.reason ?? 'Sweep failed.');
+      return;
+    }
+
+    this.showToast(this.formatSweepSummary(result.rewards, result.energySpent));
+    this.scene.restart({ stageId: this.stageId });
+  }
+
+  private formatSweepSummary(rewards: StageReward[], energySpent: number): string {
+    const gold = rewards.reduce((sum, reward) => sum + reward.gold, 0);
+    const crystals = rewards.reduce((sum, reward) => sum + reward.crystals, 0);
+    const xpFragments = rewards.reduce((sum, reward) => sum + reward.xpFragments, 0);
+    const sigils = rewards.reduce((sum, reward) => sum + reward.sigilGrants.length, 0);
+    const parts = [
+      `Sweep complete! −${energySpent}⚡`,
+      `+${gold} Gold`,
+      `+${crystals} Crystals`,
+      `+${xpFragments} XP`,
+    ];
+    if (sigils > 0) parts.push(`+${sigils} Sigil${sigils === 1 ? '' : 's'}`);
+    return parts.join('   ');
   }
 
   private buildEnemySummary(
@@ -165,14 +248,16 @@ export class StageSelectScene extends Phaser.Scene {
   private showToast(message: string): void {
     this.toastTimer?.remove();
     this.toastLabel?.destroy();
-    this.toastLabel = this.add.text(CANVAS.WIDTH / 2, CANVAS.HEIGHT - 90, message, {
+    this.toastLabel = this.add.text(CANVAS.WIDTH / 2, CANVAS.HEIGHT - 120, message, {
       fontSize: '12px',
       color: '#ffffff',
       fontFamily: 'monospace',
       backgroundColor: '#333355',
       padding: { x: 10, y: 6 },
+      align: 'center',
+      wordWrap: { width: CANVAS.WIDTH - 80 },
     }).setOrigin(0.5);
-    this.toastTimer = this.time.delayedCall(2200, () => {
+    this.toastTimer = this.time.delayedCall(3200, () => {
       this.toastLabel?.destroy();
       this.toastLabel = null;
     });
