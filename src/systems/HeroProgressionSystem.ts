@@ -8,9 +8,10 @@ import {
   STAR_MULTIPLIERS,
 } from '../constants/gameConfig';
 import { HEROES_DATA } from '../data/heroes';
-import type { HeroData, HeroOwnershipState } from '../types';
+import type { HeroData, HeroOwnershipState, HeroStats, RealmSaveDataV3 } from '../types';
 import { canAfford, deduct } from './EconomySystem';
 import { loadCurrentRealm, saveCurrentRealm } from './SaveSystem';
+import { SigilSystem } from './SigilSystem';
 import { reportProgress } from './TaskSystem';
 
 export function getLevelUpCost(level: number): { gold: number; xpFragments: number } {
@@ -25,18 +26,23 @@ export function getLevelCap(starRank: number): number {
   return LEVEL_CAP[starRank] ?? LEVEL_CAP[5];
 }
 
-export function computeHeroStats(heroId: string): { hp: number; attack: number; defense: number } | null {
+export function computeHeroStats(heroId: string): HeroStats | null {
   const realm = loadCurrentRealm();
   const heroData = HEROES_DATA.find((hero) => hero.id === heroId);
   const ownership = realm?.ownedHeroes.find(
     (hero) => hero.heroId === heroId && hero.isOwned,
   );
   if (!heroData || !ownership) return null;
-  return buildHeroStats(ownership, heroData);
+  return resolveHeroStats(ownership, heroData, realm as RealmSaveDataV3 | null);
 }
 
 export function computeRP(hero: HeroOwnershipState, heroData: HeroData): number {
-  const { hp, attack, defense } = buildHeroStats(hero, heroData);
+  const realm = loadCurrentRealm();
+  const { hp, attack, defense } = resolveHeroStats(
+    hero,
+    heroData,
+    realm as RealmSaveDataV3 | null,
+  );
   const { HP_WEIGHT, ATTACK_WEIGHT, DEFENSE_WEIGHT, STARS_WEIGHT, LEVEL_WEIGHT } = RP_FORMULA_WEIGHTS;
   return Math.floor(
     hp * HP_WEIGHT
@@ -88,10 +94,23 @@ export function levelUp(heroId: string): boolean {
   return true;
 }
 
+function resolveHeroStats(
+  hero: HeroOwnershipState,
+  heroData: HeroData,
+  save: RealmSaveDataV3 | null,
+): HeroStats {
+  const base = buildHeroStats(hero, heroData);
+  if (!save) return base;
+  return SigilSystem.applyBonusesToStats(
+    base,
+    SigilSystem.computeSigilStatBonuses(save, hero.heroId),
+  );
+}
+
 function buildHeroStats(
   hero: HeroOwnershipState,
   heroData: HeroData,
-): { hp: number; attack: number; defense: number } {
+): HeroStats {
   const starMult = STAR_MULTIPLIERS[hero.starRank] ?? 1;
   const levelOffset = hero.level - 1;
   return {

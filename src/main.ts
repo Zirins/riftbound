@@ -14,6 +14,9 @@ if (import.meta.env.DEV) {
   void import('./dev/phase9AwakeningHarness').then((module) => {
     module.exposePhase9AwakeningHarness();
   });
+  void import('./dev/phase10SigilHarness').then((module) => {
+    module.exposePhase10SigilHarness();
+  });
 }
 
 new Phaser.Game(gameConfig);

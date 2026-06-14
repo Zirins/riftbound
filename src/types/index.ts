@@ -932,7 +932,11 @@ export interface HeroStats {
   hp: number;
   attack: number;
   defense: number;
+  hpPercent?: number;
+  attackPercent?: number;
+  defensePercent?: number;
   attackSpeed?: number;
+  attackSpeedPercent?: number;
   critChance?: number;
   critDamage?: number;
   dodgeChance?: number;
@@ -1154,5 +1158,23 @@ export interface AwakeningCost {
 export interface AwakeningResult {
   success: boolean;
   newLevel: 0 | 1 | 2 | 3;
+  reason?: string;
+}
+
+export interface EquipResult {
+  success: boolean;
+  reason?: string;
+}
+
+export interface SigilUpgradeResult {
+  success: boolean;
+  newLevel?: number;
+  newBreakthroughLevel?: 0 | 1 | 2 | 3;
+  reason?: string;
+}
+
+export interface SigilDissolveResult {
+  success: boolean;
+  dustGranted?: number;
   reason?: string;
 }

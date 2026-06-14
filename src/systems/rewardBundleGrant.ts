@@ -2,6 +2,7 @@
 // Core reward application — shared by RewardSystem and InventorySystem.
 
 import { EconomySystem } from './EconomySystem';
+import { SigilSystem } from './SigilSystem';
 import { addItemQuantity } from './inventoryWrite';
 import type {
   GrantResult,
@@ -45,7 +46,7 @@ export function applyRewardBundle(save: RealmSaveDataV3, bundle: RewardBundle): 
   }
 
   if (bundle.sigils && bundle.sigils.length > 0) {
-    errors.push('Sigil rewards are not granted until SigilSystem is implemented');
+    SigilSystem.grantSigilsFromRewards(save, bundle.sigils);
   }
 
   for (const attachment of bundle.mailAttachments ?? []) {
