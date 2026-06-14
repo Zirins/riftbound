@@ -691,6 +691,30 @@ export interface BondState {
   activatedBondIds: string[];
 }
 
+export type BondType = 'faction' | 'class' | 'collection' | 'pair';
+
+export interface GlobalStatModifiers {
+  hp?: number;
+  attack?: number;
+  defense?: number;
+  hpPercent?: number;
+  attackPercent?: number;
+  defensePercent?: number;
+}
+
+export interface ActiveBond {
+  bondId: string;
+  type: BondType;
+  name: string;
+  description: string;
+  tier: number;
+  currentCount: number;
+  requiredCount: number;
+  isActive: boolean;
+  contributesGlobally: boolean;
+  modifiers: GlobalStatModifiers;
+}
+
 export interface AchievementSaveState {
   completedAchievementIds: string[];
   claimedAchievementIds: string[];
@@ -824,6 +848,12 @@ export interface FormationPreset {
   slots: FormationSlot[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface FormationPresetResult {
+  success: boolean;
+  reason?: string;
+  preset?: FormationPreset;
 }
 
 export interface RealmSaveDataV3 extends RealmSaveData {

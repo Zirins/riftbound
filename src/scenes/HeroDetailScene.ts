@@ -29,6 +29,7 @@ import { InventorySystem } from '../systems/InventorySystem';
 import { loadCurrentRealm } from '../systems/SaveSystem';
 import { dissolve, getStarUpCost, getTotalShards, starUp } from '../systems/ShardSystem';
 import { ButtonPrimary } from '../ui/ButtonPrimary';
+import { HeroSigilSlotRow } from '../ui/HeroSigilSlotRow';
 import { HubOverlayPanel } from '../ui/HubOverlayPanel';
 import { ProgressBar } from '../ui/ProgressBar';
 import { StarRating } from '../ui/StarRating';
@@ -86,6 +87,7 @@ export class HeroDetailScene extends Phaser.Scene {
   private levelUpButton: ButtonPrimary | null = null;
   private starUpButton: ButtonPrimary | null = null;
   private awakenButton: ButtonPrimary | null = null;
+  private sigilSlotRow: HeroSigilSlotRow | null = null;
   private starRating: StarRating | null = null;
   private xpBar: ProgressBar | null = null;
   private dissolveModal: HubOverlayPanel | null = null;
@@ -150,11 +152,13 @@ export class HeroDetailScene extends Phaser.Scene {
     this.levelUpButton?.destroy();
     this.starUpButton?.destroy();
     this.awakenButton?.destroy();
+    this.sigilSlotRow?.destroy();
     this.backButton = null;
     this.dissolveButton = null;
     this.levelUpButton = null;
     this.starUpButton = null;
     this.awakenButton = null;
+    this.sigilSlotRow = null;
 
     this.starRating?.destroy();
     this.xpBar?.destroy();
@@ -277,6 +281,14 @@ export class HeroDetailScene extends Phaser.Scene {
 
     this.portrait = this.add.circle(110, 130, heroData.radius, heroData.color);
 
+    this.sigilSlotRow = new HeroSigilSlotRow(
+      this,
+      48,
+      168,
+      (slotIndex, instanceId) => this.handleSigilSlotTap(slotIndex, instanceId),
+    );
+    this.sigilSlotRow.refresh(save, heroData.id);
+
     this.starRating = new StarRating(this, 220, 98, ownership.starRank);
 
     this.levelLabel = this.add.text(220, 118, `LV ${ownership.level} / ${levelCap}`, {
@@ -391,6 +403,23 @@ export class HeroDetailScene extends Phaser.Scene {
       280,
     );
     this.starUpButton.setEnabled(canStar);
+  }
+
+  private handleSigilSlotTap(slotIndex: 0 | 1, instanceId: string | null): void {
+    if (instanceId) {
+      this.scene.start(SCENE_KEYS.SIGIL_UPGRADE, {
+        sigilInstanceId: instanceId,
+        heroId: this.heroId,
+        returnScene: SCENE_KEYS.HERO_DETAIL,
+        returnData: { heroId: this.heroId, tab: this.activeTab },
+      });
+      return;
+    }
+
+    this.scene.start(SCENE_KEYS.SIGIL, {
+      heroId: this.heroId,
+      slotIndex,
+    });
   }
 
   private renderAwakeningTab(

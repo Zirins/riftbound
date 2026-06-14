@@ -17,6 +17,9 @@ if (import.meta.env.DEV) {
   void import('./dev/phase10SigilHarness').then((module) => {
     module.exposePhase10SigilHarness();
   });
+  void import('./dev/phase12BondHarness').then((module) => {
+    module.exposePhase12BondHarness();
+  });
 }
 
 new Phaser.Game(gameConfig);

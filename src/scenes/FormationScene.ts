@@ -11,8 +11,14 @@ import { SCENE_KEYS } from '../constants/sceneKeys';
 import { HEROES_DATA } from '../data/heroes';
 import { getStageData } from '../systems/StageLoader';
 import { getOpponentById } from '../systems/ArenaMatchSystem';
+import {
+  FormationPresetSystem,
+  PRESET_NAME_OPTIONS,
+} from '../systems/FormationPresetSystem';
 import { loadCurrentRealm, saveCurrentRealm, saveFormationSlots } from '../systems/SaveSystem';
-import type { FormationGrid, HeroClass } from '../types';
+import type { FormationGrid, HeroClass, RealmSaveDataV3 } from '../types';
+import { FormationPresetToolbar } from '../ui/FormationPresetToolbar';
+import { HubOverlayPanel } from '../ui/HubOverlayPanel';
 import { HorizontalDragScroll } from '../ui/HorizontalDragScroll';
 
 const DEFAULT_LINEUP_HERO_IDS = ['kael', 'sura', 'mira', 'nyra'] as const;
@@ -178,6 +184,11 @@ export class FormationScene extends Phaser.Scene {
   private lineupSlots: (string | null)[] = [null, null, null, null];
   private rosterHeroes: RosterHero[] = [];
   private rosterScroll: HorizontalDragScroll | null = null;
+  private presetToolbar: FormationPresetToolbar | null = null;
+  private presetModal: HubOverlayPanel | null = null;
+  private presetToastLabel: Phaser.GameObjects.Text | null = null;
+  private presetToastTimer: Phaser.Time.TimerEvent | null = null;
+  private selectedPresetId: string | null = null;
   private readonly lineupVisuals: LineupSlotVisual[] = [];
   private readonly rosterVisuals: RosterVisual[] = [];
 
@@ -243,11 +254,24 @@ export class FormationScene extends Phaser.Scene {
     );
 
     this.lineupSlots = loadLineupFromCurrentFormation();
+    this.createPresetToolbar();
     this.refreshLineupVisuals();
     this.updateBattleButton();
   }
 
   shutdown(): void {
+    this.presetToastTimer?.remove();
+    this.presetToastTimer = null;
+    this.presetToastLabel?.destroy();
+    this.presetToastLabel = null;
+
+    this.presetModal?.close();
+    this.presetModal?.destroy();
+    this.presetModal = null;
+
+    this.presetToolbar?.destroy();
+    this.presetToolbar = null;
+
     this.battleTapZone?.off('pointerup', this.onBattle, this);
     this.battleTapZone?.destroy();
 
@@ -275,6 +299,194 @@ export class FormationScene extends Phaser.Scene {
     this.lineupTitle?.destroy();
     this.battleButton?.destroy();
     this.rosterHeroes = [];
+    this.selectedPresetId = null;
+  }
+
+  private createPresetToolbar(): void {
+    this.presetToolbar = new FormationPresetToolbar(this, 50, {
+      onSelectPreset: (presetId) => {
+        this.selectedPresetId = presetId;
+        this.refreshPresetToolbar();
+      },
+      onSave: () => this.openPresetNameModal('Save formation as:', (name) => this.handleSavePreset(name)),
+      onLoad: () => this.handleLoadPreset(),
+      onRename: () => this.openPresetNameModal('Rename preset to:', (name) => this.handleRenamePreset(name)),
+      onDelete: () => this.openDeletePresetModal(),
+    });
+    this.refreshPresetToolbar();
+  }
+
+  private refreshPresetToolbar(): void {
+    const save = this.loadSave();
+    if (!save || !this.presetToolbar) return;
+
+    if (this.selectedPresetId
+      && !save.formationPresets.some((preset) => preset.id === this.selectedPresetId)) {
+      this.selectedPresetId = null;
+    }
+
+    this.presetToolbar.refresh(save.formationPresets, this.selectedPresetId);
+  }
+
+  private loadSave(): RealmSaveDataV3 | null {
+    const realm = loadCurrentRealm();
+    return realm ? (realm as RealmSaveDataV3) : null;
+  }
+
+  private openPresetNameModal(
+    title: string,
+    onPick: (name: string) => void,
+  ): void {
+    this.presetModal?.close();
+    this.presetModal = new HubOverlayPanel(this);
+    this.presetModal.open(title, () => this.presetModal?.close());
+
+    PRESET_NAME_OPTIONS.forEach((name, index) => {
+      const y = CANVAS.HEIGHT / 2 - 30 + index * 34;
+      this.presetModal!.addButton(
+        CANVAS.WIDTH / 2,
+        y,
+        name,
+        () => {
+          this.presetModal?.close();
+          onPick(name);
+        },
+        220,
+      );
+    });
+  }
+
+  private openDeletePresetModal(): void {
+    if (!this.selectedPresetId) return;
+
+    const save = this.loadSave();
+    const preset = save?.formationPresets.find((entry) => entry.id === this.selectedPresetId);
+    if (!preset) return;
+
+    this.presetModal?.close();
+    this.presetModal = new HubOverlayPanel(this);
+    this.presetModal.open('Delete preset?', () => this.presetModal?.close());
+    this.presetModal.addText(
+      CANVAS.WIDTH / 2,
+      CANVAS.HEIGHT / 2 - 20,
+      `Delete "${preset.name}"? This cannot be undone.`,
+      '#ffaaaa',
+    );
+    this.presetModal.addButton(
+      CANVAS.WIDTH / 2 - 90,
+      CANVAS.HEIGHT / 2 + 40,
+      'CANCEL',
+      () => this.presetModal?.close(),
+      120,
+    );
+    this.presetModal.addButton(
+      CANVAS.WIDTH / 2 + 90,
+      CANVAS.HEIGHT / 2 + 40,
+      'DELETE',
+      () => {
+        this.presetModal?.close();
+        this.handleDeletePreset();
+      },
+      120,
+    );
+  }
+
+  private handleSavePreset(name: string): void {
+    persistCurrentFormation(this.lineupSlots);
+    const save = this.loadSave();
+    if (!save) return;
+
+    const result = FormationPresetSystem.saveCurrentFormationAsPreset(save, name);
+    if (!result.success) {
+      this.showPresetToast(result.reason ?? 'Save failed');
+      return;
+    }
+
+    saveCurrentRealm(save);
+    this.selectedPresetId = result.preset?.id ?? null;
+    this.refreshPresetToolbar();
+    this.showPresetToast(`Saved "${name}"`);
+  }
+
+  private handleLoadPreset(): void {
+    if (!this.selectedPresetId) {
+      this.showPresetToast('Select a preset first');
+      return;
+    }
+
+    const save = this.loadSave();
+    if (!save) return;
+
+    const result = FormationPresetSystem.loadPresetIntoCurrentFormation(save, this.selectedPresetId);
+    if (!result.success) {
+      this.showPresetToast(result.reason ?? 'Load failed');
+      return;
+    }
+
+    saveCurrentRealm(save);
+    saveFormationSlots(FormationPresetSystem.lineupSlotsFromFormation(save.currentFormation));
+    this.reloadFormationFromSave();
+    this.showPresetToast(`Loaded "${result.preset?.name ?? 'preset'}"`);
+  }
+
+  private handleRenamePreset(name: string): void {
+    if (!this.selectedPresetId) return;
+
+    const save = this.loadSave();
+    if (!save) return;
+
+    const result = FormationPresetSystem.renamePreset(save, this.selectedPresetId, name);
+    if (!result.success) {
+      this.showPresetToast(result.reason ?? 'Rename failed');
+      return;
+    }
+
+    saveCurrentRealm(save);
+    this.refreshPresetToolbar();
+    this.showPresetToast(`Renamed to "${name}"`);
+  }
+
+  private handleDeletePreset(): void {
+    if (!this.selectedPresetId) return;
+
+    const save = this.loadSave();
+    if (!save) return;
+
+    const result = FormationPresetSystem.deletePreset(save, this.selectedPresetId);
+    if (!result.success) {
+      this.showPresetToast(result.reason ?? 'Delete failed');
+      return;
+    }
+
+    saveCurrentRealm(save);
+    this.selectedPresetId = null;
+    this.refreshPresetToolbar();
+    this.showPresetToast(`Deleted "${result.preset?.name ?? 'preset'}"`);
+  }
+
+  private reloadFormationFromSave(): void {
+    this.lineupSlots = loadLineupFromCurrentFormation();
+    this.refreshLineupVisuals();
+    this.updateBattleButton();
+  }
+
+  private showPresetToast(message: string): void {
+    this.presetToastTimer?.remove();
+    this.presetToastLabel?.destroy();
+
+    this.presetToastLabel = this.add.text(CANVAS.WIDTH / 2, 24, message, {
+      fontSize: '11px',
+      color: '#ffffff',
+      fontFamily: 'monospace',
+      backgroundColor: '#333355',
+      padding: { x: 8, y: 4 },
+    }).setOrigin(0.5);
+
+    this.presetToastTimer = this.time.delayedCall(2200, () => {
+      this.presetToastLabel?.destroy();
+      this.presetToastLabel = null;
+      this.presetToastTimer = null;
+    });
   }
 
   private buildRightAlignedLineup(selectedHeroIds: readonly string[]): (string | null)[] {

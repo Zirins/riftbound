@@ -22,6 +22,8 @@ import { FormationScene } from './scenes/FormationScene';
 import { BattleScene } from './scenes/BattleScene';
 import { VictoryScene } from './scenes/VictoryScene';
 import { DefeatScene } from './scenes/DefeatScene';
+import { SigilScene } from './scenes/SigilScene';
+import { SigilUpgradeScene } from './scenes/SigilUpgradeScene';
 
 export const gameConfig: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -48,6 +50,8 @@ export const gameConfig: Phaser.Types.Core.GameConfig = {
     BattleScene,
     VictoryScene,
     DefeatScene,
+    SigilScene,
+    SigilUpgradeScene,
   ],
   scale: {
     mode: Phaser.Scale.FIT,

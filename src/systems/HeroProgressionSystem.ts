@@ -11,6 +11,7 @@ import { HEROES_DATA } from '../data/heroes';
 import type { HeroData, HeroOwnershipState, HeroStats, RealmSaveDataV3 } from '../types';
 import { canAfford, deduct } from './EconomySystem';
 import { loadCurrentRealm, saveCurrentRealm } from './SaveSystem';
+import { BondSystem } from './BondSystem';
 import { SigilSystem } from './SigilSystem';
 import { reportProgress } from './TaskSystem';
 
@@ -101,8 +102,13 @@ function resolveHeroStats(
 ): HeroStats {
   const base = buildHeroStats(hero, heroData);
   if (!save) return base;
-  return SigilSystem.applyBonusesToStats(
+
+  const withBonds = BondSystem.applyGlobalModifiers(
     base,
+    BondSystem.computeGlobalModifiers(save),
+  );
+  return SigilSystem.applyBonusesToStats(
+    withBonds,
     SigilSystem.computeSigilStatBonuses(save, hero.heroId),
   );
 }
