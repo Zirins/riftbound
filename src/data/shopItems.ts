@@ -54,7 +54,7 @@ export const SHOP_ITEMS: ShopItemDefinition[] = [
   },
   {
     id: 'kael_shards_5',
-    name: 'Kael Shards ×5',
+    name: 'Tie Shan Shards ×5',
     rewardType: 'heroShards',
     amount: 5,
     heroId: 'kael',
@@ -63,7 +63,7 @@ export const SHOP_ITEMS: ShopItemDefinition[] = [
   },
   {
     id: 'sura_shards_5',
-    name: 'Sura Shards ×5',
+    name: 'Chi Feng Shards ×5',
     rewardType: 'heroShards',
     amount: 5,
     heroId: 'sura',
@@ -72,7 +72,7 @@ export const SHOP_ITEMS: ShopItemDefinition[] = [
   },
   {
     id: 'mira_shards_5',
-    name: 'Mira Shards ×5',
+    name: 'Ling Yu Shards ×5',
     rewardType: 'heroShards',
     amount: 5,
     heroId: 'mira',
@@ -81,7 +81,7 @@ export const SHOP_ITEMS: ShopItemDefinition[] = [
   },
   {
     id: 'nyra_shards_5',
-    name: 'Nyra Shards ×5',
+    name: 'Yu Han Shards ×5',
     rewardType: 'heroShards',
     amount: 5,
     heroId: 'nyra',

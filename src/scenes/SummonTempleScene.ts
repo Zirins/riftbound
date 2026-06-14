@@ -60,7 +60,7 @@ export class SummonTempleScene extends Phaser.Scene {
       fontFamily: 'monospace',
     }).setOrigin(0.5);
 
-    const heroPreview = HEROES_DATA.map((h) => h.name.split(' ')[0]).join('  ');
+    const heroPreview = HEROES_DATA.map((h) => h.name).join('  ');
     this.add.text(CANVAS.WIDTH / 2, 108, heroPreview, {
       fontSize: '9px',
       color: '#888899',

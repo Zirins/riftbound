@@ -3,6 +3,7 @@
 
 import Phaser from 'phaser';
 import { CANVAS, RIFT_CHRONICLE_REWARDS } from '../constants/gameConfig';
+import { HEROES_DATA } from '../data/heroes';
 import { loadCurrentRealm } from '../systems/SaveSystem';
 import * as RiftChronicleSystem from '../systems/RiftChronicleSystem';
 
@@ -33,8 +34,10 @@ function formatRewardSummary(
         return `${reward.amount} XP`;
       case 'shards_rare_random':
         return `${reward.amount} Rare Shards`;
-      case 'shards_hero':
-        return `${reward.amount} Kael Shards`;
+      case 'shards_hero': {
+        const heroName = HEROES_DATA.find((hero) => hero.id === reward.heroId)?.name ?? reward.heroId;
+        return `${reward.amount} ${heroName} Shards`;
+      }
     }
   }).join(' + ');
 }
