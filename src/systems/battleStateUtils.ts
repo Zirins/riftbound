@@ -135,3 +135,50 @@ export function markUnitDead(ref: BattleUnitRef): void {
 export function clampHeroEnergy(hero: HeroRuntimeState): void {
   hero.currentEnergy = Math.min(COMBAT.ENERGY_MAX, Math.max(0, hero.currentEnergy));
 }
+
+export function ensureBattleHero(hero: HeroRuntimeState): BattleHero {
+  const battleHero = hero as BattleHero;
+  if (!battleHero.v2StatusEffects) {
+    battleHero.v2StatusEffects = [];
+  }
+  return battleHero;
+}
+
+export function ensureBattleEnemy(enemy: EnemyRuntimeState): BattleEnemy {
+  return 'v2StatusEffects' in enemy
+    ? (enemy as BattleEnemy)
+    : { ...enemy, v2StatusEffects: [] };
+}
+
+export function buildBattleState(
+  heroes: HeroRuntimeState[],
+  enemies: EnemyRuntimeState[],
+  elapsedTimeMs: number,
+): BattleState {
+  return {
+    heroes: heroes.map((hero) => ensureBattleHero(hero)),
+    enemies: enemies.map((enemy) => ensureBattleEnemy(enemy)),
+    elapsedTimeMs,
+  };
+}
+
+export function snapshotDeadEnemyIds(enemies: EnemyRuntimeState[]): Set<string> {
+  const dead = new Set<string>();
+  for (const enemy of enemies) {
+    if (!enemy.isAlive) dead.add(enemy.instanceId);
+  }
+  return dead;
+}
+
+export function emitNewlyDeadEnemies(
+  emitter: { emit: (event: string, instanceId: string) => void },
+  previouslyDead: Set<string>,
+  enemies: EnemyRuntimeState[],
+): void {
+  for (const enemy of enemies) {
+    if (!enemy.isAlive && !previouslyDead.has(enemy.instanceId)) {
+      previouslyDead.add(enemy.instanceId);
+      emitter.emit('enemyKilled', enemy.instanceId);
+    }
+  }
+}

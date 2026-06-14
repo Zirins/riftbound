@@ -11,6 +11,15 @@ import {
   getNearestLivingEnemy,
   getSupportHealTarget,
 } from './TargetingSystem';
+import {
+  buildBattleState,
+  emitNewlyDeadEnemies,
+  ensureBattleHero,
+  heroRef,
+  snapshotDeadEnemyIds,
+} from './battleStateUtils';
+import { SkillSystem } from './SkillSystem';
+import { StatusEffectSystem } from './StatusEffectSystem';
 import type { EnemyRuntimeState, HeroClass, HeroRuntimeState } from '../types';
 
 const R = HERO_NEW.REN;
@@ -44,7 +53,20 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
     heroes: HeroRuntimeState[],
     enemies: EnemyRuntimeState[],
     delta: number,
+    elapsedTimeMs = 0,
   ): void {
+    const deltaMs = delta * 1000;
+    const battleState = buildBattleState(heroes, enemies, elapsedTimeMs);
+    const deadBeforeSkills = snapshotDeadEnemyIds(enemies);
+
+    for (const hero of battleState.heroes) {
+      if (!hero.isAlive || !hero.runtimeKit) continue;
+      SkillSystem.updateCooldownSkills(hero, battleState, deltaMs);
+    }
+
+    StatusEffectSystem.update(deltaMs, battleState);
+    emitNewlyDeadEnemies(this, deadBeforeSkills, enemies);
+
     this.tickStatusEffects(heroes, enemies, delta);
     this.tickProjectiles(heroes, enemies, delta);
     this.tickHeroes(heroes, enemies, delta);
@@ -178,6 +200,11 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
   ): void {
     for (const hero of heroes) {
       if (!hero.isAlive) continue;
+
+      const battleHero = ensureBattleHero(hero);
+      if (battleHero.runtimeKit && StatusEffectSystem.isStunned(heroRef(battleHero))) {
+        continue;
+      }
 
       if (hero.heroClass === 'support') {
         this.tickSupportHero(hero, heroes, enemies, delta);

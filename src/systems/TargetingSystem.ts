@@ -70,18 +70,9 @@ export function resolveTargets(
       targets = livingEnemies.map((enemy) => enemyRef(enemy));
       break;
     case 'area_forward_box':
-    case 'area_circle': {
-      const primary = resolveTargets('nearest_enemy', caster, battleState)[0] ?? null;
-      if (!primary) {
-        targets = [];
-        break;
-      }
-      targets = filterByArea(caster, primary, livingEnemies, options?.area);
-      if (targets.length === 0) {
-        targets = [primary];
-      }
+    case 'area_circle':
+      targets = resolveAreaAroundCaster(caster, livingEnemies, options?.area);
       break;
-    }
     default:
       targets = pickEnemyRef(findNearest(caster, livingEnemies));
       break;
@@ -91,6 +82,42 @@ export function resolveTargets(
     return targets.slice(0, options.maxTargets);
   }
   return targets;
+}
+
+export function resolveAreaAroundCaster(
+  caster: BattleHero,
+  enemies: EnemyRuntimeState[],
+  area?: AreaDefinition,
+  maxTargets?: number,
+): BattleUnitRef[] {
+  const targets = filterEnemiesAroundPoint(caster, enemies, area);
+  if (maxTargets !== undefined && maxTargets > 0) {
+    return targets.slice(0, maxTargets);
+  }
+  return targets;
+}
+
+export function resolveAreaAroundPoint(
+  center: PositionedUnit,
+  enemies: EnemyRuntimeState[],
+  area?: AreaDefinition,
+  maxTargets?: number,
+): BattleUnitRef[] {
+  const targets = filterEnemiesAroundPoint(center, enemies, area);
+  if (maxTargets !== undefined && maxTargets > 0) {
+    return targets.slice(0, maxTargets);
+  }
+  return targets;
+}
+
+export function resolveMultiBacklineEnemies(
+  battleState: BattleState,
+  maxTargets: number,
+): BattleUnitRef[] {
+  return getLivingEnemies(battleState)
+    .sort((enemyA, enemyB) => enemyB.x - enemyA.x)
+    .slice(0, maxTargets)
+    .map((enemy) => enemyRef(enemy));
 }
 
 export function getHeroTarget(
@@ -205,32 +232,32 @@ function findLowestHpAlly(
   });
 }
 
-function filterByArea(
-  caster: BattleHero,
-  primary: BattleUnitRef,
+function filterEnemiesAroundPoint(
+  center: PositionedUnit,
   enemies: EnemyRuntimeState[],
   area?: AreaDefinition,
 ): BattleUnitRef[] {
-  if (!area) return [primary];
+  if (!area) return [];
 
   if (area.shape === 'circle') {
     const radius = area.radius ?? MAGE.CLUSTER_RADIUS;
-    const center = {
-      x: primary.unit.x + (area.offsetX ?? 0),
-      y: primary.unit.y + (area.offsetY ?? 0),
+    const origin = {
+      x: center.x + (area.offsetX ?? 0),
+      y: center.y + (area.offsetY ?? 0),
     };
     return enemies
-      .filter((enemy) => getDistanceBetween(center, enemy) <= radius)
+      .filter((enemy) => enemy.isAlive && getDistanceBetween(origin, enemy) <= radius)
       .map((enemy) => enemyRef(enemy));
   }
 
   const width = area.width ?? 120;
   const height = area.height ?? 80;
-  const originX = caster.x + (area.offsetX ?? 0);
-  const originY = caster.y + (area.offsetY ?? 0);
+  const originX = center.x + (area.offsetX ?? 0);
+  const originY = center.y + (area.offsetY ?? 0);
   return enemies
     .filter((enemy) =>
-      enemy.x >= originX
+      enemy.isAlive
+      && enemy.x >= originX
       && enemy.x <= originX + width
       && enemy.y >= originY - height / 2
       && enemy.y <= originY + height / 2,

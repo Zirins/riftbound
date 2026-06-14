@@ -3,7 +3,7 @@
 
 import { COMBAT } from '../constants/gameConfig';
 import { getHeroCombatKit } from '../data/heroKits';
-import { isKnownStatusEffect } from '../data/statusEffects';
+import { getStatusEffectDefinition, isKnownStatusEffect } from '../data/statusEffects';
 import type {
   BattleEvent,
   BattleHero,
@@ -17,6 +17,7 @@ import type {
   SkillEffectResult,
   SkillTrigger,
   StatusEffectId,
+  TargetRule,
 } from '../types';
 import {
   clampHeroEnergy,
@@ -25,7 +26,12 @@ import {
   isUnitAlive,
   scaleStatValue,
 } from './battleStateUtils';
-import { resolveTargets } from './TargetingSystem';
+import {
+  resolveAreaAroundCaster,
+  resolveAreaAroundPoint,
+  resolveMultiBacklineEnemies,
+  resolveTargets,
+} from './TargetingSystem';
 import { StatusEffectSystem } from './StatusEffectSystem';
 import { SummonUnitSystem } from './SummonUnitSystem';
 
@@ -221,22 +227,28 @@ export class SkillSystem {
     skillTargets: BattleUnitRef[],
     battleState: BattleState,
   ): SkillEffectResult[] {
-    const areaTargets = effect.area
-      ? resolveTargets(skill.targetRule, caster, battleState, {
-          area: effect.area,
-          maxTargets: effect.maxTargets,
-        })
-      : skillTargets;
-
-    const targets = effect.maxTargets
-      ? areaTargets.slice(0, effect.maxTargets)
-      : areaTargets;
+    const targets = this.resolveEffectTargets(caster, skill, effect, skillTargets, battleState);
 
     const results: SkillEffectResult[] = [];
     for (const target of targets) {
       if (!isUnitAlive(target) && effect.effectType !== 'revive') continue;
 
       switch (effect.effectType) {
+        case 'move_to_target': {
+          if (target.side === 'enemy') {
+            const engageDist = caster.radius + target.unit.radius + 4;
+            caster.x = Math.max(caster.radius, target.unit.x - engageDist);
+            caster.y = target.unit.y;
+            caster.targetX = caster.x;
+            caster.targetY = caster.y;
+          }
+          results.push({
+            effectType: 'move_to_target',
+            targetUnitId: getUnitId(target),
+            targetSide: target.side,
+          });
+          break;
+        }
         case 'damage': {
           const rawDamage = this.computeEffectAmount(caster, effect);
           const dealt = StatusEffectSystem.applyDamageWithMitigation(target, rawDamage);
@@ -332,7 +344,6 @@ export class SkillSystem {
           });
           break;
         }
-        case 'move_to_target':
         case 'revive':
           results.push({
             effectType: effect.effectType,
@@ -348,6 +359,80 @@ export class SkillSystem {
 
     void skill;
     return results;
+  }
+
+  private static resolveEffectTargets(
+    caster: BattleHero,
+    skill: HeroSkill,
+    effect: SkillEffect,
+    skillTargets: BattleUnitRef[],
+    battleState: BattleState,
+  ): BattleUnitRef[] {
+    if (effect.effectType === 'heal' || effect.effectType === 'shield') {
+      return resolveTargets('all_allies', caster, battleState);
+    }
+
+    if (effect.effectType === 'gain_energy') {
+      return skillTargets.length > 0 ? skillTargets : [heroRef(caster)];
+    }
+
+    if (effect.effectType === 'move_to_target') {
+      return skillTargets;
+    }
+
+    if (effect.effectType === 'damage' && effect.maxTargets && effect.maxTargets > 1) {
+      if (skill.targetRule === 'backline_enemy') {
+        return resolveMultiBacklineEnemies(battleState, effect.maxTargets);
+      }
+      if (skill.targetRule === 'all_enemies') {
+        return resolveTargets('all_enemies', caster, battleState).slice(0, effect.maxTargets);
+      }
+    }
+
+    if (effect.area) {
+      const anchoredRules: TargetRule[] = [
+        'densest_enemy_cluster',
+        'highest_atk_enemy',
+        'backline_enemy',
+        'lowest_hp_enemy',
+        'nearest_enemy',
+      ];
+      if (anchoredRules.includes(skill.targetRule)) {
+        const primary = resolveTargets(skill.targetRule, caster, battleState)[0];
+        if (primary) {
+          return resolveAreaAroundPoint(
+            primary.unit,
+            battleState.enemies,
+            effect.area,
+            effect.maxTargets,
+          );
+        }
+      }
+      return resolveAreaAroundCaster(
+        caster,
+        battleState.enemies,
+        effect.area,
+        effect.maxTargets,
+      );
+    }
+
+    if (effect.effectType === 'apply_status' || effect.effectType === 'stat_modifier') {
+      const statusId = this.toStatusEffectId(effect.statusId);
+      const isDebuff = statusId ? getStatusEffectDefinition(statusId)?.isDebuff : true;
+      if (!isDebuff) {
+        return resolveTargets('all_allies', caster, battleState);
+      }
+    }
+
+    if (effect.effectType === 'damage' && skill.targetRule === 'all_enemies') {
+      return resolveTargets('all_enemies', caster, battleState);
+    }
+
+    if (effect.maxTargets && effect.maxTargets > 0) {
+      return skillTargets.slice(0, effect.maxTargets);
+    }
+
+    return skillTargets;
   }
 
   private static computeEffectAmount(caster: BattleHero, effect: SkillEffect): number {

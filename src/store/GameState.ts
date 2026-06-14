@@ -6,13 +6,14 @@ import type { EnemyRuntimeState, GameState, HeroRuntimeState } from '../types';
 export function createBattleGameState(
   heroes: HeroRuntimeState[],
   enemies: EnemyRuntimeState[],
+  autoUltimate = false,
 ): GameState {
   return {
     currentStageId: 'stage_1',
     currentWaveIndex: 0,
     heroes,
     enemies,
-    autoUltimate: false,
+    autoUltimate,
     isPaused: false,
     isVictory: false,
     isDefeat: false,

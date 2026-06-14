@@ -5,6 +5,7 @@ import Phaser from 'phaser';
 import { CANVAS, COMBAT, ENEMIES, FORMATION, UI, WAVES, WARDEN } from '../constants/gameConfig';
 import { SCENE_KEYS } from '../constants/sceneKeys';
 import { HEROES_DATA } from '../data/heroes';
+import { buildDefaultRealmV3 } from '../save/defaults/buildDefaultRealmV3';
 import { createBattleGameState } from '../store/GameState';
 import { AutoBattleSystem } from '../systems/AutoBattleSystem';
 import { assignCombatSlotIndices, FormationSystem, getHeroBattlePosition } from '../systems/FormationSystem';
@@ -13,12 +14,21 @@ import { computeStageReward } from '../systems/RewardSystem';
 import { buildArenaWaveConfig } from '../systems/ArenaMatchSystem';
 import { getStageData } from '../systems/StageLoader';
 import { loadCurrentRealm } from '../systems/SaveSystem';
+import { SkillSystem } from '../systems/SkillSystem';
 import { UltimateSystem } from '../systems/UltimateSystem';
 import { WaveSystem } from '../systems/WaveSystem';
 import { BossBar } from '../ui/BossBar';
 import { drawEnergyBar } from '../ui/EnergyBar';
 import { UltimateButtons, type HudPortraitConfig } from '../ui/UltimateButtons';
-import type { EnemyRuntimeState, GameState, HeroClass, HeroLineupEntry, HeroRuntimeState } from '../types';
+import type {
+  BattleHero,
+  EnemyRuntimeState,
+  GameState,
+  HeroClass,
+  HeroLineupEntry,
+  HeroRuntimeState,
+  RealmSaveDataV3,
+} from '../types';
 
 interface HeroSetupEntry {
   id: string;
@@ -157,7 +167,7 @@ export class BattleScene extends Phaser.Scene {
   private battleBackground!: Phaser.GameObjects.Rectangle;
   private waveLabel!: Phaser.GameObjects.Text;
 
-  private heroes: HeroRuntimeState[] = [];
+  private heroes: BattleHero[] = [];
   private enemies: EnemyRuntimeState[] = [];
   private heroVisuals = new Map<string, UnitVisual>();
   private enemyVisuals = new Map<string, UnitVisual>();
@@ -293,8 +303,11 @@ export class BattleScene extends Phaser.Scene {
       }).setOrigin(0.5);
     }
 
-    this.spawnHeroes();
-    this.gameState = createBattleGameState(this.heroes, this.enemies);
+    const realm = loadCurrentRealm();
+    const save = (realm ?? buildDefaultRealmV3('battle', 'Player')) as RealmSaveDataV3;
+    this.spawnHeroes(save);
+    const autoUltimate = realm?.settings.defaultAutoUltimate ?? false;
+    this.gameState = createBattleGameState(this.heroes, this.enemies, autoUltimate);
 
     this.formationSystem = new FormationSystem();
     this.formationSystem.on('formationReady', this.onFormationReady);
@@ -355,7 +368,7 @@ export class BattleScene extends Phaser.Scene {
 
     if (canFight) {
       this.gameState.elapsedTimeMs += delta;
-      this.autoBattle.update(this.heroes, this.enemies, deltaSeconds);
+      this.autoBattle.update(this.heroes, this.enemies, deltaSeconds, this.gameState.elapsedTimeMs);
       this.ultimateSystem.update(deltaSeconds, this.gameState);
     }
 
@@ -416,7 +429,7 @@ export class BattleScene extends Phaser.Scene {
     });
   }
 
-  private spawnHeroes(): void {
+  private spawnHeroes(save: RealmSaveDataV3): void {
     const lineupHeroIds = resolveBattleLineupHeroIds(this.sceneFormation);
     const lineupEntries: HeroLineupEntry[] = lineupHeroIds.flatMap((heroId) => {
       const setup = buildHeroSetupEntry(heroId);
@@ -433,7 +446,7 @@ export class BattleScene extends Phaser.Scene {
       const position = getHeroBattlePosition(combatSlotIndex);
       const healCooldown = setup.heroClass === 'support' ? setup.attackCooldown : 0;
 
-      const hero: HeroRuntimeState = {
+      const hero: BattleHero = {
         heroId: setup.id,
         heroClass: setup.heroClass,
         x: position.x,
@@ -456,8 +469,11 @@ export class BattleScene extends Phaser.Scene {
         attackCounter: 0,
         activeBuffs: [],
         activeDebuffs: [],
+        runtimeKit: {} as BattleHero['runtimeKit'],
+        v2StatusEffects: [],
       };
 
+      SkillSystem.initializeHeroRuntimeKit(hero, save);
       this.heroes.push(hero);
       this.heroAliveSnapshot.set(hero.heroId, true);
       const visual = this.createUnitVisual(setup.name, setup.color, setup.radius, position.x, position.y);
