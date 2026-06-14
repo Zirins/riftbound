@@ -4,6 +4,7 @@
 import Phaser from 'phaser';
 import { CANVAS, UI } from '../constants/gameConfig';
 import { SCENE_KEYS } from '../constants/sceneKeys';
+import { getSigilDefinition } from '../data/sigils';
 import { getStageData } from '../systems/StageLoader';
 import { grantReward } from '../systems/RewardSystem';
 import type { BattlePerformance, StageReward } from '../types';
@@ -72,6 +73,16 @@ export class VictoryScene extends Phaser.Scene {
           `Gold: +${rewards.gold}`,
           `Crystals: +${rewards.crystals}`,
           `XP Fragments: +${rewards.xpFragments}`,
+          ...rewards.shardGrants.map((grant) => `Shards: +${grant.amount} (${grant.heroId})`),
+          ...rewards.sigilGrants.map((grant) => {
+            const definition = getSigilDefinition(grant.sigilDefinitionId);
+            return `Sigil: ${definition?.name ?? grant.sigilDefinitionId}`;
+          }),
+          ...rewards.firstClearItemGrants.map((grant) =>
+            grant.itemId === 'awakening_crystal'
+              ? `Awakening Crystal ×${grant.quantity}`
+              : `${grant.itemId} ×${grant.quantity}`,
+          ),
         ]
       : ['No rewards'];
     this.rewardLabel = this.add.text(

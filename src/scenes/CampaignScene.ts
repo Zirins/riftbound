@@ -1,17 +1,47 @@
 // src/scenes/CampaignScene.ts
-// Chapter 1 stage map with unlock gates and star display.
+// Campaign stage map with chapter tabs, unlock gates, and star display.
 
 import Phaser from 'phaser';
 import { CANVAS, UI } from '../constants/gameConfig';
 import { SCENE_KEYS } from '../constants/sceneKeys';
+import {
+  CHAPTER_1_STAGE_IDS,
+  CHAPTER_2_STAGE_IDS,
+  CHAPTER_3_STAGE_IDS,
+} from '../data/stages';
 import type { ClearedStageRecord } from '../types';
 import * as EnergySystem from '../systems/EnergySystem';
 import { isUnlocked } from '../systems/StageLoader';
 import { loadCurrentRealm } from '../systems/SaveSystem';
 import { ButtonPrimary } from '../ui/ButtonPrimary';
 
-const TOP_ROW_IDS = ['stage_1_1', 'stage_1_2', 'stage_1_3', 'stage_1_4'];
-const BOTTOM_ROW_IDS = ['stage_1_8', 'stage_1_7', 'stage_1_6', 'stage_1_5'];
+interface ChapterConfig {
+  id: string;
+  title: string;
+  stageIds: string[];
+  unlockStageId: string | null;
+}
+
+const CHAPTERS: ChapterConfig[] = [
+  {
+    id: 'chapter_1',
+    title: 'CHAPTER 1: RIFT OUTSKIRTS',
+    stageIds: CHAPTER_1_STAGE_IDS,
+    unlockStageId: null,
+  },
+  {
+    id: 'chapter_2',
+    title: 'CHAPTER 2: THE HOLLOW REACHES',
+    stageIds: CHAPTER_2_STAGE_IDS,
+    unlockStageId: 'stage_2_1',
+  },
+  {
+    id: 'chapter_3',
+    title: 'CHAPTER 3: IRONREACH DEPTHS',
+    stageIds: CHAPTER_3_STAGE_IDS,
+    unlockStageId: 'stage_3_1',
+  },
+];
 
 const TOP_ROW_Y = 150;
 const BOTTOM_ROW_Y = 260;
@@ -23,9 +53,19 @@ export class CampaignScene extends Phaser.Scene {
 
   private backButton: ButtonPrimary | null = null;
   private readonly nodeZones: Phaser.GameObjects.Zone[] = [];
+  private readonly chapterTabZones: Phaser.GameObjects.Zone[] = [];
+  private chapterTitleText: Phaser.GameObjects.Text | null = null;
+  private selectedChapterIndex = 0;
+  private clearedStages: ClearedStageRecord[] = [];
 
   constructor() {
     super({ key: CampaignScene.KEY });
+  }
+
+  init(data?: { chapterIndex?: number }): void {
+    if (data?.chapterIndex !== undefined) {
+      this.selectedChapterIndex = data.chapterIndex;
+    }
   }
 
   create(): void {
@@ -33,16 +73,16 @@ export class CampaignScene extends Phaser.Scene {
     EnergySystem.computeRegen();
 
     const realm = loadCurrentRealm();
-    const clearedStages = realm?.clearedStages ?? [];
+    this.clearedStages = realm?.clearedStages ?? [];
 
-    this.add.text(CANVAS.WIDTH / 2, 36, 'STORY PATH — CHAPTER 1: RIFT OUTSKIRTS', {
+    this.add.text(CANVAS.WIDTH / 2, 24, 'STORY PATH', {
       fontSize: '14px',
       color: '#ffffff',
       fontFamily: 'monospace',
     }).setOrigin(0.5);
 
-    this.renderRow(TOP_ROW_IDS, TOP_ROW_Y, clearedStages);
-    this.renderRow(BOTTOM_ROW_IDS, BOTTOM_ROW_Y, clearedStages);
+    this.renderChapterTabs();
+    this.renderSelectedChapter();
 
     this.backButton = new ButtonPrimary(
       this,
@@ -59,21 +99,71 @@ export class CampaignScene extends Phaser.Scene {
       zone.off('pointerup');
       zone.destroy();
     }
+    for (const zone of this.chapterTabZones) {
+      zone.off('pointerup');
+      zone.destroy();
+    }
     this.nodeZones.length = 0;
+    this.chapterTabZones.length = 0;
+    this.chapterTitleText?.destroy();
+    this.chapterTitleText = null;
     this.backButton?.destroy();
     this.backButton = null;
   }
 
-  private renderRow(
-    stageIds: string[],
-    y: number,
-    clearedStages: ClearedStageRecord[],
-  ): void {
+  private renderChapterTabs(): void {
+    const tabY = 58;
+    const tabSpacing = 150;
+    const startX = CANVAS.WIDTH / 2 - tabSpacing;
+
+    CHAPTERS.forEach((chapter, index) => {
+      const x = startX + index * tabSpacing;
+      const unlocked = chapter.unlockStageId
+        ? isUnlocked(chapter.unlockStageId, this.clearedStages)
+        : true;
+      const selected = index === this.selectedChapterIndex;
+      const label = unlocked ? `Ch.${index + 1}` : `Ch.${index + 1} 🔒`;
+      const color = selected ? '#44ccff' : unlocked ? '#ccccdd' : '#666677';
+
+      this.add.text(x, tabY, label, {
+        fontSize: '12px',
+        color,
+        fontFamily: 'monospace',
+      }).setOrigin(0.5);
+
+      if (unlocked) {
+        const zone = this.add.zone(x, tabY, 80, 28);
+        zone.setInteractive({ useHandCursor: true });
+        zone.on('pointerup', () => {
+          if (this.selectedChapterIndex === index) return;
+          this.scene.restart({ chapterIndex: index });
+        });
+        this.chapterTabZones.push(zone);
+      }
+    });
+  }
+
+  private renderSelectedChapter(): void {
+    const chapter = CHAPTERS[this.selectedChapterIndex];
+    const topRow = chapter.stageIds.slice(0, 4);
+    const bottomRow = [...chapter.stageIds.slice(4, 8)].reverse();
+
+    this.chapterTitleText = this.add.text(CANVAS.WIDTH / 2, 92, chapter.title, {
+      fontSize: '12px',
+      color: '#aaaacc',
+      fontFamily: 'monospace',
+    }).setOrigin(0.5);
+
+    this.renderRow(topRow, TOP_ROW_Y);
+    this.renderRow(bottomRow, BOTTOM_ROW_Y);
+  }
+
+  private renderRow(stageIds: string[], y: number): void {
     stageIds.forEach((stageId, index) => {
       const x = ROW_START_X + index * NODE_SPACING;
-      const cleared = clearedStages.find((record) => record.stageId === stageId);
-      const unlocked = isUnlocked(stageId, clearedStages);
-      const isBoss = stageId === 'stage_1_8';
+      const cleared = this.clearedStages.find((record) => record.stageId === stageId);
+      const unlocked = isUnlocked(stageId, this.clearedStages);
+      const isBoss = stageId.endsWith('_8');
       const label = this.formatNodeLabel(stageId, cleared?.stars, unlocked, isBoss);
 
       const color = unlocked ? (cleared ? '#44ccff' : '#ffffff') : '#666677';
@@ -101,7 +191,8 @@ export class CampaignScene extends Phaser.Scene {
     unlocked: boolean,
     isBoss: boolean,
   ): string {
-    const shortId = stageId.replace('stage_1_', '1-');
+    const parts = stageId.replace('stage_', '').split('_');
+    const shortId = `${parts[0]}-${parts[1]}`;
     if (!unlocked) return `${shortId}\n🔒`;
     if (stars) {
       const starText = '★'.repeat(stars) + '☆'.repeat(3 - stars);

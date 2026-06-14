@@ -168,6 +168,17 @@ export interface EnemyData {
   isBoss: boolean;
 }
 
+export type EnemyTargetingRule =
+  | 'nearest'
+  | 'lowest_hp_backline'
+  | 'frontline_tank';
+
+export interface EnemyBossTraits {
+  silenceImmune?: boolean;
+  stunDurationMultiplier?: number;
+  knockbackImmune?: boolean;
+}
+
 export interface EnemyRuntimeState {
   enemyId: string;
   instanceId: string;        // unique per in-battle instance (e.g. 'rift_grunt_0')
@@ -184,6 +195,12 @@ export interface EnemyRuntimeState {
   isAlive: boolean;
   attackCooldownRemaining: number;
   activeDebuffs: ActiveDebuff[];
+  targetingRule?: EnemyTargetingRule;
+  dodgeChance?: number;
+  basicAttackDamageReduction?: number;
+  basicAttackMultiplier?: number;
+  isBoss?: boolean;
+  bossTraits?: EnemyBossTraits;
 }
 
 // ─── Skills / Ultimates ──────────────────────────────────────────────────────
@@ -239,6 +256,8 @@ export interface StageRewardConfig {
   crystals: number;
   xpFragments: number;
   shardDrops?: { heroId: string; chance: number }[];
+  sigilDrop?: { chance: number; rarity: EquipmentSigilRarity };
+  firstClearItems?: { itemId: string; quantity: number }[];
 }
 
 export interface StageData {
@@ -265,6 +284,8 @@ export interface StageReward {
   xpFragments: number;
   clearTimeMs: number;
   shardGrants: { heroId: string; amount: number }[];
+  sigilGrants: { sigilDefinitionId: string; level: number }[];
+  firstClearItemGrants: { itemId: string; quantity: number }[];
 }
 
 // ─── Sigil (v1.2+, typed now for inventory) ──────────────────────────────────

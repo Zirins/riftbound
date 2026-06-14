@@ -175,6 +175,7 @@ export class StatusEffectSystem {
     shield.value = Math.max(0, shield.value - amount);
     if (shield.value <= 0) {
       this.removeStatus(target, 'shielded');
+      this.applyStatus(target, 'vulnerable', { durationMs: 3000, value: 0.20 });
     }
   }
 

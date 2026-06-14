@@ -2,12 +2,14 @@
 // V0.1: Battlefield rendering + AutoBattleSystem combat loop.
 
 import Phaser from 'phaser';
-import { CANVAS, COMBAT, ENEMIES, FORMATION, UI, WAVES, WARDEN } from '../constants/gameConfig';
+import { CANVAS, COMBAT, FORMATION, UI, WAVES } from '../constants/gameConfig';
+import { getEnemyColor, getEnemyDisplayName } from '../data/enemies';
 import { SCENE_KEYS } from '../constants/sceneKeys';
 import { HEROES_DATA } from '../data/heroes';
 import { buildDefaultRealmV3 } from '../save/defaults/buildDefaultRealmV3';
 import { createBattleGameState } from '../store/GameState';
 import { AutoBattleSystem } from '../systems/AutoBattleSystem';
+import { EnemyCombatSystem } from '../systems/EnemyCombatSystem';
 import { assignCombatSlotIndices, FormationSystem, getHeroBattlePosition } from '../systems/FormationSystem';
 import { computeHeroStats } from '../systems/HeroProgressionSystem';
 import { computeStageReward } from '../systems/RewardSystem';
@@ -63,22 +65,6 @@ interface BossHpPayload {
   bossMaxHp: number;
   visible: boolean;
 }
-
-const ENEMY_COLORS: Record<string, number> = {
-  [ENEMIES.GRUNT.ID]: ENEMIES.GRUNT.COLOR,
-  [ENEMIES.SPECTER.ID]: ENEMIES.SPECTER.COLOR,
-  [ENEMIES.IRONCLAD.ID]: ENEMIES.IRONCLAD.COLOR,
-  [ENEMIES.INVOKER.ID]: ENEMIES.INVOKER.COLOR,
-  [WARDEN.ID]: WARDEN.COLOR,
-};
-
-const ENEMY_LABELS: Record<string, string> = {
-  [ENEMIES.GRUNT.ID]: 'Grunt',
-  [ENEMIES.SPECTER.ID]: 'Specter',
-  [ENEMIES.IRONCLAD.ID]: 'Ironclad',
-  [ENEMIES.INVOKER.ID]: 'Invoker',
-  [WARDEN.ID]: 'Warden',
-};
 
 const FORMATION_STORAGE_KEY = 'riftbound_mvp_formation';
 const LINEUP_SLOT_COUNT = 4;
@@ -174,6 +160,7 @@ export class BattleScene extends Phaser.Scene {
 
   private gameState!: GameState;
   private autoBattle!: AutoBattleSystem;
+  private enemyCombat!: EnemyCombatSystem;
   private waveSystem!: WaveSystem;
   private formationSystem!: FormationSystem;
   private ultimateSystem!: UltimateSystem;
@@ -234,6 +221,7 @@ export class BattleScene extends Phaser.Scene {
   };
 
   private readonly onWaveEnemiesSpawned = (payload: WaveEnemiesSpawnedPayload): void => {
+    this.enemyCombat.reset();
     this.clearEnemyState();
     this.enemies.push(...payload.enemies);
 
@@ -338,7 +326,8 @@ export class BattleScene extends Phaser.Scene {
     );
     this.ultimateButtons.create(this.buildHudPortraits());
 
-    this.autoBattle = new AutoBattleSystem(this);
+    this.enemyCombat = new EnemyCombatSystem(this);
+    this.autoBattle = new AutoBattleSystem(this, this.enemyCombat);
     this.autoBattle.on('enemyKilled', this.onEnemyKilled);
     this.ultimateSystem.on('enemyKilled', this.onEnemyKilled);
 
@@ -369,6 +358,16 @@ export class BattleScene extends Phaser.Scene {
 
     if (canFight) {
       this.gameState.elapsedTimeMs += delta;
+      const bossState = this.enemyCombat.update(
+        delta,
+        this.heroes,
+        this.enemies,
+        this.onGruntSummoned,
+      );
+      if (bossState) {
+        this.bossBar.setVisible(true);
+        this.bossBar.update(bossState.bossHp, bossState.bossMaxHp);
+      }
       this.autoBattle.update(this.heroes, this.enemies, deltaSeconds, this.gameState.elapsedTimeMs);
       this.ultimateSystem.update(deltaSeconds, this.gameState);
     }
@@ -492,8 +491,8 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private createEnemyVisual(enemy: EnemyRuntimeState): UnitVisual {
-    const color = ENEMY_COLORS[enemy.enemyId] ?? ENEMIES.GRUNT.COLOR;
-    const label = ENEMY_LABELS[enemy.enemyId] ?? 'Enemy';
+    const color = getEnemyColor(enemy.enemyId);
+    const label = getEnemyDisplayName(enemy.enemyId);
     return this.createUnitVisual(label, color, enemy.radius, enemy.x, enemy.y);
   }
 

@@ -1,87 +1,21 @@
 // src/systems/WaveSystem.ts
-// Wave spawning, clear detection, Rift Warden boss orchestration.
+// Wave spawning, clear detection, and boss victory.
 
 import Phaser from 'phaser';
-import { COMBAT, ENEMIES, FORMATION, WARDEN, WAVES } from '../constants/gameConfig';
+import { COMBAT, FORMATION, WARDEN } from '../constants/gameConfig';
+import { getEnemySpawnTemplate, isBossEnemyId } from '../data/enemies';
 import { getEnemyStartPosition } from './FormationSystem';
-import { WardenBossSystem } from './WardenBossSystem';
 import type { EnemyRuntimeState, HeroRuntimeState, WaveConfig } from '../types';
 
-interface EnemyTemplate {
-  id: string;
-  hp: number;
-  attack: number;
-  defense: number;
-  speed: number;
-  attackCooldown: number;
-  attackRange: number;
-  radius: number;
-}
-
-const ENEMY_TEMPLATES: Record<string, EnemyTemplate> = {
-  [ENEMIES.GRUNT.ID]: {
-    id: ENEMIES.GRUNT.ID,
-    hp: ENEMIES.GRUNT.HP,
-    attack: ENEMIES.GRUNT.ATTACK,
-    defense: ENEMIES.GRUNT.DEFENSE,
-    speed: ENEMIES.GRUNT.SPEED,
-    attackCooldown: ENEMIES.GRUNT.ATTACK_COOLDOWN,
-    attackRange: ENEMIES.GRUNT.ATTACK_RANGE,
-    radius: ENEMIES.GRUNT.RADIUS,
-  },
-  [ENEMIES.SPECTER.ID]: {
-    id: ENEMIES.SPECTER.ID,
-    hp: ENEMIES.SPECTER.HP,
-    attack: ENEMIES.SPECTER.ATTACK,
-    defense: ENEMIES.SPECTER.DEFENSE,
-    speed: ENEMIES.SPECTER.SPEED,
-    attackCooldown: ENEMIES.SPECTER.ATTACK_COOLDOWN,
-    attackRange: ENEMIES.SPECTER.ATTACK_RANGE,
-    radius: ENEMIES.SPECTER.RADIUS,
-  },
-  [ENEMIES.IRONCLAD.ID]: {
-    id: ENEMIES.IRONCLAD.ID,
-    hp: ENEMIES.IRONCLAD.HP,
-    attack: ENEMIES.IRONCLAD.ATTACK,
-    defense: ENEMIES.IRONCLAD.DEFENSE,
-    speed: ENEMIES.IRONCLAD.SPEED,
-    attackCooldown: ENEMIES.IRONCLAD.ATTACK_COOLDOWN,
-    attackRange: ENEMIES.IRONCLAD.ATTACK_RANGE,
-    radius: ENEMIES.IRONCLAD.RADIUS,
-  },
-  [ENEMIES.INVOKER.ID]: {
-    id: ENEMIES.INVOKER.ID,
-    hp: ENEMIES.INVOKER.HP,
-    attack: ENEMIES.INVOKER.ATTACK,
-    defense: ENEMIES.INVOKER.DEFENSE,
-    speed: ENEMIES.INVOKER.SPEED,
-    attackCooldown: ENEMIES.INVOKER.ATTACK_COOLDOWN,
-    attackRange: ENEMIES.INVOKER.ATTACK_RANGE,
-    radius: ENEMIES.INVOKER.RADIUS,
-  },
-  [WARDEN.ID]: {
-    id: WARDEN.ID,
-    hp: WARDEN.HP,
-    attack: WARDEN.ATTACK,
-    defense: WARDEN.DEFENSE,
-    speed: WARDEN.SPEED,
-    attackCooldown: WARDEN.ATTACK_COOLDOWN,
-    attackRange: COMBAT.MELEE_ATTACK_RANGE,
-    radius: WARDEN.RADIUS,
-  },
-};
-
 export class WaveSystem extends Phaser.Events.EventEmitter {
-  private waveConfigs: WaveConfig[] = WAVES;
+  private waveConfigs: WaveConfig[] = [];
   private currentWaveIndex = 0;
   private interWavePauseMs = 0;
   private spawnCounter = 0;
   private wavesClearedCount = 0;
-  private readonly wardenBoss: WardenBossSystem;
 
-  constructor(scene: Phaser.Scene) {
+  constructor(_scene: Phaser.Scene) {
     super();
-    this.wardenBoss = new WardenBossSystem(scene);
   }
 
   get isInterWavePause(): boolean {
@@ -107,32 +41,20 @@ export class WaveSystem extends Phaser.Events.EventEmitter {
 
   update(
     deltaMs: number,
-    heroes: HeroRuntimeState[],
-    enemies: EnemyRuntimeState[],
-    onSummon: (grunt: EnemyRuntimeState) => void,
+    _heroes: HeroRuntimeState[],
+    _enemies: EnemyRuntimeState[],
+    _onSummon: (enemy: EnemyRuntimeState) => void,
   ): void {
     if (this.interWavePauseMs > 0) {
       this.interWavePauseMs -= deltaMs;
       if (this.interWavePauseMs <= 0) {
         this.spawnWave(this.currentWaveIndex + 1);
       }
-      return;
-    }
-
-    if (!this.isBossWave) return;
-
-    const bossState = this.wardenBoss.update(deltaMs, heroes, enemies, (grunt) => {
-      enemies.push(grunt);
-      onSummon(grunt);
-    });
-
-    if (bossState) {
-      this.emit('bossHpUpdate', { ...bossState, visible: true });
     }
   }
 
   onEnemyKilled(killedEnemyId: string, enemies: EnemyRuntimeState[]): void {
-    if (killedEnemyId === WARDEN.ID) {
+    if (this.isBossWave && isBossEnemyId(killedEnemyId)) {
       this.emit('bossKilled');
       this.emit('battleVictory');
       return;
@@ -145,7 +67,7 @@ export class WaveSystem extends Phaser.Events.EventEmitter {
   }
 
   destroy(): void {
-    this.wardenBoss.destroy();
+    this.removeAllListeners();
   }
 
   private handleWaveCleared(): void {
@@ -168,12 +90,11 @@ export class WaveSystem extends Phaser.Events.EventEmitter {
     const enemies = this.buildWaveEnemies(waveIndex, wave.enemies, wave.statScale ?? 1);
 
     if (wave.isBossWave) {
-      this.wardenBoss.reset();
-      const warden = enemies.find((enemy) => enemy.enemyId === WARDEN.ID);
-      if (warden) {
+      const boss = enemies.find((enemy) => enemy.isBoss);
+      if (boss) {
         this.emit('bossHpUpdate', {
-          bossHp: warden.currentHP,
-          bossMaxHp: warden.maxHP,
+          bossHp: boss.currentHP,
+          bossMaxHp: boss.maxHP,
           visible: true,
         });
       }
@@ -196,7 +117,7 @@ export class WaveSystem extends Phaser.Events.EventEmitter {
     let slotIndex = 0;
 
     for (const definition of definitions) {
-      const template = ENEMY_TEMPLATES[definition.enemyId];
+      const template = getEnemySpawnTemplate(definition.enemyId);
       if (!template) continue;
 
       for (let copyIndex = 0; copyIndex < definition.count; copyIndex += 1) {
@@ -223,6 +144,12 @@ export class WaveSystem extends Phaser.Events.EventEmitter {
           isAlive: true,
           attackCooldownRemaining: 0,
           activeDebuffs: [],
+          targetingRule: template.targetingRule,
+          dodgeChance: template.dodgeChance,
+          basicAttackDamageReduction: template.basicAttackDamageReduction,
+          basicAttackMultiplier: template.basicAttackMultiplier,
+          isBoss: template.isBoss,
+          bossTraits: template.bossTraits,
         });
 
         slotIndex += 1;

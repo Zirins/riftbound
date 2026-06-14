@@ -2,20 +2,14 @@
 // Stage detail, energy check, and battle launch.
 
 import Phaser from 'phaser';
-import { CANVAS, ENEMIES, UI, WARDEN } from '../constants/gameConfig';
+import { CANVAS, UI } from '../constants/gameConfig';
 import { SCENE_KEYS } from '../constants/sceneKeys';
+import { AWAKENING_CRYSTAL_ITEM_ID } from '../data/awakeningData';
+import { ENEMY_DISPLAY_LABELS, getEnemyDisplayName, isBossEnemyId } from '../data/enemies';
 import * as EnergySystem from '../systems/EnergySystem';
 import { getStageData } from '../systems/StageLoader';
 import { loadCurrentRealm } from '../systems/SaveSystem';
 import { ButtonPrimary } from '../ui/ButtonPrimary';
-
-const ENEMY_LABELS: Record<string, string> = {
-  [ENEMIES.GRUNT.ID]: 'Grunt',
-  [ENEMIES.SPECTER.ID]: 'Specter',
-  [ENEMIES.IRONCLAD.ID]: 'Ironclad',
-  [ENEMIES.INVOKER.ID]: 'Invoker',
-  [WARDEN.ID]: 'Warden',
-};
 
 export class StageSelectScene extends Phaser.Scene {
   static readonly KEY = SCENE_KEYS.STAGE_SELECT;
@@ -83,11 +77,9 @@ export class StageSelectScene extends Phaser.Scene {
     });
 
     const bossWave = stage.waves.find((wave) => wave.isBossWave);
-    const bossText = bossWave?.enemies.some((e) => e.enemyId === WARDEN.ID)
-      ? 'Boss Wave: Rift Warden'
-      : '';
-    if (bossText) {
-      this.add.text(60, 140, bossText, {
+    const bossEntry = bossWave?.enemies.find((entry) => isBossEnemyId(entry.enemyId));
+    if (bossEntry) {
+      this.add.text(60, 140, `Boss Wave: ${getEnemyDisplayName(bossEntry.enemyId)}`, {
         fontSize: '10px',
         color: '#ff8888',
         fontFamily: 'monospace',
@@ -96,7 +88,24 @@ export class StageSelectScene extends Phaser.Scene {
 
     this.add.line(0, 0, 40, 168, CANVAS.WIDTH - 40, 168, 0x444466).setOrigin(0);
 
-    this.add.text(60, 188, `Rewards: ~${stage.rewards.gold.min}–${stage.rewards.gold.max} Gold   ${stage.rewards.crystals} Crystals   XP Fragments ×${stage.rewards.xpFragments}`, {
+    const rewardParts = [
+      `~${stage.rewards.gold.min}–${stage.rewards.gold.max} Gold`,
+      `${stage.rewards.crystals} Crystals`,
+      `XP Fragments ×${stage.rewards.xpFragments}`,
+    ];
+    if (stage.rewards.sigilDrop) {
+      rewardParts.push(`Sigil chance ${Math.round(stage.rewards.sigilDrop.chance * 100)}% (${stage.rewards.sigilDrop.rarity})`);
+    }
+    if (stage.rewards.firstClearItems?.length && !cleared) {
+      for (const item of stage.rewards.firstClearItems) {
+        const label = item.itemId === AWAKENING_CRYSTAL_ITEM_ID
+          ? `Awakening Crystal ×${item.quantity} (first clear)`
+          : `${item.itemId} ×${item.quantity} (first clear)`;
+        rewardParts.push(label);
+      }
+    }
+
+    this.add.text(60, 188, `Rewards: ${rewardParts.join('   ')}`, {
       fontSize: '11px',
       color: '#ffcc44',
       fontFamily: 'monospace',
@@ -144,12 +153,12 @@ export class StageSelectScene extends Phaser.Scene {
     const totals = new Map<string, number>();
     for (const wave of waves) {
       for (const entry of wave.enemies) {
-        if (entry.enemyId === WARDEN.ID) continue;
+        if (isBossEnemyId(entry.enemyId)) continue;
         totals.set(entry.enemyId, (totals.get(entry.enemyId) ?? 0) + entry.count);
       }
     }
     return [...totals.entries()]
-      .map(([id, count]) => `${ENEMY_LABELS[id] ?? id} ×${count}`)
+      .map(([id, count]) => `${ENEMY_DISPLAY_LABELS[id] ?? id} ×${count}`)
       .join('  ');
   }
 
@@ -166,7 +175,6 @@ export class StageSelectScene extends Phaser.Scene {
     this.toastTimer = this.time.delayedCall(2200, () => {
       this.toastLabel?.destroy();
       this.toastLabel = null;
-      this.toastTimer = null;
     });
   }
 }

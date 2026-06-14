@@ -20,6 +20,9 @@ if (import.meta.env.DEV) {
   void import('./dev/phase12BondHarness').then((module) => {
     module.exposePhase12BondHarness();
   });
+  void import('./dev/phase14CampaignHarness').then((module) => {
+    module.exposePhase14CampaignHarness();
+  });
 }
 
 new Phaser.Game(gameConfig);

@@ -23,6 +23,7 @@ import {
 import { SideSkillVfxSystem } from './SideSkillVfxSystem';
 import { SkillSystem } from './SkillSystem';
 import { StatusEffectSystem } from './StatusEffectSystem';
+import type { EnemyCombatSystem } from './EnemyCombatSystem';
 import type { BattleHero, EnemyRuntimeState, HeroClass, HeroRuntimeState, SkillCastResult } from '../types';
 
 const R = HERO_NEW.REN;
@@ -40,6 +41,7 @@ type CombatUnit = HeroRuntimeState | EnemyRuntimeState;
 interface DamageOptions {
   skipCounter?: boolean;
   skipFollowUp?: boolean;
+  isBasicAttack?: boolean;
 }
 
 export class AutoBattleSystem extends Phaser.Events.EventEmitter {
@@ -49,7 +51,10 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
   private readonly marekSquallIdleMs = new Map<string, number>();
   private readonly sideSkillVfx: SideSkillVfxSystem;
 
-  constructor(private readonly scene: Phaser.Scene) {
+  constructor(
+    private readonly scene: Phaser.Scene,
+    private readonly enemyCombat?: EnemyCombatSystem,
+  ) {
     super();
     this.sideSkillVfx = new SideSkillVfxSystem(scene);
   }
@@ -125,7 +130,7 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
         const owner = heroes.find((hero) => hero.heroId === projectile.ownerId);
         if (owner) {
           const damage = this.calculateHeroDamage(owner, hitTarget.defense);
-          this.applyDamageToEnemy(hitTarget, damage, owner, enemies);
+          this.applyDamageToEnemy(hitTarget, damage, owner, enemies, { isBasicAttack: true });
         }
         projectile.destroy();
         indicesToRemove.push(i);
@@ -275,7 +280,7 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
 
       if (this.getDistance(hero, target) <= hero.attackRange) {
         const damage = this.calculateHeroDamage(hero, target.defense);
-        this.applyDamageToEnemy(target, damage, hero, enemies);
+        this.applyDamageToEnemy(target, damage, hero, enemies, { isBasicAttack: true });
         hero.attackCooldownRemaining = hero.attackCooldown;
       }
     }
@@ -306,7 +311,7 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
       if (enemy.attackCooldownRemaining > 0) continue;
 
       const damage = this.calculateDamage(
-        this.getEffectiveEnemyAttack(enemy),
+        this.getEffectiveEnemyAttack(enemy) * (enemy.basicAttackMultiplier ?? 1),
         this.getEffectiveHeroDefense(target),
       );
       this.applyDamageToHero(target, damage, enemy);
@@ -519,7 +524,14 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
   ): void {
     if (!enemy.isAlive) return;
 
+    if (options.isBasicAttack && this.enemyCombat?.shouldDodgeIncomingAttack(attacker, enemy)) {
+      return;
+    }
+
     let finalDamage = damage;
+    if (options.isBasicAttack && enemy.basicAttackDamageReduction) {
+      finalDamage = this.enemyCombat?.applyBasicAttackReduction(finalDamage, enemy) ?? finalDamage;
+    }
     if (attacker.heroId === R.ID) {
       const isMarked = enemy.activeDebuffs.some(
         (debuff) => debuff.type === 'mark' && debuff.id.startsWith(REN_MARK_PREFIX),

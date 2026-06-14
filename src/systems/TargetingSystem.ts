@@ -156,7 +156,14 @@ export function getEnemyTarget(
   );
   if (tauntTarget) return tauntTarget;
 
-  return findNearest(enemy, living);
+  switch (enemy.targetingRule) {
+    case 'lowest_hp_backline':
+      return findLowestHpBacklineHero(living) ?? findNearest(enemy, living);
+    case 'frontline_tank':
+      return findFrontlineTankHero(living) ?? findNearest(enemy, living);
+    default:
+      return findNearest(enemy, living);
+  }
 }
 
 export function getSupportHealTarget(
@@ -325,6 +332,24 @@ function findNearest<T extends PositionedUnit>(
   return candidates.reduce((nearest, candidate) =>
     getDistanceBetween(source, candidate) < getDistanceBetween(source, nearest) ? candidate : nearest,
   );
+}
+
+const BACKLINE_CLASSES = new Set(['mage', 'support', 'ranger', 'assassin']);
+
+function findLowestHpBacklineHero(heroes: HeroRuntimeState[]): HeroRuntimeState | null {
+  const backline = heroes.filter((hero) => BACKLINE_CLASSES.has(hero.heroClass));
+  const pool = backline.length > 0 ? backline : heroes;
+  return pool.reduce((lowest, hero) =>
+    hero.currentHP < lowest.currentHP ? hero : lowest,
+  );
+}
+
+function findFrontlineTankHero(heroes: HeroRuntimeState[]): HeroRuntimeState | null {
+  const tanks = heroes.filter((hero) => hero.heroClass === 'tank');
+  if (tanks.length > 0) {
+    return tanks.reduce((best, hero) => (hero.x < best.x ? hero : best));
+  }
+  return heroes.reduce((best, hero) => (hero.x < best.x ? hero : best));
 }
 
 function heroHpRatio(unit: HeroRuntimeState): number {
