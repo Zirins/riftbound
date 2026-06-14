@@ -1,10 +1,97 @@
 // src/systems/TargetingSystem.ts
 // Per-class target selection AI for heroes and enemies.
+// V2: data-driven TargetRule resolution for SkillSystem.
 
 import { MAGE, SUPPORT } from '../constants/gameConfig';
-import type { EnemyRuntimeState, HeroRuntimeState } from '../types';
+import type {
+  AreaDefinition,
+  BattleHero,
+  BattleState,
+  BattleUnitRef,
+  EnemyRuntimeState,
+  HeroRuntimeState,
+  TargetRule,
+} from '../types';
+import {
+  enemyRef,
+  getDistance,
+  getHpRatio,
+  getLivingEnemies,
+  getLivingHeroes,
+  getUnitCurrentHp,
+  heroRef,
+  isUnitAlive,
+} from './battleStateUtils';
 
 type PositionedUnit = { x: number; y: number };
+
+export function resolveTargets(
+  rule: TargetRule,
+  caster: BattleHero,
+  battleState: BattleState,
+  options?: { area?: AreaDefinition; maxTargets?: number },
+): BattleUnitRef[] {
+  const livingHeroes = getLivingHeroes(battleState);
+  const livingEnemies = getLivingEnemies(battleState);
+  let targets: BattleUnitRef[] = [];
+
+  switch (rule) {
+    case 'self':
+      targets = isUnitAlive(heroRef(caster)) ? [heroRef(caster)] : [];
+      break;
+    case 'nearest_enemy':
+      targets = pickEnemyRef(findNearest(caster, livingEnemies));
+      break;
+    case 'lowest_hp_enemy':
+      targets = pickEnemyRef(findLowestHpEnemy(caster, livingEnemies));
+      break;
+    case 'highest_atk_enemy':
+      targets = pickEnemyRef(findHighestAttackEnemy(livingEnemies));
+      break;
+    case 'backline_enemy':
+      targets = pickEnemyRef(findBacklineEnemy(livingEnemies));
+      break;
+    case 'frontline_enemy':
+      targets = pickEnemyRef(findFrontlineEnemy(livingEnemies));
+      break;
+    case 'densest_enemy_cluster':
+      targets = pickEnemyRef(findDensestClusterEnemy(caster, livingEnemies));
+      break;
+    case 'random_enemy':
+      targets = pickEnemyRef(pickRandomEnemy(livingEnemies));
+      break;
+    case 'lowest_hp_ally':
+      targets = pickHeroRef(findLowestHpAlly(caster, livingHeroes));
+      break;
+    case 'all_allies':
+      targets = livingHeroes.map((hero) => heroRef(hero));
+      break;
+    case 'all_enemies':
+      targets = livingEnemies.map((enemy) => enemyRef(enemy));
+      break;
+    case 'area_forward_box':
+    case 'area_circle': {
+      const primary = resolveTargets('nearest_enemy', caster, battleState)[0] ?? null;
+      if (!primary) {
+        targets = [];
+        break;
+      }
+      targets = filterByArea(caster, primary, livingEnemies, options?.area);
+      if (targets.length === 0) {
+        targets = [primary];
+      }
+      break;
+    }
+    default:
+      targets = pickEnemyRef(findNearest(caster, livingEnemies));
+      break;
+  }
+
+  if (options?.maxTargets !== undefined && options.maxTargets > 0) {
+    return targets.slice(0, options.maxTargets);
+  }
+  return targets;
+}
 
 export function getHeroTarget(
   hero: HeroRuntimeState,
@@ -55,12 +142,12 @@ export function getSupportHealTarget(
   if (allies.length === 0) return null;
 
   const needsHeal = allies.filter(
-    (ally) => getHpRatio(ally) < SUPPORT.HEAL_TARGET_HP_THRESHOLD,
+    (ally) => heroHpRatio(ally) < SUPPORT.HEAL_TARGET_HP_THRESHOLD,
   );
   if (needsHeal.length === 0) return null;
 
   return needsHeal.reduce((lowest, ally) =>
-    getHpRatio(ally) < getHpRatio(lowest) ? ally : lowest,
+    heroHpRatio(ally) < heroHpRatio(lowest) ? ally : lowest,
   );
 }
 
@@ -70,6 +157,85 @@ export function getNearestLivingEnemy(
 ): EnemyRuntimeState | null {
   const living = enemies.filter((enemy) => enemy.isAlive);
   return findNearest(hero, living);
+}
+
+function getDistanceBetween(a: PositionedUnit, b: PositionedUnit): number {
+  return getDistance(a, b);
+}
+
+function pickEnemyRef(enemy: EnemyRuntimeState | null): BattleUnitRef[] {
+  return enemy ? [enemyRef(enemy)] : [];
+}
+
+function pickHeroRef(hero: HeroRuntimeState | null): BattleUnitRef[] {
+  return hero && hero.isAlive ? [heroRef(hero as BattleHero)] : [];
+}
+
+function findHighestAttackEnemy(enemies: EnemyRuntimeState[]): EnemyRuntimeState | null {
+  if (enemies.length === 0) return null;
+  return enemies.reduce((best, enemy) => (enemy.attack > best.attack ? enemy : best));
+}
+
+function findFrontlineEnemy(enemies: EnemyRuntimeState[]): EnemyRuntimeState | null {
+  if (enemies.length === 0) return null;
+  return enemies.reduce((best, enemy) => (enemy.x < best.x ? enemy : best));
+}
+
+function findBacklineEnemy(enemies: EnemyRuntimeState[]): EnemyRuntimeState | null {
+  if (enemies.length === 0) return null;
+  return enemies.reduce((best, enemy) => (enemy.x > best.x ? enemy : best));
+}
+
+function pickRandomEnemy(enemies: EnemyRuntimeState[]): EnemyRuntimeState | null {
+  if (enemies.length === 0) return null;
+  return enemies[Math.floor(Math.random() * enemies.length)];
+}
+
+function findLowestHpAlly(
+  caster: BattleHero,
+  heroes: BattleHero[],
+): BattleHero | null {
+  const allies = heroes.filter((hero) => hero.heroId !== caster.heroId);
+  if (allies.length === 0) return null;
+
+  return allies.reduce((lowest, ally) => {
+    if (getUnitCurrentHp(heroRef(ally)) < getUnitCurrentHp(heroRef(lowest))) return ally;
+    if (getUnitCurrentHp(heroRef(ally)) > getUnitCurrentHp(heroRef(lowest))) return lowest;
+    return getHpRatio(heroRef(ally)) < getHpRatio(heroRef(lowest)) ? ally : lowest;
+  });
+}
+
+function filterByArea(
+  caster: BattleHero,
+  primary: BattleUnitRef,
+  enemies: EnemyRuntimeState[],
+  area?: AreaDefinition,
+): BattleUnitRef[] {
+  if (!area) return [primary];
+
+  if (area.shape === 'circle') {
+    const radius = area.radius ?? MAGE.CLUSTER_RADIUS;
+    const center = {
+      x: primary.unit.x + (area.offsetX ?? 0),
+      y: primary.unit.y + (area.offsetY ?? 0),
+    };
+    return enemies
+      .filter((enemy) => getDistanceBetween(center, enemy) <= radius)
+      .map((enemy) => enemyRef(enemy));
+  }
+
+  const width = area.width ?? 120;
+  const height = area.height ?? 80;
+  const originX = caster.x + (area.offsetX ?? 0);
+  const originY = caster.y + (area.offsetY ?? 0);
+  return enemies
+    .filter((enemy) =>
+      enemy.x >= originX
+      && enemy.x <= originX + width
+      && enemy.y >= originY - height / 2
+      && enemy.y <= originY + height / 2,
+    )
+    .map((enemy) => enemyRef(enemy));
 }
 
 function findLowestHpEnemy(
@@ -130,16 +296,10 @@ function findNearest<T extends PositionedUnit>(
   if (candidates.length === 0) return null;
 
   return candidates.reduce((nearest, candidate) =>
-    getDistance(source, candidate) < getDistance(source, nearest) ? candidate : nearest,
+    getDistanceBetween(source, candidate) < getDistanceBetween(source, nearest) ? candidate : nearest,
   );
 }
 
-function getHpRatio(unit: HeroRuntimeState): number {
+function heroHpRatio(unit: HeroRuntimeState): number {
   return unit.currentHP / unit.maxHP;
-}
-
-function getDistance(a: PositionedUnit, b: PositionedUnit): number {
-  const dx = a.x - b.x;
-  const dy = a.y - b.y;
-  return Math.sqrt(dx * dx + dy * dy);
 }

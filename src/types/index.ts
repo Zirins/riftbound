@@ -1075,6 +1075,77 @@ export interface RuntimeStatusEffect {
   sourceHeroId?: string;
 }
 
+// ─── V2 Runtime Battle State (Section 13 — not persisted) ─────────────────────
+
+export interface RuntimeSkillCooldown {
+  skillId: string;
+  remainingMs: number;
+  totalCooldownMs: number;
+}
+
+export interface RuntimeHeroKit {
+  kit: HeroCombatKit;
+  awakeningLevel: 0 | 1 | 2 | 3;
+  cooldowns: RuntimeSkillCooldown[];
+}
+
+export interface BattleHero extends HeroRuntimeState {
+  runtimeKit: RuntimeHeroKit;
+  v2StatusEffects: RuntimeStatusEffect[];
+}
+
+export interface BattleEnemy extends EnemyRuntimeState {
+  v2StatusEffects: RuntimeStatusEffect[];
+}
+
+export interface BattleState {
+  heroes: BattleHero[];
+  enemies: BattleEnemy[];
+  elapsedTimeMs: number;
+}
+
+export type BattleUnitSide = 'hero' | 'enemy';
+
+export type BattleUnitRef =
+  | { side: 'hero'; unit: BattleHero }
+  | { side: 'enemy'; unit: BattleEnemy };
+
+export type BattleEventType =
+  | 'combat_start'
+  | 'on_hit'
+  | 'on_crit'
+  | 'on_kill'
+  | 'on_death'
+  | 'on_revive'
+  | 'on_ally_low_hp'
+  | 'on_status_applied';
+
+export interface BattleEvent {
+  type: BattleEventType;
+  sourceHeroId?: string;
+  targetUnitId?: string;
+  targetSide?: BattleUnitSide;
+  statusId?: StatusEffectId;
+}
+
+export interface SkillEffectResult {
+  effectType: SkillEffect['effectType'];
+  targetUnitId: string;
+  targetSide: BattleUnitSide;
+  amount?: number;
+  statusId?: StatusEffectId;
+  blocked?: boolean;
+}
+
+export interface SkillCastResult {
+  success: boolean;
+  skillId: string;
+  casterHeroId: string;
+  reason?: string;
+  targets: { unitId: string; side: BattleUnitSide }[];
+  effects: SkillEffectResult[];
+}
+
 export interface AwakeningCost {
   gold: number;
   awakeningCrystals: number;
