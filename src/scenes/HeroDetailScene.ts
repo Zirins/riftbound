@@ -353,9 +353,22 @@ export class HeroDetailScene extends Phaser.Scene {
       && canAfford('gold', levelCost.gold)
       && canAfford('xpFragments', levelCost.xpFragments);
 
-    const canStar = starCost !== null
-      && totalShards >= starCost.shards
-      && canAfford('gold', starCost.gold);
+    const goldBalance = EconomySystem.getCurrencyBalance(save, 'gold');
+    let starLabel = 'MAX STARS';
+    let canStar = false;
+    if (starCost) {
+      const hasShards = totalShards >= starCost.shards;
+      const hasGold = goldBalance >= starCost.gold;
+      canStar = hasShards && hasGold;
+      const transition = `${ownership.starRank}★→${ownership.starRank + 1}★`;
+      if (canStar) {
+        starLabel = `STAR UP — ${transition}: ${starCost.shards} shards + ${starCost.gold.toLocaleString()}G`;
+      } else if (!hasShards) {
+        starLabel = `STAR UP — need ${starCost.shards} shards (have ${totalShards})`;
+      } else {
+        starLabel = `STAR UP — need ${starCost.gold.toLocaleString()}G (have ${goldBalance.toLocaleString()}G)`;
+      }
+    }
 
     const levelLabel = `LEVEL UP — ${levelCost.gold}G + ${levelCost.xpFragments} XP Frag`;
     this.levelUpButton = new ButtonPrimary(
@@ -368,14 +381,12 @@ export class HeroDetailScene extends Phaser.Scene {
     );
     this.levelUpButton.setEnabled(canLevel);
 
-    const starLabel = starCost
-      ? `STAR UP — ${ownership.starRank}★→${ownership.starRank + 1}★: ${starCost.shards} shards`
-      : 'MAX STARS';
+    const starLabelText = starLabel;
     this.starUpButton = new ButtonPrimary(
       this,
       580,
       CANVAS.HEIGHT - 48,
-      starLabel,
+      starLabelText,
       () => this.handleStarUp(),
       280,
     );
@@ -503,6 +514,25 @@ export class HeroDetailScene extends Phaser.Scene {
     if (starUp(this.heroId)) {
       this.scene.restart({ heroId: this.heroId, tab: this.activeTab });
       return;
+    }
+
+    const realm = loadCurrentRealm();
+    const ownership = realm?.ownedHeroes.find(
+      (hero) => hero.heroId === this.heroId && hero.isOwned,
+    );
+    const starCost = ownership ? getStarUpCost(ownership.starRank) : null;
+    if (realm && ownership && starCost) {
+      const save = realm as RealmSaveDataV3;
+      const totalShards = getTotalShards(save, this.heroId, ownership);
+      const goldBalance = EconomySystem.getCurrencyBalance(save, 'gold');
+      if (totalShards < starCost.shards) {
+        this.showToast(`Need ${starCost.shards} shards (have ${totalShards})`);
+        return;
+      }
+      if (goldBalance < starCost.gold) {
+        this.showToast(`Need ${starCost.gold.toLocaleString()} Gold (have ${goldBalance.toLocaleString()})`);
+        return;
+      }
     }
     this.showToast('Not enough shards or Gold');
   }
