@@ -145,9 +145,11 @@ export function ensureBattleHero(hero: HeroRuntimeState): BattleHero {
 }
 
 export function ensureBattleEnemy(enemy: EnemyRuntimeState): BattleEnemy {
-  return 'v2StatusEffects' in enemy
-    ? (enemy as BattleEnemy)
-    : { ...enemy, v2StatusEffects: [] };
+  const battleEnemy = enemy as BattleEnemy;
+  if (!battleEnemy.v2StatusEffects) {
+    battleEnemy.v2StatusEffects = [];
+  }
+  return battleEnemy;
 }
 
 export function buildBattleState(

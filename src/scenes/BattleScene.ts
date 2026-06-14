@@ -13,7 +13,7 @@ import { computeHeroStats } from '../systems/HeroProgressionSystem';
 import { computeStageReward } from '../systems/RewardSystem';
 import { buildArenaWaveConfig } from '../systems/ArenaMatchSystem';
 import { getStageData } from '../systems/StageLoader';
-import { loadCurrentRealm } from '../systems/SaveSystem';
+import { loadCurrentRealm, saveCurrentRealm } from '../systems/SaveSystem';
 import { SkillSystem } from '../systems/SkillSystem';
 import { UltimateSystem } from '../systems/UltimateSystem';
 import { WaveSystem } from '../systems/WaveSystem';
@@ -334,6 +334,7 @@ export class BattleScene extends Phaser.Scene {
       this,
       this.gameState,
       (heroId) => this.ultimateSystem.fireUltimate(heroId, this.gameState),
+      (enabled) => this.handleAutoUltimateToggle(enabled),
     );
     this.ultimateButtons.create(this.buildHudPortraits());
 
@@ -416,6 +417,14 @@ export class BattleScene extends Phaser.Scene {
       wavesCleared: this.waveSystem.getWavesCleared(),
       energyCost: this.energyCost,
     });
+  }
+
+  private handleAutoUltimateToggle(enabled: boolean): void {
+    this.gameState.autoUltimate = enabled;
+    const realm = loadCurrentRealm();
+    if (!realm) return;
+    realm.settings.defaultAutoUltimate = enabled;
+    saveCurrentRealm(realm);
   }
 
   private buildHudPortraits(): HudPortraitConfig[] {

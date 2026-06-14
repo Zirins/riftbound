@@ -1,5 +1,6 @@
 // src/ui/UltimateButtons.ts
 // HUD portrait buttons — glow when ultimate ready, tap to fire.
+// Includes in-battle Auto Ultimate toggle.
 
 import Phaser from 'phaser';
 import { CANVAS, COMBAT, HEROES, UI } from '../constants/gameConfig';
@@ -19,14 +20,23 @@ interface PortraitButton {
   tapZone: Phaser.GameObjects.Zone;
 }
 
+const AUTO_TOGGLE_X = CANVAS.WIDTH - 72;
+const AUTO_TOGGLE_WIDTH = 88;
+const AUTO_TOGGLE_HEIGHT = 52;
+
 export class UltimateButtons {
   private readonly portraits: PortraitButton[] = [];
   private hudBackground!: Phaser.GameObjects.Rectangle;
+  private autoToggleBg!: Phaser.GameObjects.Rectangle;
+  private autoToggleLabel!: Phaser.GameObjects.Text;
+  private autoToggleState!: Phaser.GameObjects.Text;
+  private autoToggleZone!: Phaser.GameObjects.Zone;
 
   constructor(
     private readonly scene: Phaser.Scene,
     private readonly gameState: GameState,
     private readonly onFireUltimate: (heroId: string) => void,
+    private readonly onAutoUltimateToggle: (enabled: boolean) => void,
   ) {}
 
   create(portraits: readonly HudPortraitConfig[]): void {
@@ -82,6 +92,8 @@ export class UltimateButtons {
 
       this.portraits.push({ heroId: hero.id, glow, circle, label, tapZone });
     });
+
+    this.createAutoUltimateToggle(hudDepth);
   }
 
   update(heroes: HeroRuntimeState[]): void {
@@ -93,10 +105,17 @@ export class UltimateButtons {
       portrait.glow.setVisible(isReady);
       portrait.circle.setAlpha(hero?.isAlive ? 1 : 0.35);
     }
+
+    this.refreshAutoUltimateToggle();
   }
 
   destroy(): void {
     this.hudBackground?.destroy();
+    this.autoToggleZone?.off('pointerdown');
+    this.autoToggleZone?.destroy();
+    this.autoToggleBg?.destroy();
+    this.autoToggleLabel?.destroy();
+    this.autoToggleState?.destroy();
     for (const portrait of this.portraits) {
       portrait.tapZone.off('pointerdown');
       portrait.tapZone.destroy();
@@ -105,6 +124,62 @@ export class UltimateButtons {
       portrait.label.destroy();
     }
     this.portraits.length = 0;
+  }
+
+  private createAutoUltimateToggle(hudDepth: number): void {
+    const y = UI.HUD_PORTRAIT_Y;
+
+    this.autoToggleBg = this.scene.add.rectangle(
+      AUTO_TOGGLE_X,
+      y,
+      AUTO_TOGGLE_WIDTH,
+      AUTO_TOGGLE_HEIGHT,
+      this.gameState.autoUltimate ? 0x335544 : 0x333344,
+      0.95,
+    );
+    this.autoToggleBg.setStrokeStyle(2, this.gameState.autoUltimate ? 0x66cc88 : 0x666688, 1);
+    this.autoToggleBg.setDepth(hudDepth + 2);
+
+    this.autoToggleLabel = this.scene.add.text(AUTO_TOGGLE_X, y - 10, 'AUTO', {
+      fontSize: '11px',
+      color: '#ccccdd',
+      fontFamily: 'monospace',
+    }).setOrigin(0.5);
+    this.autoToggleLabel.setDepth(hudDepth + 3);
+
+    this.autoToggleState = this.scene.add.text(AUTO_TOGGLE_X, y + 10, 'OFF', {
+      fontSize: '12px',
+      color: '#ffffff',
+      fontFamily: 'monospace',
+    }).setOrigin(0.5);
+    this.autoToggleState.setDepth(hudDepth + 3);
+
+    this.autoToggleZone = this.scene.add.zone(
+      AUTO_TOGGLE_X,
+      y,
+      AUTO_TOGGLE_WIDTH,
+      AUTO_TOGGLE_HEIGHT,
+    );
+    this.autoToggleZone.setDepth(hudDepth + 5);
+    this.autoToggleZone.setInteractive({ useHandCursor: true });
+    this.autoToggleZone.on('pointerdown', () => this.handleAutoUltimateToggle());
+
+    this.refreshAutoUltimateToggle();
+  }
+
+  private refreshAutoUltimateToggle(): void {
+    const enabled = this.gameState.autoUltimate;
+    this.autoToggleBg?.setFillStyle(enabled ? 0x335544 : 0x333344);
+    this.autoToggleBg?.setStrokeStyle(2, enabled ? 0x66cc88 : 0x666688, 1);
+    this.autoToggleState?.setText(enabled ? 'ON' : 'OFF');
+    this.autoToggleState?.setColor(enabled ? '#88ffaa' : '#aaaaaa');
+  }
+
+  private handleAutoUltimateToggle(): void {
+    const nextValue = !this.gameState.autoUltimate;
+    this.gameState.autoUltimate = nextValue;
+    this.refreshAutoUltimateToggle();
+    this.onAutoUltimateToggle(nextValue);
   }
 
   private handlePortraitTap(heroId: string): void {

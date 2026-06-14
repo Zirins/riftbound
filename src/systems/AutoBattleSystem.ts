@@ -14,13 +14,16 @@ import {
 import {
   buildBattleState,
   emitNewlyDeadEnemies,
+  ensureBattleEnemy,
   ensureBattleHero,
+  enemyRef,
   heroRef,
   snapshotDeadEnemyIds,
 } from './battleStateUtils';
+import { SideSkillVfxSystem } from './SideSkillVfxSystem';
 import { SkillSystem } from './SkillSystem';
 import { StatusEffectSystem } from './StatusEffectSystem';
-import type { EnemyRuntimeState, HeroClass, HeroRuntimeState } from '../types';
+import type { BattleHero, EnemyRuntimeState, HeroClass, HeroRuntimeState, SkillCastResult } from '../types';
 
 const R = HERO_NEW.REN;
 const SO = HERO_NEW.SOLENNE;
@@ -44,9 +47,11 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
   private readonly pendingTargetCleanups = new Set<string>();
   private readonly thaneRootguardDecayMs = new Map<string, number>();
   private readonly marekSquallIdleMs = new Map<string, number>();
+  private readonly sideSkillVfx: SideSkillVfxSystem;
 
   constructor(private readonly scene: Phaser.Scene) {
     super();
+    this.sideSkillVfx = new SideSkillVfxSystem(scene);
   }
 
   update(
@@ -61,7 +66,8 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
 
     for (const hero of battleState.heroes) {
       if (!hero.isAlive || !hero.runtimeKit) continue;
-      SkillSystem.updateCooldownSkills(hero, battleState, deltaMs);
+      const castResults = SkillSystem.updateCooldownSkills(hero, battleState, deltaMs);
+      this.handleSideSkillCasts(hero, castResults, heroes, enemies);
     }
 
     StatusEffectSystem.update(deltaMs, battleState);
@@ -83,6 +89,25 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
     this.projectiles.forEach((projectile) => projectile.destroy());
     this.projectiles.length = 0;
     this.pendingTargetCleanups.clear();
+  }
+
+  private handleSideSkillCasts(
+    hero: BattleHero,
+    results: SkillCastResult[],
+    heroes: HeroRuntimeState[],
+    enemies: EnemyRuntimeState[],
+  ): void {
+    for (const result of results) {
+      if (!result.success) continue;
+      this.sideSkillVfx.playCastFeedback(hero, result, (unitId, side) => {
+        if (side === 'hero') {
+          const target = heroes.find((unit) => unit.heroId === unitId);
+          return target ? { x: target.x, y: target.y } : null;
+        }
+        const target = enemies.find((unit) => unit.instanceId === unitId);
+        return target ? { x: target.x, y: target.y } : null;
+      });
+    }
   }
 
   private tickProjectiles(
@@ -264,22 +289,62 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
     for (const enemy of enemies) {
       if (!enemy.isAlive) continue;
 
+      const battleEnemy = ensureBattleEnemy(enemy);
+      if (StatusEffectSystem.isStunned(enemyRef(battleEnemy))) continue;
+
       enemy.attackCooldownRemaining -= delta * 1000;
-      if (enemy.attackCooldownRemaining > 0) continue;
 
       const target = getEnemyTarget(enemy, heroes);
       if (!target) continue;
 
-      if (this.getDistance(enemy, target) <= enemy.attackRange) {
-        const damage = this.calculateDamage(
-          this.getEffectiveEnemyAttack(enemy),
-          this.getEffectiveHeroDefense(target),
-        );
-        this.applyDamageToHero(target, damage, enemy);
-        const stagger = this.getDebuffStrength(enemy, 'stagger');
-        enemy.attackCooldownRemaining = enemy.attackCooldown * (1 + stagger);
+      const dist = this.getDistance(enemy, target);
+      if (dist > enemy.attackRange) {
+        this.advanceEnemyTowardTarget(enemy, target, delta);
+        continue;
       }
+
+      if (enemy.attackCooldownRemaining > 0) continue;
+
+      const damage = this.calculateDamage(
+        this.getEffectiveEnemyAttack(enemy),
+        this.getEffectiveHeroDefense(target),
+      );
+      this.applyDamageToHero(target, damage, enemy);
+      const stagger = this.getDebuffStrength(enemy, 'stagger');
+      enemy.attackCooldownRemaining = enemy.attackCooldown * (1 + stagger);
     }
+  }
+
+  private advanceEnemyTowardTarget(
+    enemy: EnemyRuntimeState,
+    target: HeroRuntimeState,
+    delta: number,
+  ): void {
+    const dx = target.x - enemy.x;
+    const dy = target.y - enemy.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist === 0) return;
+
+    const slow = this.getV2SlowMultiplier(enemy);
+    const step = enemy.moveSpeed * slow * delta;
+    const stopDistance = enemy.radius + target.radius;
+
+    if (dist <= stopDistance + step) {
+      enemy.x = target.x - (dx / dist) * stopDistance;
+      enemy.y = target.y - (dy / dist) * stopDistance;
+      return;
+    }
+
+    enemy.x += (dx / dist) * step;
+    enemy.y += (dy / dist) * step;
+  }
+
+  private getV2SlowMultiplier(unit: EnemyRuntimeState): number {
+    const battleEnemy = ensureBattleEnemy(unit);
+    const slowStrength = battleEnemy.v2StatusEffects
+      .filter((effect) => effect.statusId === 'slow' && effect.durationRemainingMs > 0)
+      .reduce((total, effect) => total + effect.value * effect.stacks, 0);
+    return Math.max(0.2, 1 - slowStrength);
   }
 
   private tickSupportHero(
