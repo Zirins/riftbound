@@ -29,7 +29,7 @@ import { InventorySystem } from '../systems/InventorySystem';
 import { loadCurrentRealm } from '../systems/SaveSystem';
 import { dissolve, getStarUpCost, getTotalShards, starUp } from '../systems/ShardSystem';
 import { ButtonPrimary } from '../ui/ButtonPrimary';
-import { HeroSigilSlotRow } from '../ui/HeroSigilSlotRow';
+import { HERO_SIGIL_SLOT_ROW_EXTENT_Y, HeroSigilSlotRow } from '../ui/HeroSigilSlotRow';
 import { HubOverlayPanel } from '../ui/HubOverlayPanel';
 import { ProgressBar } from '../ui/ProgressBar';
 import { StarRating } from '../ui/StarRating';
@@ -81,9 +81,12 @@ const OVERVIEW_STATS_Y = 182;
 const OVERVIEW_PASSIVE_Y = 222;
 const OVERVIEW_ULTIMATE_Y = 242;
 const OVERVIEW_SIGILS_Y = 272;
-const OVERVIEW_XP_BAR_Y = 328;
-const OVERVIEW_XP_LABEL_Y = 338;
-const OVERVIEW_ACTION_BUTTON_Y = CANVAS.HEIGHT - 22;
+const OVERVIEW_SIGIL_PROGRESS_GAP = 14;
+const OVERVIEW_PROGRESS_DIVIDER_Y =
+  OVERVIEW_SIGILS_Y + HERO_SIGIL_SLOT_ROW_EXTENT_Y + OVERVIEW_SIGIL_PROGRESS_GAP;
+const OVERVIEW_XP_LABEL_Y = OVERVIEW_PROGRESS_DIVIDER_Y + 6;
+const OVERVIEW_XP_BAR_Y = OVERVIEW_XP_LABEL_Y + 8;
+const OVERVIEW_ACTION_BUTTON_Y = CANVAS.HEIGHT - 8;
 
 export class HeroDetailScene extends Phaser.Scene {
   static readonly KEY = SCENE_KEYS.HERO_DETAIL;
@@ -352,7 +355,15 @@ export class HeroDetailScene extends Phaser.Scene {
     );
     this.sigilSlotRow.refresh(save, heroData.id);
 
-    this.add.line(0, 0, 40, OVERVIEW_XP_BAR_Y - 12, CANVAS.WIDTH - 40, OVERVIEW_XP_BAR_Y - 12, 0x444466).setOrigin(0);
+    this.add.line(
+      0,
+      0,
+      40,
+      OVERVIEW_PROGRESS_DIVIDER_Y,
+      CANVAS.WIDTH - 40,
+      OVERVIEW_PROGRESS_DIVIDER_Y,
+      0x444466,
+    ).setOrigin(0);
 
     const xpTarget = 100;
     const xpProgress = xpTarget > 0 ? Math.min(1, ownership.currentXP / xpTarget) : 0;

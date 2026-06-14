@@ -10,6 +10,11 @@ import type { RealmSaveDataV3 } from '../types';
 const SLOT_SIZE = 48;
 const SLOT_GAP = 10;
 const TITLE_TO_SLOTS_OFFSET = 20;
+const SUBLABEL_HEIGHT = 10;
+
+/** Vertical extent from originY through slot sublabels (for layout below the row). */
+export const HERO_SIGIL_SLOT_ROW_EXTENT_Y =
+  TITLE_TO_SLOTS_OFFSET + SLOT_SIZE / 2 + 4 + SUBLABEL_HEIGHT;
 
 interface SlotUi {
   bg: Phaser.GameObjects.Rectangle;
