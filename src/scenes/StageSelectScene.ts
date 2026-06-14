@@ -17,6 +17,7 @@ export class StageSelectScene extends Phaser.Scene {
   static readonly KEY = SCENE_KEYS.STAGE_SELECT;
 
   private stageId = '';
+  private sweepToastMessage: string | null = null;
   private backButton: ButtonPrimary | null = null;
   private battleButton: ButtonPrimary | null = null;
   private sweep1Button: ButtonPrimary | null = null;
@@ -28,8 +29,9 @@ export class StageSelectScene extends Phaser.Scene {
     super({ key: StageSelectScene.KEY });
   }
 
-  init(data: { stageId?: string }): void {
+  init(data: { stageId?: string; sweepToastMessage?: string }): void {
     this.stageId = data.stageId ?? 'stage_1_1';
+    this.sweepToastMessage = data.sweepToastMessage ?? null;
   }
 
   create(): void {
@@ -46,6 +48,11 @@ export class StageSelectScene extends Phaser.Scene {
     if (!realm) {
       this.scene.start(SCENE_KEYS.CAMPAIGN);
       return;
+    }
+
+    if (this.sweepToastMessage) {
+      this.showToast(this.sweepToastMessage);
+      this.sweepToastMessage = null;
     }
 
     const cleared = realm.clearedStages.find((record) => record.stageId === this.stageId);
@@ -211,8 +218,10 @@ export class StageSelectScene extends Phaser.Scene {
       return;
     }
 
-    this.showToast(this.formatSweepSummary(result.rewards, result.energySpent));
-    this.scene.restart({ stageId: this.stageId });
+    this.scene.restart({
+      stageId: this.stageId,
+      sweepToastMessage: this.formatSweepSummary(result.rewards, result.energySpent),
+    });
   }
 
   private formatSweepSummary(rewards: StageReward[], energySpent: number): string {
@@ -256,7 +265,7 @@ export class StageSelectScene extends Phaser.Scene {
       padding: { x: 10, y: 6 },
       align: 'center',
       wordWrap: { width: CANVAS.WIDTH - 80 },
-    }).setOrigin(0.5);
+    }).setOrigin(0.5).setDepth(1000);
     this.toastTimer = this.time.delayedCall(3200, () => {
       this.toastLabel?.destroy();
       this.toastLabel = null;

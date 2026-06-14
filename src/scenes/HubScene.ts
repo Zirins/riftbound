@@ -77,6 +77,7 @@ export class HubScene extends Phaser.Scene {
     this.buildZones();
     this.buildBottomBar();
     this.refreshNotificationDots();
+    this.currencyBar?.updateValues();
   }
 
   shutdown(): void {

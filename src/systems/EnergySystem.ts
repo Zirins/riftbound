@@ -2,27 +2,43 @@
 // Energy regeneration and spend/refund via EconomySystem.
 
 import { ENERGY } from '../constants/gameConfig';
+import type { PlayerInventoryV3, RealmSaveDataV3 } from '../types';
 import * as Economy from './EconomySystem';
 import { loadCurrentRealm, saveCurrentRealm } from './SaveSystem';
+
+function getMaxEnergy(inventory: PlayerInventoryV3): number {
+  return inventory.maxEnergy ?? ENERGY.MAX;
+}
 
 export function computeRegen(): void {
   const realm = loadCurrentRealm();
   if (!realm) return;
 
-  const { inventory } = realm;
+  const save = realm as RealmSaveDataV3;
+  const { inventory } = save;
   const now = Date.now();
+  const maxEnergy = getMaxEnergy(inventory);
+
+  if (inventory.energy >= maxEnergy) {
+    saveCurrentRealm({
+      ...save,
+      inventory: { ...inventory, lastEnergyRegenAt: now },
+    });
+    return;
+  }
+
   const elapsedMs = now - inventory.lastEnergyRegenAt;
   const regenPerMs = ENERGY.REGEN_PER_MINUTE / 60_000;
   const gained = Math.floor(elapsedMs * regenPerMs);
 
   if (gained <= 0) return;
 
-  const newEnergy = Math.min(ENERGY.MAX, inventory.energy + gained);
+  const newEnergy = Math.min(maxEnergy, inventory.energy + gained);
   const consumed = newEnergy - inventory.energy;
   const msConsumed = consumed / regenPerMs;
 
   saveCurrentRealm({
-    ...realm,
+    ...save,
     inventory: {
       ...inventory,
       energy: newEnergy,

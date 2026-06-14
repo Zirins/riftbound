@@ -17,7 +17,7 @@ import {
   grantSweepReward,
 } from './RewardSystem';
 import { getStageData } from './StageLoader';
-import { saveCurrentRealm } from './SaveSystem';
+import { loadCurrentRealm, saveCurrentRealm } from './SaveSystem';
 
 const RIFT_SEASON_CAMPAIGN_XP = 3;
 const SWEEP_COUNTS = [1, 10] as const;
@@ -25,6 +25,11 @@ export type SweepCount = (typeof SWEEP_COUNTS)[number];
 
 function isSweepCount(count: number): count is SweepCount {
   return count === 1 || count === 10;
+}
+
+function loadMutableSave(): RealmSaveDataV3 | null {
+  const realm = loadCurrentRealm();
+  return realm ? (realm as RealmSaveDataV3) : null;
 }
 
 function getClearedRecord(save: RealmSaveDataV3, stageId: string) {
@@ -60,6 +65,11 @@ function applyCampaignClearProgression(
   reportDailyTaskProgress(save, 'task_complete_stages', 1);
   save.riftSeasonState.currentXp += RIFT_SEASON_CAMPAIGN_XP;
   GameEventBus.emit(save, { type: 'stage_cleared', stageId, stars, swept });
+}
+
+function logEnergyCheckpoint(label: string, save: RealmSaveDataV3 | null): void {
+  if (!import.meta.env.DEV || !save) return;
+  console.info(`[SweepSystem] ${label}`, { energy: save.inventory.energy });
 }
 
 export class SweepSystem {
@@ -109,7 +119,7 @@ export class SweepSystem {
     }
 
     const performance = buildSweepPerformance(stageId);
-    for (let sweepIndex = 0; sweepIndex < count; sweepIndex += 1) {
+    for (let i = 0; i < count; i += 1) {
       const reward = computeStageReward(stageId, performance, save.clearedStages);
       if (!reward) {
         return {
@@ -128,8 +138,21 @@ export class SweepSystem {
     };
   }
 
-  static sweep(save: RealmSaveDataV3, stageId: string, count: 1 | 10): SweepResult {
+  static sweep(_save: RealmSaveDataV3, stageId: string, count: 1 | 10): SweepResult {
     EnergySystem.computeRegen();
+
+    const save = loadMutableSave();
+    if (!save) {
+      return {
+        success: false,
+        reason: 'No save loaded',
+        sweepCount: 0,
+        energySpent: 0,
+        rewards: [],
+      };
+    }
+
+    logEnergyCheckpoint('energy before sweep', save);
 
     const validation = SweepSystem.canSweep(save, stageId, count);
     if (!validation.canSweep) {
@@ -165,6 +188,12 @@ export class SweepSystem {
       };
     }
 
+    logEnergyCheckpoint('energy after spend (pre-save)', save);
+    saveCurrentRealm(save);
+
+    const persistedAfterSpend = loadMutableSave();
+    logEnergyCheckpoint('energy after spend persisted', persistedAfterSpend);
+
     const performance = buildSweepPerformance(stageId);
     const grantedRewards: StageReward[] = [];
 
@@ -172,6 +201,7 @@ export class SweepSystem {
       const reward = computeStageReward(stageId, performance, save.clearedStages);
       if (!reward) {
         EconomySystem.grantCurrency(save, 'energy', energyRequired, 'campaign_sweep');
+        saveCurrentRealm(save);
         return {
           success: false,
           reason: 'Sweep failed while granting rewards — energy refunded',
@@ -184,6 +214,7 @@ export class SweepSystem {
       const grantResult = grantSweepReward(save, reward);
       if (!grantResult.success) {
         EconomySystem.grantCurrency(save, 'energy', energyRequired, 'campaign_sweep');
+        saveCurrentRealm(save);
         return {
           success: false,
           reason: grantResult.errors?.join(', ') ?? 'Reward grant failed — energy refunded',
@@ -198,6 +229,7 @@ export class SweepSystem {
     }
 
     saveCurrentRealm(save);
+    logEnergyCheckpoint('energy after full sweep persisted', loadMutableSave());
 
     return {
       success: true,

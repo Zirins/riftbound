@@ -134,12 +134,19 @@ export class EconomySystem {
       case 'void_gem':
         save.inventory = { ...inventory, voidGems: Math.max(0, value) };
         break;
-      case 'energy':
+      case 'energy': {
+        const maxEnergy = inventory.maxEnergy;
+        const clamped = Math.min(Math.max(0, value), maxEnergy);
+        const now = Date.now();
+        const spent = clamped < inventory.energy;
+        const atCap = clamped >= maxEnergy;
         save.inventory = {
           ...inventory,
-          energy: Math.min(Math.max(0, value), inventory.maxEnergy),
+          energy: clamped,
+          lastEnergyRegenAt: spent || atCap ? now : inventory.lastEnergyRegenAt,
         };
         break;
+      }
       case 'arena_coin':
         save.inventory = { ...inventory, arenaCoins: Math.max(0, value) };
         break;
