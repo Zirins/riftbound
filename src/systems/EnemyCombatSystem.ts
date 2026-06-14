@@ -109,7 +109,8 @@ export class EnemyCombatSystem {
 
     const cooldowns = this.getCooldownMap(enemy.instanceId);
     for (const skillId of this.getSkillIds(enemy.enemyId)) {
-      const state = cooldowns.get(skillId) ?? { remainingMs: 0 };
+      const fullCooldown = this.getSkillCooldown(enemy.enemyId, skillId);
+      const state = cooldowns.get(skillId) ?? { remainingMs: fullCooldown };
       state.remainingMs -= deltaMs;
       if (state.remainingMs > 0) {
         cooldowns.set(skillId, state);

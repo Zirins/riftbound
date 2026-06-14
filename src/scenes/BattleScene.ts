@@ -167,7 +167,6 @@ export class BattleScene extends Phaser.Scene {
   private ultimateButtons!: UltimateButtons;
   private bossBar!: BossBar;
   private combatActive = false;
-  private isFirstWaveSpawn = true;
   private battleEnded = false;
   private readonly heroAliveSnapshot = new Map<string, boolean>();
 
@@ -189,6 +188,9 @@ export class BattleScene extends Phaser.Scene {
   };
 
   private readonly onWaveCleared = (): void => {
+    this.combatActive = false;
+    this.enemyCombat.reset();
+    this.autoBattle.clearProjectiles();
     this.waveLabel.setText('WAVE CLEARED');
   };
 
@@ -231,14 +233,14 @@ export class BattleScene extends Phaser.Scene {
 
     this.waveLabel.setText(`WAVE ${payload.waveNumber}`);
 
-    if (this.isFirstWaveSpawn) {
-      this.isFirstWaveSpawn = false;
+    if (payload.waveIndex === 0) {
       this.formationSystem.animateWalkIn(this.heroes, this.enemies);
       return;
     }
 
     this.combatActive = false;
     this.autoBattle.clearProjectiles();
+    this.formationSystem.snapHeroesToBattlePositions(this.heroes);
     this.formationSystem.animateEnemyWalkIn(this.enemies);
   };
 
@@ -304,6 +306,10 @@ export class BattleScene extends Phaser.Scene {
     this.bossBar = new BossBar(this);
     this.bossBar.create();
 
+    this.enemyCombat = new EnemyCombatSystem(this);
+    this.autoBattle = new AutoBattleSystem(this, this.enemyCombat);
+    this.autoBattle.on('enemyKilled', this.onEnemyKilled);
+
     this.waveSystem = new WaveSystem(this);
     this.waveSystem.on('waveEnemiesSpawned', this.onWaveEnemiesSpawned);
     this.waveSystem.on('waveCleared', this.onWaveCleared);
@@ -325,10 +331,6 @@ export class BattleScene extends Phaser.Scene {
       (enabled) => this.handleAutoUltimateToggle(enabled),
     );
     this.ultimateButtons.create(this.buildHudPortraits());
-
-    this.enemyCombat = new EnemyCombatSystem(this);
-    this.autoBattle = new AutoBattleSystem(this, this.enemyCombat);
-    this.autoBattle.on('enemyKilled', this.onEnemyKilled);
     this.ultimateSystem.on('enemyKilled', this.onEnemyKilled);
 
     this.syncAllVisuals();
@@ -337,7 +339,6 @@ export class BattleScene extends Phaser.Scene {
   private resetBattleSession(): void {
     this.battleEnded = false;
     this.combatActive = false;
-    this.isFirstWaveSpawn = true;
     this.heroesDeathCount = 0;
     this.heroes = [];
     this.enemies = [];
@@ -515,7 +516,7 @@ export class BattleScene extends Phaser.Scene {
   ): UnitVisual {
     const circle = this.add.circle(x, y, radius, color);
     const label = this.add.text(x, y + radius, name, {
-      fontSize: `${radius}px`,
+      fontSize: `${Math.max(10, Math.min(radius, 14))}px`,
       color: '#ffffff',
       fontFamily: 'monospace',
     }).setOrigin(0.5, 0);
@@ -598,6 +599,7 @@ export class BattleScene extends Phaser.Scene {
     this.waveSystem?.off('battleVictory', this.onBattleVictory);
     this.waveSystem?.off('bossHpUpdate', this.onBossHpUpdate);
     this.autoBattle?.clearProjectiles();
+    this.enemyCombat?.destroy();
     this.ultimateSystem?.destroy();
     this.ultimateButtons?.destroy();
     this.waveSystem?.destroy();
