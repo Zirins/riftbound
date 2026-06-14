@@ -76,6 +76,15 @@ const TAB_WIDTH = 140;
 const TAB_HEIGHT = 28;
 const TAB_GAP = 8;
 
+/** Overview tab vertical layout — stats → passive/ultimate → sigils → progression. */
+const OVERVIEW_STATS_Y = 182;
+const OVERVIEW_PASSIVE_Y = 222;
+const OVERVIEW_ULTIMATE_Y = 242;
+const OVERVIEW_SIGILS_Y = 272;
+const OVERVIEW_XP_BAR_Y = 328;
+const OVERVIEW_XP_LABEL_Y = 338;
+const OVERVIEW_ACTION_BUTTON_Y = CANVAS.HEIGHT - 22;
+
 export class HeroDetailScene extends Phaser.Scene {
   static readonly KEY = SCENE_KEYS.HERO_DETAIL;
 
@@ -281,14 +290,6 @@ export class HeroDetailScene extends Phaser.Scene {
 
     this.portrait = this.add.circle(110, 130, heroData.radius, heroData.color);
 
-    this.sigilSlotRow = new HeroSigilSlotRow(
-      this,
-      48,
-      168,
-      (slotIndex, instanceId) => this.handleSigilSlotTap(slotIndex, instanceId),
-    );
-    this.sigilSlotRow.refresh(save, heroData.id);
-
     this.starRating = new StarRating(this, 220, 98, ownership.starRank);
 
     this.levelLabel = this.add.text(220, 118, `LV ${ownership.level} / ${levelCap}`, {
@@ -315,7 +316,7 @@ export class HeroDetailScene extends Phaser.Scene {
     this.add.line(0, 0, 40, 165, CANVAS.WIDTH - 40, 165, 0x444466).setOrigin(0);
 
     this.statTexts.push(
-      this.add.text(60, 182, `HP: ${stats.hp.toLocaleString()}   ATK: ${stats.attack}   DEF: ${stats.defense}`, {
+      this.add.text(60, OVERVIEW_STATS_Y, `HP: ${stats.hp.toLocaleString()}   ATK: ${stats.attack}   DEF: ${stats.defense}`, {
         fontSize: '12px',
         color: '#ffffff',
         fontFamily: 'monospace',
@@ -327,13 +328,13 @@ export class HeroDetailScene extends Phaser.Scene {
     const passiveText = PASSIVE_LABELS[heroData.passiveId] ?? heroData.passiveId;
     const ultimateText = ULTIMATE_LABELS[heroData.ultimateId] ?? heroData.ultimateId;
     this.statTexts.push(
-      this.add.text(60, 222, `Passive: ${passiveText}`, {
+      this.add.text(60, OVERVIEW_PASSIVE_Y, `Passive: ${passiveText}`, {
         fontSize: '10px',
         color: '#ccccdd',
         fontFamily: 'monospace',
         wordWrap: { width: CANVAS.WIDTH - 100 },
       }),
-      this.add.text(60, 242, `Ultimate: ${ultimateText}`, {
+      this.add.text(60, OVERVIEW_ULTIMATE_Y, `Ultimate: ${ultimateText}`, {
         fontSize: '10px',
         color: '#ccccdd',
         fontFamily: 'monospace',
@@ -341,21 +342,31 @@ export class HeroDetailScene extends Phaser.Scene {
       }),
     );
 
-    this.add.line(0, 0, 40, 268, CANVAS.WIDTH - 40, 268, 0x444466).setOrigin(0);
+    this.add.line(0, 0, 40, OVERVIEW_SIGILS_Y - 8, CANVAS.WIDTH - 40, OVERVIEW_SIGILS_Y - 8, 0x444466).setOrigin(0);
+
+    this.sigilSlotRow = new HeroSigilSlotRow(
+      this,
+      60,
+      OVERVIEW_SIGILS_Y,
+      (slotIndex, instanceId) => this.handleSigilSlotTap(slotIndex, instanceId),
+    );
+    this.sigilSlotRow.refresh(save, heroData.id);
+
+    this.add.line(0, 0, 40, OVERVIEW_XP_BAR_Y - 12, CANVAS.WIDTH - 40, OVERVIEW_XP_BAR_Y - 12, 0x444466).setOrigin(0);
 
     const xpTarget = 100;
     const xpProgress = xpTarget > 0 ? Math.min(1, ownership.currentXP / xpTarget) : 0;
-    this.xpBar = new ProgressBar(this, 60, 288, 280, 8, 0x44aa66, 0x333344);
+    this.xpBar = new ProgressBar(this, 60, OVERVIEW_XP_BAR_Y, 280, 8, 0x44aa66, 0x333344);
     this.xpBar.setProgress(xpProgress);
 
-    this.xpLabel = this.add.text(60, 302, `XP: ${ownership.currentXP} / ${xpTarget}`, {
+    this.xpLabel = this.add.text(60, OVERVIEW_XP_LABEL_Y, `XP: ${ownership.currentXP} / ${xpTarget}`, {
       fontSize: '10px',
       color: '#888899',
       fontFamily: 'monospace',
     });
 
     const shardNeed = starCost?.shards ?? 0;
-    this.shardLabel = this.add.text(400, 288, `Shards: ${totalShards} / ${shardNeed || '—'}`, {
+    this.shardLabel = this.add.text(400, OVERVIEW_XP_BAR_Y, `Shards: ${totalShards} / ${shardNeed || '—'}`, {
       fontSize: '11px',
       color: '#aaaacc',
       fontFamily: 'monospace',
@@ -386,7 +397,7 @@ export class HeroDetailScene extends Phaser.Scene {
     this.levelUpButton = new ButtonPrimary(
       this,
       220,
-      CANVAS.HEIGHT - 48,
+      OVERVIEW_ACTION_BUTTON_Y,
       levelLabel,
       () => this.handleLevelUp(),
       280,
@@ -397,7 +408,7 @@ export class HeroDetailScene extends Phaser.Scene {
     this.starUpButton = new ButtonPrimary(
       this,
       580,
-      CANVAS.HEIGHT - 48,
+      OVERVIEW_ACTION_BUTTON_Y,
       starLabelText,
       () => this.handleStarUp(),
       280,

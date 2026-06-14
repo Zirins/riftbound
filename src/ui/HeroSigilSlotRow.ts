@@ -7,8 +7,9 @@ import { getSigilDefinition } from '../data/sigils';
 import { SigilSystem } from '../systems/SigilSystem';
 import type { RealmSaveDataV3 } from '../types';
 
-const SLOT_SIZE = 56;
-const SLOT_GAP = 12;
+const SLOT_SIZE = 48;
+const SLOT_GAP = 10;
+const TITLE_TO_SLOTS_OFFSET = 20;
 
 interface SlotUi {
   bg: Phaser.GameObjects.Rectangle;
@@ -36,7 +37,7 @@ export class HeroSigilSlotRow {
 
     for (let slotIndex = 0; slotIndex < SIGIL.SLOTS_PER_HERO_V2; slotIndex += 1) {
       const x = originX + slotIndex * (SLOT_SIZE + SLOT_GAP) + SLOT_SIZE / 2;
-      const y = originY + 38;
+      const y = originY + TITLE_TO_SLOTS_OFFSET;
       const bg = scene.add.rectangle(x, y, SLOT_SIZE, SLOT_SIZE, 0x1a1a2e)
         .setStrokeStyle(1, 0x444466);
       const label = scene.add.text(x, y, `S${slotIndex}`, {
@@ -44,7 +45,7 @@ export class HeroSigilSlotRow {
         color: '#aaaaaa',
         fontFamily: 'monospace',
       }).setOrigin(0.5);
-      const subLabel = scene.add.text(x, y + SLOT_SIZE / 2 + 6, 'Empty', {
+      const subLabel = scene.add.text(x, y + SLOT_SIZE / 2 + 4, 'Empty', {
         fontSize: '7px',
         color: '#666677',
         fontFamily: 'monospace',
