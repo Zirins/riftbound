@@ -100,6 +100,17 @@ export class FormationSystem extends Phaser.Events.EventEmitter {
     }
   }
 
+  cancelWalkIn(): void {
+    this.isWalkingIn = false;
+    this.walkInUnits = [];
+    this.elapsedMs = 0;
+  }
+
+  destroy(): void {
+    this.cancelWalkIn();
+    this.removeAllListeners();
+  }
+
   animateEnemyWalkIn(enemies: EnemyRuntimeState[]): void {
     this.snapInterruptedHeroWalkIns();
     this.walkInUnits = [];

@@ -63,6 +63,7 @@ export class UltimateSystem extends Phaser.Events.EventEmitter {
   destroy(): void {
     this.vfxObjects.forEach((object) => object.destroy());
     this.vfxObjects.length = 0;
+    this.removeAllListeners();
   }
 
   private playUltimateVfx(

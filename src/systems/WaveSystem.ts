@@ -13,6 +13,7 @@ export class WaveSystem extends Phaser.Events.EventEmitter {
   private interWavePauseMs = 0;
   private spawnCounter = 0;
   private wavesClearedCount = 0;
+  private clearedWaveIndices = new Set<number>();
 
   constructor(_scene: Phaser.Scene) {
     super();
@@ -36,6 +37,7 @@ export class WaveSystem extends Phaser.Events.EventEmitter {
     this.interWavePauseMs = 0;
     this.spawnCounter = 0;
     this.wavesClearedCount = 0;
+    this.clearedWaveIndices.clear();
     this.spawnWave(0);
   }
 
@@ -45,11 +47,15 @@ export class WaveSystem extends Phaser.Events.EventEmitter {
     _enemies: EnemyRuntimeState[],
     _onSummon: (enemy: EnemyRuntimeState) => void,
   ): void {
-    if (this.interWavePauseMs > 0) {
-      this.interWavePauseMs -= deltaMs;
-      if (this.interWavePauseMs <= 0) {
-        this.spawnWave(this.currentWaveIndex + 1);
-      }
+    if (this.interWavePauseMs <= 0) return;
+
+    this.interWavePauseMs -= deltaMs;
+    if (this.interWavePauseMs <= 0) {
+      this.interWavePauseMs = 0;
+      // #region agent log
+      fetch('http://127.0.0.1:7764/ingest/39ea4d96-09a5-471d-9f43-5260085e1ae8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d07587'},body:JSON.stringify({sessionId:'d07587',location:'WaveSystem.ts:update',message:'inter-wave pause expired, spawning next wave',data:{nextWaveIndex:this.currentWaveIndex+1,currentWaveIndex:this.currentWaveIndex},timestamp:Date.now(),hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+      this.spawnWave(this.currentWaveIndex + 1);
     }
   }
 
@@ -68,11 +74,26 @@ export class WaveSystem extends Phaser.Events.EventEmitter {
 
   destroy(): void {
     this.removeAllListeners();
+    this.clearedWaveIndices.clear();
+    this.interWavePauseMs = 0;
   }
 
   private handleWaveCleared(): void {
+    const alreadyCleared = this.clearedWaveIndices.has(this.currentWaveIndex);
+    // #region agent log
+    fetch('http://127.0.0.1:7764/ingest/39ea4d96-09a5-471d-9f43-5260085e1ae8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d07587'},body:JSON.stringify({sessionId:'d07587',location:'WaveSystem.ts:handleWaveCleared',message:'handle wave cleared',data:{waveIndex:this.currentWaveIndex,alreadyCleared,interWavePauseMs:this.interWavePauseMs,isLastWave:this.currentWaveIndex>=this.waveConfigs.length-1},timestamp:Date.now(),hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    if (alreadyCleared) return;
+
+    this.clearedWaveIndices.add(this.currentWaveIndex);
     this.emit('waveCleared', { waveIndex: this.currentWaveIndex });
     this.wavesClearedCount += 1;
+
+    const isLastWave = this.currentWaveIndex >= this.waveConfigs.length - 1;
+    if (isLastWave) {
+      this.emit('battleVictory');
+      return;
+    }
 
     if (this.waveConfigs[this.currentWaveIndex].isBossWave) {
       return;
@@ -83,8 +104,12 @@ export class WaveSystem extends Phaser.Events.EventEmitter {
   }
 
   private spawnWave(waveIndex: number): void {
+    // #region agent log
+    fetch('http://127.0.0.1:7764/ingest/39ea4d96-09a5-471d-9f43-5260085e1ae8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d07587'},body:JSON.stringify({sessionId:'d07587',location:'WaveSystem.ts:spawnWave',message:'spawn wave',data:{waveIndex,waveConfigCount:this.waveConfigs.length,skipped:waveIndex>=this.waveConfigs.length},timestamp:Date.now(),hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
     if (waveIndex >= this.waveConfigs.length) return;
 
+    this.interWavePauseMs = 0;
     this.currentWaveIndex = waveIndex;
     const wave = this.waveConfigs[waveIndex];
     const enemies = this.buildWaveEnemies(waveIndex, wave.enemies, wave.statScale ?? 1);

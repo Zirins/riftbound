@@ -96,6 +96,12 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
     this.pendingTargetCleanups.clear();
   }
 
+  destroy(): void {
+    this.clearProjectiles();
+    this.sideSkillVfx.destroy();
+    this.removeAllListeners();
+  }
+
   private handleSideSkillCasts(
     hero: BattleHero,
     results: SkillCastResult[],

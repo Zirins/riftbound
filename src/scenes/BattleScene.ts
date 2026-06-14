@@ -143,6 +143,8 @@ function getHeroDisplayName(heroId: string): string {
 
 export class BattleScene extends Phaser.Scene {
   static readonly KEY = SCENE_KEYS.BATTLE;
+  private static nextBattleInstanceId = 0;
+  private battleInstanceId = 0;
 
   private stageId = 'stage_1_1';
   private arenaOpponentId: string | null = null;
@@ -168,6 +170,8 @@ export class BattleScene extends Phaser.Scene {
   private bossBar!: BossBar;
   private combatActive = false;
   private battleEnded = false;
+  private battleLoopActive = false;
+  private readonly processedEnemyKills = new Set<string>();
   private readonly heroAliveSnapshot = new Map<string, boolean>();
 
   private readonly onFormationReady = (): void => {
@@ -179,6 +183,9 @@ export class BattleScene extends Phaser.Scene {
   };
 
   private readonly onEnemyKilled = (instanceId: string): void => {
+    if (this.processedEnemyKills.has(instanceId)) return;
+    this.processedEnemyKills.add(instanceId);
+
     const enemy = this.enemies.find((unit) => unit.instanceId === instanceId);
     this.autoBattle.queueTargetCleanup(instanceId);
     this.syncUnitVisual(this.enemyVisuals.get(instanceId), enemy);
@@ -188,7 +195,11 @@ export class BattleScene extends Phaser.Scene {
   };
 
   private readonly onWaveCleared = (): void => {
+    // #region agent log
+    fetch('http://127.0.0.1:7764/ingest/39ea4d96-09a5-471d-9f43-5260085e1ae8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d07587'},body:JSON.stringify({sessionId:'d07587',location:'BattleScene.ts:onWaveCleared',message:'wave cleared handler',data:{battleInstanceId:this.battleInstanceId,combatActiveBefore:this.combatActive,interWavePause:this.waveSystem?.isInterWavePause},timestamp:Date.now(),hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
     this.combatActive = false;
+    this.formationSystem.cancelWalkIn();
     this.enemyCombat.reset();
     this.autoBattle.clearProjectiles();
     this.waveLabel.setText('WAVE CLEARED');
@@ -197,6 +208,7 @@ export class BattleScene extends Phaser.Scene {
   private readonly onBattleVictory = (): void => {
     if (this.battleEnded) return;
     this.battleEnded = true;
+    this.battleLoopActive = false;
     this.gameState.isVictory = true;
     this.combatActive = false;
 
@@ -223,6 +235,10 @@ export class BattleScene extends Phaser.Scene {
   };
 
   private readonly onWaveEnemiesSpawned = (payload: WaveEnemiesSpawnedPayload): void => {
+    // #region agent log
+    fetch('http://127.0.0.1:7764/ingest/39ea4d96-09a5-471d-9f43-5260085e1ae8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d07587'},body:JSON.stringify({sessionId:'d07587',location:'BattleScene.ts:onWaveEnemiesSpawned',message:'wave enemies spawned',data:{battleInstanceId:this.battleInstanceId,waveIndex:payload.waveIndex,waveNumber:payload.waveNumber,enemyCount:payload.enemies.length},timestamp:Date.now(),hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
+    this.processedEnemyKills.clear();
     this.enemyCombat.reset();
     this.clearEnemyState();
     this.enemies.push(...payload.enemies);
@@ -268,6 +284,9 @@ export class BattleScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.battleInstanceId = BattleScene.nextBattleInstanceId + 1;
+    BattleScene.nextBattleInstanceId = this.battleInstanceId;
+    this.teardownBattleSystems();
     this.resetBattleSession();
 
     this.cameras.main.setBackgroundColor(UI.BACKGROUND_COLOR);
@@ -334,6 +353,35 @@ export class BattleScene extends Phaser.Scene {
     this.ultimateSystem.on('enemyKilled', this.onEnemyKilled);
 
     this.syncAllVisuals();
+    this.battleLoopActive = true;
+    // #region agent log
+    fetch('http://127.0.0.1:7764/ingest/39ea4d96-09a5-471d-9f43-5260085e1ae8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d07587'},body:JSON.stringify({sessionId:'d07587',location:'BattleScene.ts:create',message:'battle create complete',data:{battleInstanceId:this.battleInstanceId,heroIds:this.heroes.map((h)=>h.heroId),stageId:this.stageId,waveCount:waveConfigs.length},timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
+  }
+
+  private teardownBattleSystems(): void {
+    // #region agent log
+    fetch('http://127.0.0.1:7764/ingest/39ea4d96-09a5-471d-9f43-5260085e1ae8',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'d07587'},body:JSON.stringify({sessionId:'d07587',location:'BattleScene.ts:teardownBattleSystems',message:'teardown battle systems',data:{battleInstanceId:this.battleInstanceId,hadAutoBattle:!!this.autoBattle,hadWaveSystem:!!this.waveSystem,battleLoopWasActive:this.battleLoopActive},timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
+    this.battleLoopActive = false;
+    this.processedEnemyKills.clear();
+
+    this.formationSystem?.off('formationReady', this.onFormationReady);
+    this.formationSystem?.off('waveEnemiesReady', this.onWaveEnemiesReady);
+    this.autoBattle?.off('enemyKilled', this.onEnemyKilled);
+    this.ultimateSystem?.off('enemyKilled', this.onEnemyKilled);
+    this.waveSystem?.off('waveEnemiesSpawned', this.onWaveEnemiesSpawned);
+    this.waveSystem?.off('waveCleared', this.onWaveCleared);
+    this.waveSystem?.off('battleVictory', this.onBattleVictory);
+    this.waveSystem?.off('bossHpUpdate', this.onBossHpUpdate);
+
+    this.autoBattle?.destroy();
+    this.enemyCombat?.destroy();
+    this.formationSystem?.destroy();
+    this.ultimateSystem?.destroy();
+    this.ultimateButtons?.destroy();
+    this.waveSystem?.destroy();
+    this.bossBar?.destroy();
   }
 
   private resetBattleSession(): void {
@@ -348,6 +396,8 @@ export class BattleScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number): void {
+    if (!this.battleLoopActive || this.battleEnded) return;
+
     const deltaSeconds = delta / 1000;
     this.formationSystem.update(deltaSeconds);
 
@@ -590,20 +640,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   shutdown(): void {
-    this.formationSystem?.off('formationReady', this.onFormationReady);
-    this.formationSystem?.off('waveEnemiesReady', this.onWaveEnemiesReady);
-    this.autoBattle?.off('enemyKilled', this.onEnemyKilled);
-    this.ultimateSystem?.off('enemyKilled', this.onEnemyKilled);
-    this.waveSystem?.off('waveEnemiesSpawned', this.onWaveEnemiesSpawned);
-    this.waveSystem?.off('waveCleared', this.onWaveCleared);
-    this.waveSystem?.off('battleVictory', this.onBattleVictory);
-    this.waveSystem?.off('bossHpUpdate', this.onBossHpUpdate);
-    this.autoBattle?.clearProjectiles();
-    this.enemyCombat?.destroy();
-    this.ultimateSystem?.destroy();
-    this.ultimateButtons?.destroy();
-    this.waveSystem?.destroy();
-    this.bossBar?.destroy();
+    this.teardownBattleSystems();
 
     this.battleBackground?.destroy();
     this.waveLabel?.destroy();
