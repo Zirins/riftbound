@@ -213,7 +213,10 @@ export class BattleScene extends Phaser.Scene {
     this.combatActive = false;
 
     if (this.stageId === 'arena') {
-      this.scene.start(SCENE_KEYS.ARENA_RESULT, { win: true });
+      this.scene.start(SCENE_KEYS.ARENA_RESULT, {
+        win: true,
+        arenaOpponentId: this.arenaOpponentId ?? undefined,
+      });
       return;
     }
 
@@ -508,7 +511,10 @@ export class BattleScene extends Phaser.Scene {
     const fallenName = getHeroDisplayName(fallenHeroId);
 
     if (this.stageId === 'arena') {
-      this.scene.start(SCENE_KEYS.ARENA_RESULT, { win: false });
+      this.scene.start(SCENE_KEYS.ARENA_RESULT, {
+        win: false,
+        arenaOpponentId: this.arenaOpponentId ?? undefined,
+      });
       return;
     }
 

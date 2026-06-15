@@ -450,6 +450,14 @@ export interface ArenaState {
   lastAttemptResetDate: string;  // 'YYYY-MM-DD'
   lastRewardClaimDate: string;
   defenseFormation: FormationGrid;
+  seasonStartDate: string;
+  seasonEndDate: string;
+  lastMatchDate: string;
+  /** RP before decay for the current inactivity streak — enables idempotent decay. */
+  inactivityDecayBaseRankPoints: number;
+  inactivityDecayMatchDate: string;
+  /** Local date when decay was last synced — prevents double-apply same day. */
+  inactivityDecayThroughDate: string;
 }
 
 export interface ArenaMatchResult {
@@ -542,6 +550,7 @@ export type RewardSource =
   | 'covenant_boss'
   | 'covenant_shop'
   | 'friend_gift'
+  | 'friend_shop'
   | 'rift_season'
   | 'gacha_pull'
   | 'iap_purchase'

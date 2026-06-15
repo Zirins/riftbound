@@ -40,8 +40,7 @@ export const WEEKLY_MISSIONS: WeeklyMissionDefinition[] = [
     name: 'Arena Competitor',
     description: 'Win 10 Arena matches',
     requiredProgress: 10,
-    availability: 'locked',
-    lockReason: 'Unlocks when Arena weekly missions are available',
+    availability: 'active',
     reward: {
       source: 'weekly_task',
       currencies: [

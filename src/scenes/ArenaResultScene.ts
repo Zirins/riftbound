@@ -9,6 +9,7 @@ import type { ArenaMatchResult } from '../types';
 
 interface ArenaResultSceneData {
   win?: boolean;
+  arenaOpponentId?: string;
 }
 
 export class ArenaResultScene extends Phaser.Scene {
@@ -30,7 +31,7 @@ export class ArenaResultScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor(UI.BACKGROUND_COLOR);
 
     const win = this.sceneData.win ?? false;
-    this.result = ArenaMatch.resolveMatchResult(win);
+    this.result = ArenaMatch.resolveMatchResult(win, this.sceneData.arenaOpponentId);
 
     const title = win ? 'ARENA VICTORY' : 'ARENA DEFEAT';
     const titleColor = win ? '#ffee44' : '#ff6666';

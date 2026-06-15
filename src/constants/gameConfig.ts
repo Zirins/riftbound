@@ -500,6 +500,7 @@ export const FEATURE_UNLOCKS = {
   CELESTIAL_MARKET:   { type: 'stage_clear', stageId: 'stage_1_3' },
   INVENTORY:          { type: 'stage_clear', stageId: 'stage_1_3' },
   RESONANCE_ARENA:    { type: 'stage_clear', stageId: 'stage_1_5' },
+  FRIENDS:            { type: 'stage_clear', stageId: 'stage_1_5' },
   MAIL:               { type: 'always' },
   RIFT_CHRONICLE:     { type: 'always' },
   VOID_TRIAL:         { type: 'stage_clear', stageId: 'stage_2_4' },
@@ -620,6 +621,17 @@ export const BATTLE_STAT_CAPS = {
 export const VOID_TRIAL = {
   MAX_FLOOR: 20,
   DAILY_ATTEMPTS: 3,
+} as const;
+
+// ─── V2 Arena Seasons ────────────────────────────────────────────────────────
+export const ARENA_SEASON = {
+  SEASON_DURATION_DAYS: 30,
+  SOFT_RESET_RATIO: 0.7,
+  /** Rift Vanguard (6000 RP) and above — inactivity decay applies. */
+  TOP_TIER_MIN_POINTS: 6_000,
+  INACTIVITY_THRESHOLD_DAYS: 7,
+  /** Multiplicative decay per full inactive week beyond threshold: rank × 0.95^weeks. */
+  INACTIVITY_DECAY_PER_WEEK: 0.05,
 } as const;
 
 // ─── V2 Rift Season (Battle Pass) ───────────────────────────────────────────

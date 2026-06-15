@@ -18,6 +18,7 @@ import {
   resetCovenantDailyContribution,
   resetCovenantShopWeeklyHandler,
   resetFriendDailyGifts,
+  resetFriendShopWeeklyHandler,
   resetPatronDailyGift,
   resetVoidTrialDaily,
   resetWeeklyTasks,
@@ -95,6 +96,8 @@ export class ResetService {
       handlersRun.push('CovenantBossSystem.resetWeekly');
       resetCovenantShopWeeklyHandler(save, weeklyWeekKey);
       handlersRun.push('CovShopSystem.resetWeekly');
+      resetFriendShopWeeklyHandler(save, weeklyWeekKey);
+      handlersRun.push('FriendShopSystem.resetWeekly');
       VoidTrialSystem.resetWeekly(save, weeklyWeekKey);
       handlersRun.push('VoidTrialSystem.resetWeekly');
       save.resetState.lastWeeklyResetWeekKey = weeklyWeekKey;

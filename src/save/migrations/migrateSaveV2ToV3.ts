@@ -2,6 +2,7 @@
 // Idempotent realm migration from V1.1 (schema 2) to V2 (schema 3) save fields.
 
 import { createDefaultAchievementState } from '../defaults/createDefaultAchievementState';
+import { createDefaultArenaSeasonFields } from '../defaults/createDefaultArenaSeasonFields';
 import { createDefaultAwakeningState } from '../defaults/createDefaultAwakeningState';
 import { createDefaultBondState } from '../defaults/createDefaultBondState';
 import {
@@ -87,6 +88,28 @@ export function migrateSaveV2ToV3(save: RealmSaveDataV2): RealmSaveDataV3 {
           awakeningLevel: 0,
         };
       }
+    }
+  }
+
+  if (migrated.arenaState) {
+    const seasonFields = createDefaultArenaSeasonFields();
+    if (!migrated.arenaState.seasonStartDate) {
+      migrated.arenaState.seasonStartDate = seasonFields.seasonStartDate;
+    }
+    if (!migrated.arenaState.seasonEndDate) {
+      migrated.arenaState.seasonEndDate = seasonFields.seasonEndDate;
+    }
+    if (migrated.arenaState.lastMatchDate === undefined) {
+      migrated.arenaState.lastMatchDate = seasonFields.lastMatchDate;
+    }
+    if (migrated.arenaState.inactivityDecayBaseRankPoints === undefined) {
+      migrated.arenaState.inactivityDecayBaseRankPoints = 0;
+    }
+    if (migrated.arenaState.inactivityDecayMatchDate === undefined) {
+      migrated.arenaState.inactivityDecayMatchDate = '';
+    }
+    if (migrated.arenaState.inactivityDecayThroughDate === undefined) {
+      migrated.arenaState.inactivityDecayThroughDate = '';
     }
   }
 

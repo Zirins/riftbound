@@ -2,12 +2,14 @@
 // Resonance Arena — rank tracking, daily opponents, and challenge flow.
 
 import Phaser from 'phaser';
-import { ARENA, CANVAS, UI } from '../constants/gameConfig';
+import { ARENA, ARENA_SEASON, CANVAS, UI } from '../constants/gameConfig';
 import { SCENE_KEYS } from '../constants/sceneKeys';
 import type { ArenaOpponent } from '../data/arenaOpponents';
 import { HEROES_DATA } from '../data/heroes';
 import * as ArenaMatch from '../systems/ArenaMatchSystem';
-import { loadCurrentRealm } from '../systems/SaveSystem';
+import { ArenaSeasonSystem } from '../systems/ArenaSeasonSystem';
+import { loadCurrentRealm, saveCurrentRealm } from '../systems/SaveSystem';
+import type { RealmSaveDataV3 } from '../types';
 import { ButtonPrimary } from '../ui/ButtonPrimary';
 
 const OPPONENT_ROW_Y_START = 200;
@@ -31,8 +33,17 @@ export class ResonanceArenaScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor(UI.BACKGROUND_COLOR);
     ArenaMatch.resetIfNewDay();
 
-    const rankPoints = loadCurrentRealm()?.arenaState.rankPoints ?? 0;
-    const tierName = ArenaMatch.getTierName(loadCurrentRealm()?.arenaState.rankTier ?? 'rift_initiate');
+    const realm = loadCurrentRealm();
+    const save = realm as RealmSaveDataV3 | null;
+    if (save) {
+      ArenaSeasonSystem.ensureSeasonState(save);
+      saveCurrentRealm(save);
+    }
+
+    const rankPoints = save?.arenaState.rankPoints ?? 0;
+    const tierName = ArenaMatch.getTierName(save?.arenaState.rankTier ?? 'rift_initiate');
+    const seasonDay = save ? ArenaSeasonSystem.getSeasonDay(save) : 1;
+    const daysRemaining = save ? ArenaSeasonSystem.getDaysRemaining(save) : ARENA_SEASON.SEASON_DURATION_DAYS;
     const attemptsRemaining = ArenaMatch.getAttemptsRemaining();
     const dailyReward = ArenaMatch.getDailyRewardPreview();
     const opponents = ArenaMatch.getOpponents(3);
@@ -55,6 +66,12 @@ export class ResonanceArenaScene extends Phaser.Scene {
     this.add.text(CANVAS.WIDTH - 150, 32, `Rank: ${tierName}  #${rankPoints.toLocaleString()}`, {
       fontSize: '10px',
       color: '#ccccdd',
+      fontFamily: 'monospace',
+    }).setOrigin(0.5);
+
+    this.add.text(CANVAS.WIDTH / 2, 54, `Season Day ${seasonDay}/${ARENA_SEASON.SEASON_DURATION_DAYS}  ·  ${daysRemaining}d left`, {
+      fontSize: '10px',
+      color: '#88aacc',
       fontFamily: 'monospace',
     }).setOrigin(0.5);
 

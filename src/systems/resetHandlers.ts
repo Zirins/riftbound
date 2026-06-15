@@ -5,6 +5,9 @@ import type { RealmSaveDataV3 } from '../types';
 import { CovSystem } from './CovSystem';
 import { resetWeekly as resetCovenantShopWeekly } from './CovShopSystem';
 import { CovBossSystem } from './CovBossSystem';
+import { ArenaSeasonSystem } from './ArenaSeasonSystem';
+import { resetDailyGifts as resetFriendDailyGiftsHandler } from './FriendSystem';
+import { resetWeekly as resetFriendShopWeekly } from './FriendShopSystem';
 import { WeeklyTaskSystem } from './WeeklyTaskSystem';
 
 export function resetWeeklyTasks(save: RealmSaveDataV3, weekKey: string): void {
@@ -12,8 +15,7 @@ export function resetWeeklyTasks(save: RealmSaveDataV3, weekKey: string): void {
 }
 
 export function resetFriendDailyGifts(save: RealmSaveDataV3, dateKey: string): void {
-  void save;
-  void dateKey;
+  resetFriendDailyGiftsHandler(save, dateKey);
 }
 
 export function resetCovenantDailyContribution(save: RealmSaveDataV3, dateKey: string): void {
@@ -34,8 +36,7 @@ export function rolloverRiftSeasonIfExpired(save: RealmSaveDataV3, now: Date): v
 }
 
 export function rolloverArenaSeasonIfExpired(save: RealmSaveDataV3, now: Date): void {
-  void save;
-  void now;
+  ArenaSeasonSystem.rolloverIfExpired(save, now);
 }
 
 export function rotateFeaturedBannerIfExpired(save: RealmSaveDataV3, now: Date): void {
@@ -51,6 +52,10 @@ export function resetVoidTrialDaily(save: RealmSaveDataV3, dateKey: string): voi
     attemptsUsedToday: 0,
     lastAttemptResetDate: dateKey,
   };
+}
+
+export function resetFriendShopWeeklyHandler(save: RealmSaveDataV3, weekKey: string): void {
+  resetFriendShopWeekly(save, weekKey);
 }
 
 export function resetPatronDailyGift(save: RealmSaveDataV3, dateKey: string): void {

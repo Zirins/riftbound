@@ -9,6 +9,7 @@ import type {
 } from '../../types';
 import { toDateString } from '../utils/saveDateUtils';
 import { createDefaultAchievementState } from './createDefaultAchievementState';
+import { createDefaultArenaSeasonFields } from './createDefaultArenaSeasonFields';
 import { createDefaultAwakeningState } from './createDefaultAwakeningState';
 import { createDefaultBondState } from './createDefaultBondState';
 import { createDefaultInventory } from './createDefaultInventory';
@@ -70,6 +71,7 @@ export function buildDefaultRealmV3(
       lastAttemptResetDate: today,
       lastRewardClaimDate: '',
       defenseFormation: defaultFormation,
+      ...createDefaultArenaSeasonFields(now),
     },
     riftChronicle: {
       currentStreak: 0,

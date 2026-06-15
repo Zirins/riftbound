@@ -7,6 +7,8 @@ import { HEROES_DATA } from '../data/heroes';
 import type { ArenaMatchResult, RealmSaveDataV3, WaveConfig } from '../types';
 import { getLocalDateKey } from '../save/utils/saveDateUtils';
 import * as Economy from './EconomySystem';
+import { ArenaSeasonSystem } from './ArenaSeasonSystem';
+import { GameEventBus } from './GameEventBus';
 import { computeRP } from './HeroProgressionSystem';
 import { getBattleLineupHeroIds, loadCurrentRealm, saveCurrentRealm } from './SaveSystem';
 
@@ -238,7 +240,7 @@ function getMatchRewards(win: boolean, rankPoints: number): { gold: number; crys
   };
 }
 
-export function resolveMatchResult(win: boolean): ArenaMatchResult {
+export function resolveMatchResult(win: boolean, opponentId?: string): ArenaMatchResult {
   resetIfNewDay();
 
   const realm = loadCurrentRealm();
@@ -253,23 +255,45 @@ export function resolveMatchResult(win: boolean): ArenaMatchResult {
     };
   }
 
+  const save = realm as RealmSaveDataV3;
   const delta = win ? ARENA.WIN_RANK_GAIN : -ARENA.LOSS_RANK_LOSS;
-  const newRankPoints = Math.max(0, realm.arenaState.rankPoints + delta);
+  const newRankPoints = Math.max(0, save.arenaState.rankPoints + delta);
   const newTier = getTierFromPoints(newRankPoints);
-  const rewards = getMatchRewards(win, realm.arenaState.rankPoints);
+  const rewards = getMatchRewards(win, save.arenaState.rankPoints);
 
   if (rewards.gold > 0) Economy.grant('gold', rewards.gold);
   if (rewards.crystals > 0) Economy.grant('crystals', rewards.crystals);
 
-  saveCurrentRealm({
-    ...realm,
-    arenaState: {
-      ...realm.arenaState,
-      rankPoints: newRankPoints,
-      rankTier: newTier.id,
-      attemptsUsedToday: realm.arenaState.attemptsUsedToday + 1,
-    },
-  });
+  const updatedRealm = loadCurrentRealm();
+  if (!updatedRealm) {
+    return {
+      win,
+      rankPointsDelta: delta,
+      newRankPoints,
+      newTier: newTier.name,
+      rewardGold: rewards.gold,
+      rewardCrystals: rewards.crystals,
+    };
+  }
+
+  const updatedSave = updatedRealm as RealmSaveDataV3;
+  updatedSave.arenaState = {
+    ...updatedSave.arenaState,
+    rankPoints: newRankPoints,
+    rankTier: newTier.id,
+    attemptsUsedToday: updatedSave.arenaState.attemptsUsedToday + 1,
+  };
+
+  ArenaSeasonSystem.recordMatchPlayed(updatedSave);
+
+  if (win) {
+    GameEventBus.emit(updatedSave, {
+      type: 'arena_won',
+      opponentId: opponentId ?? 'unknown_opponent',
+    });
+  }
+
+  saveCurrentRealm(updatedSave);
 
   return {
     win,
