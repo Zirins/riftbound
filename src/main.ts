@@ -43,6 +43,9 @@ if (import.meta.env.DEV) {
   void import('./dev/phase20CovenantHarness').then((module) => {
     module.exposePhase20CovenantHarness();
   });
+  void import('./dev/phase22CovShopHarness').then((module) => {
+    module.exposePhase22CovShopHarness();
+  });
 }
 
 new Phaser.Game(gameConfig);

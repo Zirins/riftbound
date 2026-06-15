@@ -60,4 +60,24 @@ export class CovTechSystem {
     const bonus = CovTechSystem.computeTechModifiers(save).energyRegenPercent ?? 0;
     return 1 + bonus;
   }
+
+  /**
+   * Lv3 "Shop slot +1" → +1 weekly purchase limit on Sigil Dust (3→4).
+   * Lv9 spec bonus → another +1 on Sigil Dust only (4→5 at Lv9+).
+   */
+  static getShopWeeklyLimitBonus(save: RealmSaveDataV3, shopItemId: string): number {
+    if (!isInCovenant(save) || shopItemId !== 'cov_shop_sigil_dust') return 0;
+
+    const level = save.covenantState.covLevel;
+    let bonus = 0;
+    if (level >= 3) bonus += 1;
+    if (level >= 9) bonus += 1;
+    return bonus;
+  }
+
+  static describeShopLimitBonuses(save: RealmSaveDataV3): string | null {
+    const bonus = CovTechSystem.getShopWeeklyLimitBonus(save, 'cov_shop_sigil_dust');
+    if (bonus <= 0) return null;
+    return `Sigil Dust weekly limit +${bonus} (Lv3/Lv9 tech)`;
+  }
 }

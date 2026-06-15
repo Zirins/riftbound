@@ -16,6 +16,7 @@ import { VoidTrialSystem } from './VoidTrialSystem';
 import {
   resetCovenantBossWeekly,
   resetCovenantDailyContribution,
+  resetCovenantShopWeeklyHandler,
   resetFriendDailyGifts,
   resetPatronDailyGift,
   resetVoidTrialDaily,
@@ -92,6 +93,8 @@ export class ResetService {
       handlersRun.push('WeeklyTaskSystem.resetWeekly');
       resetCovenantBossWeekly(save, weeklyWeekKey);
       handlersRun.push('CovenantBossSystem.resetWeekly');
+      resetCovenantShopWeeklyHandler(save, weeklyWeekKey);
+      handlersRun.push('CovShopSystem.resetWeekly');
       VoidTrialSystem.resetWeekly(save, weeklyWeekKey);
       handlersRun.push('VoidTrialSystem.resetWeekly');
       save.resetState.lastWeeklyResetWeekKey = weeklyWeekKey;

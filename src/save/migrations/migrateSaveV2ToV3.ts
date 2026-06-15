@@ -51,6 +51,12 @@ export function migrateSaveV2ToV3(save: RealmSaveDataV2): RealmSaveDataV3 {
     }
   }
   migrated.covenantState ??= createDefaultCovenantState();
+  if (migrated.covenantState && !migrated.covenantState.shopState) {
+    migrated.covenantState.shopState = createDefaultCovenantState().shopState;
+  }
+  if (migrated.covenantState?.shopState && !migrated.covenantState.shopState.purchasedItemCounts) {
+    migrated.covenantState.shopState.purchasedItemCounts = {};
+  }
   migrated.friendState ??= createDefaultFriendState();
   migrated.patronState ??= createDefaultPatronState();
   migrated.riftSeasonState ??= createDefaultRiftSeasonState();

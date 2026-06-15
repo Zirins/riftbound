@@ -3,6 +3,7 @@
 
 import type { RealmSaveDataV3 } from '../types';
 import { CovSystem } from './CovSystem';
+import { resetWeekly as resetCovenantShopWeekly } from './CovShopSystem';
 import { WeeklyTaskSystem } from './WeeklyTaskSystem';
 
 export function resetWeeklyTasks(save: RealmSaveDataV3, weekKey: string): void {
@@ -21,6 +22,10 @@ export function resetCovenantDailyContribution(save: RealmSaveDataV3, dateKey: s
 export function resetCovenantBossWeekly(save: RealmSaveDataV3, weekKey: string): void {
   void save;
   void weekKey;
+}
+
+export function resetCovenantShopWeeklyHandler(save: RealmSaveDataV3, weekKey: string): void {
+  resetCovenantShopWeekly(save, weekKey);
 }
 
 export function rolloverRiftSeasonIfExpired(save: RealmSaveDataV3, now: Date): void {

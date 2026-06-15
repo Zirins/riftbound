@@ -32,13 +32,13 @@ export interface CovenantTechDefinition {
 export const COVENANT_TECH_UNLOCKS: CovenantTechDefinition[] = [
   { level: 1, label: 'None' },
   { level: 2, label: 'All heroes HP +2%', combatModifiers: { hpPercent: 0.02 } },
-  { level: 3, label: 'Shop slot +1 (Phase 22)' },
+  { level: 3, label: 'Sigil Dust weekly cap +1' },
   { level: 4, label: 'All heroes ATK +2%', combatModifiers: { attackPercent: 0.02 } },
   { level: 5, label: 'Boss reward cache improved (Phase 23)' },
   { level: 6, label: 'Energy regen +5%', combatModifiers: { energyRegenPercent: 0.05 } },
   { level: 7, label: 'Sect Coin gain +5%', combatModifiers: { covenantCoinGainPercent: 0.05 } },
   { level: 8, label: 'Campaign Gold +5%', combatModifiers: { campaignGoldPercent: 0.05 } },
-  { level: 9, label: 'Weekly Sigil Dust cap +1 (Phase 22)' },
+  { level: 9, label: 'Sigil Dust weekly cap +1 (stacking)' },
   { level: 10, label: 'Cosmetic Sect banner frame' },
 ];
 
