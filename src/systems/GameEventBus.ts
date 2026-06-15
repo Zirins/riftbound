@@ -26,6 +26,7 @@ function registerNoOpHandlers(): void {
     'covenant_contributed',
     'friend_gift_sent',
     'rift_season_tier_claimed',
+    'void_trial_floor_cleared',
   ];
 
   for (const type of eventTypes) {

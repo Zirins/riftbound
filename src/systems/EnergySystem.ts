@@ -10,20 +10,13 @@ function getMaxEnergy(inventory: PlayerInventoryV3): number {
   return inventory.maxEnergy ?? ENERGY.MAX;
 }
 
-export function computeRegen(): void {
-  const realm = loadCurrentRealm();
-  if (!realm) return;
-
-  const save = realm as RealmSaveDataV3;
+/** Mutates save in memory — caller must persist when batching with other updates. */
+export function applyRegenToSave(save: RealmSaveDataV3, now = Date.now()): void {
   const { inventory } = save;
-  const now = Date.now();
   const maxEnergy = getMaxEnergy(inventory);
 
   if (inventory.energy >= maxEnergy) {
-    saveCurrentRealm({
-      ...save,
-      inventory: { ...inventory, lastEnergyRegenAt: now },
-    });
+    save.inventory = { ...inventory, lastEnergyRegenAt: now };
     return;
   }
 
@@ -37,14 +30,20 @@ export function computeRegen(): void {
   const consumed = newEnergy - inventory.energy;
   const msConsumed = consumed / regenPerMs;
 
-  saveCurrentRealm({
-    ...save,
-    inventory: {
-      ...inventory,
-      energy: newEnergy,
-      lastEnergyRegenAt: inventory.lastEnergyRegenAt + msConsumed,
-    },
-  });
+  save.inventory = {
+    ...inventory,
+    energy: newEnergy,
+    lastEnergyRegenAt: inventory.lastEnergyRegenAt + msConsumed,
+  };
+}
+
+export function computeRegen(): void {
+  const realm = loadCurrentRealm();
+  if (!realm) return;
+
+  const save = realm as RealmSaveDataV3;
+  applyRegenToSave(save);
+  saveCurrentRealm(save);
 }
 
 export function hasEnough(cost: number): boolean {

@@ -13,13 +13,16 @@ import {
   type FeatureKey,
 } from '../systems/FeatureUnlockSystem';
 import * as MailSystem from '../systems/MailSystem';
+import { OfflineRewardSystem } from '../systems/OfflineRewardSystem';
 import * as RiftChronicleSystem from '../systems/RiftChronicleSystem';
-import { loadCurrentRealm } from '../systems/SaveSystem';
+import { loadCurrentRealm, saveCurrentRealm } from '../systems/SaveSystem';
 import { computeRP } from '../systems/HeroProgressionSystem';
 import * as TaskSystem from '../systems/TaskSystem';
+import type { RealmSaveDataV3 } from '../types';
 import { ButtonPrimary } from '../ui/ButtonPrimary';
 import { CurrencyBar } from '../ui/CurrencyBar';
 import { MailOverlay } from '../ui/MailOverlay';
+import { OfflineRewardOverlay } from '../ui/OfflineRewardOverlay';
 import { NotificationDot } from '../ui/NotificationDot';
 import { RiftChronicleOverlay } from '../ui/RiftChronicleOverlay';
 import { TasksOverlay } from '../ui/TasksOverlay';
@@ -45,13 +48,14 @@ const HUB_ZONES: HubZoneConfig[] = [
   { label: 'HEROES', sublabel: 'Manage squad', x: 150, y: 240, featureKey: 'HEROES_ROSTER', sceneKey: SCENE_KEYS.ROSTER },
   { label: 'CELESTIAL MARKET', sublabel: 'Exchange goods', x: 422, y: 240, featureKey: 'CELESTIAL_MARKET', sceneKey: SCENE_KEYS.SHOP },
   { label: 'RIFT CHRONICLE', sublabel: 'Daily rewards', x: 694, y: 240, featureKey: 'RIFT_CHRONICLE', overlay: 'chronicle' },
+  { label: 'VOID TRIAL', sublabel: 'Weekly tower', x: 422, y: 300, featureKey: 'VOID_TRIAL', sceneKey: SCENE_KEYS.VOID_TRIAL },
 ];
 
 export class HubScene extends Phaser.Scene {
   static readonly KEY = SCENE_KEYS.HUB;
 
   private currencyBar: CurrencyBar | null = null;
-  private activeOverlay: RiftChronicleOverlay | TasksOverlay | MailOverlay | null = null;
+  private activeOverlay: RiftChronicleOverlay | TasksOverlay | MailOverlay | OfflineRewardOverlay | null = null;
   private profileLabel: Phaser.GameObjects.Text | null = null;
   private toastLabel: Phaser.GameObjects.Text | null = null;
   private zoneButtons: ButtonPrimary[] = [];
@@ -69,7 +73,7 @@ export class HubScene extends Phaser.Scene {
   create(): void {
     this.cameras.main.setBackgroundColor(UI.BACKGROUND_COLOR);
 
-    EnergySystem.computeRegen();
+    this.processHubLoadResets();
     TaskSystem.resetIfNewDay();
     RiftChronicleSystem.checkAndUpdate();
 
@@ -78,9 +82,14 @@ export class HubScene extends Phaser.Scene {
     this.buildBottomBar();
     this.refreshNotificationDots();
     this.currencyBar?.updateValues();
+
+    if (this.shouldShowOfflineRewardOverlay()) {
+      this.openOfflineRewardOverlay();
+    }
   }
 
   shutdown(): void {
+    this.touchLastOnline();
     this.toastTimer?.remove();
     this.toastTimer = null;
     this.closeActiveOverlay();
@@ -227,6 +236,45 @@ export class HubScene extends Phaser.Scene {
     if (zone.sceneKey) {
       this.scene.start(zone.sceneKey);
     }
+  }
+
+  private openOfflineRewardOverlay(): void {
+    this.closeActiveOverlay();
+    this.activeOverlay = new OfflineRewardOverlay(
+      this,
+      () => this.handleOverlayClosed(),
+      () => this.refreshHubState(),
+    );
+  }
+
+  private processHubLoadResets(): void {
+    const realm = loadCurrentRealm();
+    if (!realm) return;
+
+    const save = realm as RealmSaveDataV3;
+    const offlineEligible = OfflineRewardSystem.preview(save).eligible;
+
+    if (!offlineEligible) {
+      EnergySystem.applyRegenToSave(save);
+    }
+
+    OfflineRewardSystem.syncOnHubLoad(save);
+    saveCurrentRealm(save);
+  }
+
+  private shouldShowOfflineRewardOverlay(): boolean {
+    const realm = loadCurrentRealm();
+    if (!realm) return false;
+    return OfflineRewardSystem.hasPendingRewards(realm as RealmSaveDataV3);
+  }
+
+  private touchLastOnline(): void {
+    const realm = loadCurrentRealm();
+    if (!realm) return;
+
+    const save = realm as RealmSaveDataV3;
+    OfflineRewardSystem.touchLastOnline(save);
+    saveCurrentRealm(save);
   }
 
   private openMailOverlay(): void {

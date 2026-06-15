@@ -630,7 +630,8 @@ export type GameEvent =
   | { type: 'covenant_joined'; covenantId: string }
   | { type: 'covenant_contributed'; amount: number; currency: CurrencyType }
   | { type: 'friend_gift_sent'; friendId: string }
-  | { type: 'rift_season_tier_claimed'; tier: number };
+  | { type: 'rift_season_tier_claimed'; tier: number }
+  | { type: 'void_trial_floor_cleared'; floorNumber: number };
 
 export interface ResetResult {
   dailyResetApplied: boolean;
@@ -769,10 +770,25 @@ export interface WeeklyTaskSaveState {
 }
 
 export interface OfflineRewardState {
-  lastClaimAt: number;
+  lastOnlineAt: number;
   pendingGold: number;
   pendingXpFragments: number;
   pendingEnergy: number;
+}
+
+export interface OfflineRewardPreview {
+  eligible: boolean;
+  hoursOffline: number;
+  hoursCredited: number;
+  gold: number;
+  xpFragments: number;
+  energy: number;
+}
+
+export interface OfflineRewardClaimResult {
+  success: boolean;
+  reason?: string;
+  bundle?: RewardBundle;
 }
 
 export interface CovenantBossState {
@@ -854,6 +870,25 @@ export interface VoidTrialState {
   lastAttemptResetDate: string;
   lastWeeklyRewardWeekKey: string;
   weeklyHighestFloor: number;
+  weeklyMilestoneClaimed: boolean;
+}
+
+export interface VoidTrialAttemptResult {
+  success: boolean;
+  reason?: string;
+}
+
+export interface VoidTrialFloorResolveResult {
+  won: boolean;
+  highestFloorCleared: number;
+  firstClearGranted: boolean;
+  firstClearBundle?: RewardBundle;
+}
+
+export interface VoidTrialWeeklyClaimResult {
+  success: boolean;
+  reason?: string;
+  bundle?: RewardBundle;
 }
 
 export interface MonetizationState {

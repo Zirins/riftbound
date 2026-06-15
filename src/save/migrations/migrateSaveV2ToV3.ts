@@ -20,7 +20,7 @@ import { createDefaultSigilState } from '../defaults/createDefaultSigilState';
 import { createDefaultVoidTrialState } from '../defaults/createDefaultVoidTrialState';
 import { createDefaultWeeklyTaskState } from '../defaults/createDefaultWeeklyTaskState';
 import { createDefaultWorldFeedState } from '../defaults/createDefaultWorldFeedState';
-import type { RealmSaveDataV2, RealmSaveDataV3 } from '../../types';
+import type { RealmSaveDataV2, RealmSaveDataV3, OfflineRewardState } from '../../types';
 
 export function migrateSaveV2ToV3(save: RealmSaveDataV2): RealmSaveDataV3 {
   const migrated = structuredClone(save) as RealmSaveDataV3;
@@ -35,12 +35,21 @@ export function migrateSaveV2ToV3(save: RealmSaveDataV2): RealmSaveDataV3 {
   migrated.achievementState ??= createDefaultAchievementState();
   migrated.weeklyTaskState ??= createDefaultWeeklyTaskState();
   migrated.offlineRewardState ??= createDefaultOfflineRewardState();
+  if (migrated.offlineRewardState) {
+    const offlineState = migrated.offlineRewardState as OfflineRewardState & { lastClaimAt?: number };
+    if (offlineState.lastOnlineAt === undefined) {
+      offlineState.lastOnlineAt = offlineState.lastClaimAt ?? Date.now();
+    }
+  }
   migrated.covenantState ??= createDefaultCovenantState();
   migrated.friendState ??= createDefaultFriendState();
   migrated.patronState ??= createDefaultPatronState();
   migrated.riftSeasonState ??= createDefaultRiftSeasonState();
   migrated.featuredBannerState ??= createDefaultFeaturedBannerState();
   migrated.voidTrialState ??= createDefaultVoidTrialState();
+  if (migrated.voidTrialState.weeklyMilestoneClaimed === undefined) {
+    migrated.voidTrialState.weeklyMilestoneClaimed = false;
+  }
   migrated.monetizationState ??= createDefaultMonetizationState();
   migrated.worldFeedState ??= createDefaultWorldFeedState();
   migrated.resetState ??= createDefaultResetState();

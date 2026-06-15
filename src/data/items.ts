@@ -103,6 +103,21 @@ export const ITEMS: ItemDefinition[] = [
     },
   },
   {
+    id: 'sigil_box_epic',
+    name: 'Epic Sigil Cache',
+    description: 'Opens to reveal a random Epic equipment Sigil.',
+    type: 'sigil_box',
+    category: 'sigil',
+    rarity: 'epic',
+    maxStack: 99,
+    consumable: true,
+    iconPath: 'assets/items/sigil_box_epic.png',
+    openRewards: {
+      source: 'dev_grant',
+      items: [{ itemId: 'sigil_dust', quantity: 30 }],
+    },
+  },
+  {
     id: 'reward_box_daily',
     name: 'Daily Supply Cache',
     description: 'A compact cache of gold and XP Fragments.',

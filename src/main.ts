@@ -23,6 +23,12 @@ if (import.meta.env.DEV) {
   void import('./dev/phase14CampaignHarness').then((module) => {
     module.exposePhase14CampaignHarness();
   });
+  void import('./dev/phase16VoidTrialHarness').then((module) => {
+    module.exposePhase16VoidTrialHarness();
+  });
+  void import('./dev/phase17OfflineRewardHarness').then((module) => {
+    module.exposePhase17OfflineRewardHarness();
+  });
 }
 
 new Phaser.Game(gameConfig);

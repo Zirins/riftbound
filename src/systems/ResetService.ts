@@ -12,6 +12,7 @@ import type { RealmSaveDataV3, ResetResult } from '../types';
 import { resetDaily as resetArenaDaily } from './ArenaMatchSystem';
 import { resetDaily as resetShopDaily } from './ShopSystem';
 import { resetDaily as resetTasksDaily } from './TaskSystem';
+import { VoidTrialSystem } from './VoidTrialSystem';
 import {
   resetCovenantBossWeekly,
   resetCovenantDailyContribution,
@@ -91,6 +92,8 @@ export class ResetService {
       handlersRun.push('WeeklyTaskSystem.resetWeekly');
       resetCovenantBossWeekly(save, weeklyWeekKey);
       handlersRun.push('CovenantBossSystem.resetWeekly');
+      VoidTrialSystem.resetWeekly(save, weeklyWeekKey);
+      handlersRun.push('VoidTrialSystem.resetWeekly');
       save.resetState.lastWeeklyResetWeekKey = weeklyWeekKey;
     }
 

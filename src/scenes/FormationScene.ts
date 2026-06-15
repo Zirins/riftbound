@@ -175,6 +175,7 @@ export class FormationScene extends Phaser.Scene {
 
   private stageId = 'stage_1_1';
   private arenaOpponentId: string | null = null;
+  private voidTrialFloor: number | null = null;
 
   private lineupStage!: Phaser.GameObjects.Rectangle;
   private lineupTitle!: Phaser.GameObjects.Text;
@@ -196,9 +197,15 @@ export class FormationScene extends Phaser.Scene {
     super({ key: FormationScene.KEY });
   }
 
-  init(data: { stageId?: string; origin?: string; arenaOpponentId?: string }): void {
+  init(data: {
+    stageId?: string;
+    origin?: string;
+    arenaOpponentId?: string;
+    voidTrialFloor?: number;
+  }): void {
     this.stageId = data.stageId ?? 'stage_1_1';
     this.arenaOpponentId = data.arenaOpponentId ?? null;
+    this.voidTrialFloor = data.voidTrialFloor ?? null;
   }
 
   create(): void {
@@ -218,7 +225,9 @@ export class FormationScene extends Phaser.Scene {
 
     const stageName = this.stageId === 'arena'
       ? `Arena — ${getOpponentById(this.arenaOpponentId ?? '')?.displayName ?? 'Rival'}`
-      : (getStageData(this.stageId)?.name ?? 'Stage');
+      : this.stageId === 'void_trial' && this.voidTrialFloor !== null
+        ? `Void Trial — Floor ${this.voidTrialFloor}`
+        : (getStageData(this.stageId)?.name ?? 'Stage');
     this.lineupTitle = this.add.text(
       CANVAS.WIDTH / 2,
       UI.FORMATION_LINEUP_TITLE_Y,
@@ -677,6 +686,7 @@ export class FormationScene extends Phaser.Scene {
     this.scene.start(SCENE_KEYS.BATTLE, {
       stageId: this.stageId,
       arenaOpponentId: this.arenaOpponentId ?? undefined,
+      voidTrialFloor: this.voidTrialFloor ?? undefined,
     });
   };
 }

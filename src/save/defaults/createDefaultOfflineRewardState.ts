@@ -4,7 +4,7 @@ import type { OfflineRewardState } from '../../types';
 
 export function createDefaultOfflineRewardState(now = Date.now()): OfflineRewardState {
   return {
-    lastClaimAt: now,
+    lastOnlineAt: now,
     pendingGold: 0,
     pendingXpFragments: 0,
     pendingEnergy: 0,

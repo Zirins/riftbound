@@ -11,5 +11,6 @@ export function createDefaultVoidTrialState(now = Date.now()): VoidTrialState {
     lastAttemptResetDate: toDateString(now),
     lastWeeklyRewardWeekKey: getIsoWeekKey(now),
     weeklyHighestFloor: 0,
+    weeklyMilestoneClaimed: false,
   };
 }
