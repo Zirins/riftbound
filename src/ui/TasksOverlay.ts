@@ -5,6 +5,10 @@ import Phaser from 'phaser';
 import { CANVAS } from '../constants/gameConfig';
 import { DAILY_TASKS } from '../data/tasks';
 import * as TaskSystem from '../systems/TaskSystem';
+import { WeeklyTaskSystem } from '../systems/WeeklyTaskSystem';
+import { claimAllCompletedWeeklyMissions } from '../systems/WeeklyTaskSystem';
+import { loadCurrentRealm } from '../systems/SaveSystem';
+import type { RealmSaveDataV3 } from '../types';
 import { ProgressBar } from './ProgressBar';
 import { createOverlayDim } from './HubOverlayPanel';
 import { WeeklyTasksPanel } from './WeeklyTasksOverlay';
@@ -77,6 +81,8 @@ export class TasksOverlay {
     this.container.add([dim, this.panel, this.title]);
     this.drawTabs(panelHeight);
 
+    this.drawClaimAll(panelHeight);
+
     if (this.activeTab === 'daily') {
       this.drawDailyTasks(panelHeight);
     } else if (this.container) {
@@ -92,6 +98,42 @@ export class TasksOverlay {
       'CLOSE',
       () => this.close(),
       100,
+    );
+  }
+
+  private drawClaimAll(panelHeight: number): void {
+    if (!this.container) return;
+
+    if (this.activeTab === 'daily') {
+      const claimable = TaskSystem.getDailyTasks().filter((t) => t.completed && !t.claimed).length;
+      this.addContainerButton(
+        CANVAS.WIDTH / 2 - 190,
+        CANVAS.HEIGHT / 2 + panelHeight / 2 - 28,
+        claimable > 0 ? 'CLAIM ALL' : 'NO CLAIMS',
+        () => {
+          if (TaskSystem.claimAllCompletedTasks() <= 0) return;
+          this.onRefresh();
+          this.render();
+        },
+        120,
+        claimable > 0 ? 0x3355aa : 0x444455,
+      );
+      return;
+    }
+
+    const save = loadCurrentRealm() as RealmSaveDataV3 | null;
+    const claimableWeekly = save ? WeeklyTaskSystem.getUnclaimedCount(save) : 0;
+    this.addContainerButton(
+      CANVAS.WIDTH / 2 - 190,
+      CANVAS.HEIGHT / 2 + panelHeight / 2 - 28,
+      claimableWeekly > 0 ? 'CLAIM ALL' : 'NO CLAIMS',
+      () => {
+        if (claimAllCompletedWeeklyMissions() <= 0) return;
+        this.onRefresh();
+        this.render();
+      },
+      120,
+      claimableWeekly > 0 ? 0x3355aa : 0x444455,
     );
   }
 

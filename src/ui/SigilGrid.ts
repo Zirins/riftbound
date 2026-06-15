@@ -2,7 +2,9 @@
 // Owned Sigil grid for SigilScene.
 
 import Phaser from 'phaser';
+import { ASSET_PATHS } from '../constants/assetPaths';
 import type { ElementType, EquipmentSigilRarity, SigilStatType } from '../types';
+import { ItemIcon } from './ItemIcon';
 
 const RARITY_COLORS: Record<EquipmentSigilRarity, number> = {
   common: 0x888888,
@@ -28,6 +30,7 @@ const ELEMENT_COLORS: Record<ElementType, number> = {
 
 export interface SigilGridEntry {
   instanceId: string;
+  definitionId: string;
   name: string;
   rarity: EquipmentSigilRarity;
   element: ElementType;
@@ -42,7 +45,7 @@ const COLUMNS = 4;
 
 interface GridSlotUi {
   bg: Phaser.GameObjects.Rectangle;
-  icon: Phaser.GameObjects.Arc;
+  icon: ItemIcon;
   levelLabel: Phaser.GameObjects.Text;
   nameLabel: Phaser.GameObjects.Text;
   badgeLabel: Phaser.GameObjects.Text | null;
@@ -90,7 +93,11 @@ export class SigilGrid {
       const bg = this.scene.add.rectangle(x, y, SLOT_SIZE, SLOT_SIZE, 0x1a1a2e)
         .setStrokeStyle(isSelected ? 2 : 1, isSelected ? 0xffcc44 : 0x333355);
 
-      const icon = this.scene.add.circle(x, y - 4, 18, color);
+      const icon = new ItemIcon(this.scene, x, y - 4, 36, {
+        iconPath: ASSET_PATHS.sigils.icon(entry.definitionId),
+        label: entry.name,
+        color,
+      });
 
       const levelLabel = this.scene.add.text(x, y - 2, `Lv${entry.level}`, {
         fontSize: '8px',

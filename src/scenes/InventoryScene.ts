@@ -3,6 +3,7 @@
 
 import Phaser from 'phaser';
 import { CANVAS, UI } from '../constants/gameConfig';
+import { ASSET_PATHS } from '../constants/assetPaths';
 import { SCENE_KEYS } from '../constants/sceneKeys';
 import { getItemsByCategory, type ItemCategory, type ItemRarity } from '../data/items';
 import { HEROES_DATA } from '../data/heroes';
@@ -36,7 +37,7 @@ const CURRENCY_DISPLAY: CurrencyDisplayConfig[] = [
     name: 'Gold',
     description: 'Standard currency for upgrades, shops, and crafting.',
     currencyType: 'gold',
-    iconPath: 'assets/currencies/gold.png',
+    iconPath: ASSET_PATHS.currencies.gold,
     rarity: 'common',
   },
   {
@@ -44,7 +45,7 @@ const CURRENCY_DISPLAY: CurrencyDisplayConfig[] = [
     name: 'Rift Crystal',
     description: 'Premium summon currency drawn from the Eternal Rift.',
     currencyType: 'rift_crystal',
-    iconPath: 'assets/currencies/rift_crystal.png',
+    iconPath: ASSET_PATHS.currencies.riftCrystal,
     rarity: 'rare',
   },
   {
@@ -52,7 +53,7 @@ const CURRENCY_DISPLAY: CurrencyDisplayConfig[] = [
     name: 'Void Gem',
     description: 'Rare premium currency earned from achievements and seasons.',
     currencyType: 'void_gem',
-    iconPath: 'assets/currencies/void_gem.png',
+    iconPath: ASSET_PATHS.currencies.voidGem,
     rarity: 'epic',
   },
   {
@@ -60,7 +61,7 @@ const CURRENCY_DISPLAY: CurrencyDisplayConfig[] = [
     name: 'Energy',
     description: 'Stamina spent to enter campaign stages and events.',
     currencyType: 'energy',
-    iconPath: 'assets/currencies/energy.png',
+    iconPath: ASSET_PATHS.currencies.energy,
     rarity: 'common',
   },
   {
@@ -68,7 +69,7 @@ const CURRENCY_DISPLAY: CurrencyDisplayConfig[] = [
     name: 'Arena Coin',
     description: 'Earned from Resonance Arena matches and season rewards.',
     currencyType: 'arena_coin',
-    iconPath: 'assets/currencies/arena_coin.png',
+    iconPath: ASSET_PATHS.currencies.arenaCoin,
     rarity: 'uncommon',
   },
   {
@@ -76,7 +77,7 @@ const CURRENCY_DISPLAY: CurrencyDisplayConfig[] = [
     name: 'Sect Coin',
     description: 'Sect contribution currency for the weekly shop.',
     currencyType: 'covenant_coin',
-    iconPath: 'assets/currencies/covenant_coin.png',
+    iconPath: ASSET_PATHS.currencies.covenantCoin,
     rarity: 'uncommon',
   },
   {
@@ -84,7 +85,7 @@ const CURRENCY_DISPLAY: CurrencyDisplayConfig[] = [
     name: 'Friendship Point',
     description: 'Shared bond currency from friend gifts and exchanges.',
     currencyType: 'friendship_point',
-    iconPath: 'assets/currencies/friendship_point.png',
+    iconPath: ASSET_PATHS.currencies.friendshipPoint,
     rarity: 'common',
   },
 ];

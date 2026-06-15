@@ -1,8 +1,10 @@
 // src/ui/HeroCard.ts
-// Roster hero tile — owned portrait or unowned silhouette.
+// Roster hero tile — optional portrait asset or colored-circle fallback.
 
 import Phaser from 'phaser';
+import { ASSET_PATHS } from '../constants/assetPaths';
 import type { HeroData, HeroOwnershipState } from '../types';
+import { loadOptionalTexture } from '../utils/assetFallback';
 import { RarityBadge } from './RarityBadge';
 import { StarRating } from './StarRating';
 
@@ -22,6 +24,8 @@ const CLASS_LABELS: Record<HeroData['heroClass'], string> = {
 export class HeroCard {
   private readonly badge: RarityBadge;
   private readonly circle: Phaser.GameObjects.Arc;
+  private portraitImage: Phaser.GameObjects.Image | null = null;
+  private cancelPortraitLoad: (() => void) | null = null;
   private readonly nameLabel: Phaser.GameObjects.Text;
   private readonly rpLabel: Phaser.GameObjects.Text;
   private readonly classLabel: Phaser.GameObjects.Text;
@@ -30,6 +34,7 @@ export class HeroCard {
   private readonly zone: Phaser.GameObjects.Zone;
   private readonly onTap: () => void;
   private readonly tapGuard?: () => boolean;
+  private destroyed = false;
 
   constructor(
     scene: Phaser.Scene,
@@ -44,6 +49,8 @@ export class HeroCard {
     this.onTap = onTap;
     this.tapGuard = tapGuard;
     const owned = ownershipState?.isOwned ?? false;
+    const portraitRadius = heroData.radius * 0.65;
+    const portraitY = y - 28;
 
     this.badge = new RarityBadge(
       scene,
@@ -56,14 +63,28 @@ export class HeroCard {
 
     this.circle = scene.add.circle(
       x,
-      y - 28,
-      heroData.radius * 0.65,
+      portraitY,
+      portraitRadius,
       owned ? heroData.color : SILHOUETTE_COLOR,
     );
 
+    if (owned) {
+      const portraitPath = ASSET_PATHS.heroes.portrait(heroData.id);
+      const handle = loadOptionalTexture({
+        scene,
+        assetPath: portraitPath,
+        onReady: (textureKey) => this.showPortrait(scene, x, portraitY, portraitRadius, textureKey),
+      });
+      this.cancelPortraitLoad = handle.cancel;
+
+      if (scene.textures.exists(handle.textureKey)) {
+        this.showPortrait(scene, x, portraitY, portraitRadius, handle.textureKey);
+      }
+    }
+
     this.unknownLabel = owned
       ? null
-      : scene.add.text(x, y - 28, '?', {
+      : scene.add.text(x, portraitY, '?', {
           fontSize: '18px',
           color: '#888899',
           fontFamily: 'monospace',
@@ -96,11 +117,30 @@ export class HeroCard {
     this.zone.on('pointerup', this.handlePointerUp, this);
   }
 
+  private showPortrait(
+    scene: Phaser.Scene,
+    x: number,
+    y: number,
+    radius: number,
+    textureKey: string,
+  ): void {
+    if (this.destroyed || !scene.textures.exists(textureKey)) return;
+
+    this.portraitImage?.destroy();
+    const diameter = radius * 2;
+    this.portraitImage = scene.add.image(x, y, textureKey).setDisplaySize(diameter, diameter);
+    this.circle.setVisible(false);
+  }
+
   destroy(): void {
+    this.destroyed = true;
+    this.cancelPortraitLoad?.();
+    this.cancelPortraitLoad = null;
     this.zone.off('pointerup', this.handlePointerUp, this);
     this.zone.destroy();
     this.badge.destroy();
     this.circle.destroy();
+    this.portraitImage?.destroy();
     this.nameLabel.destroy();
     this.rpLabel.destroy();
     this.classLabel.destroy();
@@ -116,6 +156,7 @@ export class HeroCard {
   reparentTo(container: Phaser.GameObjects.Container): void {
     this.badge.reparentTo(container);
     container.add(this.circle);
+    if (this.portraitImage) container.add(this.portraitImage);
     if (this.unknownLabel) container.add(this.unknownLabel);
     container.add(this.nameLabel);
     container.add(this.rpLabel);

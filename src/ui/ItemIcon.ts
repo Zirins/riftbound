@@ -2,21 +2,15 @@
 // Item/currency icon with colored primitive fallback when assets are missing.
 
 import Phaser from 'phaser';
-
-function textureKeyFromPath(path: string): string {
-  return `icon_${path.replace(/[^a-zA-Z0-9]+/g, '_')}`;
-}
+import { loadOptionalTexture } from '../utils/assetFallback';
 
 export class ItemIcon {
   private readonly container: Phaser.GameObjects.Container;
   private readonly fallback: Phaser.GameObjects.Rectangle;
   private readonly letter: Phaser.GameObjects.Text;
   private image: Phaser.GameObjects.Image | null = null;
-  private readonly textureKey: string | null;
+  private cancelLoad: (() => void) | null = null;
   private destroyed = false;
-
-  private readonly onLoadComplete: (key: string) => void;
-  private readonly onLoadError: (file: Phaser.Loader.File) => void;
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -38,52 +32,39 @@ export class ItemIcon {
     }).setOrigin(0.5);
     this.container.add([this.fallback, this.letter]);
 
-    this.onLoadComplete = (key: string) => {
-      if (this.destroyed || key !== this.textureKey) return;
-      this.showImage();
-    };
-
-    this.onLoadError = (file: Phaser.Loader.File) => {
-      if (this.destroyed || file.key !== this.textureKey) return;
-      if (import.meta.env.DEV) {
-        console.warn('[ItemIcon] missing asset, using fallback:', file.url);
-      }
-    };
-
     if (options.iconPath) {
-      this.textureKey = textureKeyFromPath(options.iconPath);
-      if (scene.textures.exists(this.textureKey)) {
-        this.showImage();
-      } else {
-        scene.load.image(this.textureKey, options.iconPath);
-        scene.load.once(`filecomplete-image-${this.textureKey}`, this.onLoadComplete);
-        scene.load.once('loaderror', this.onLoadError);
-        if (!scene.load.isLoading()) {
-          scene.load.start();
-        }
+      const handle = loadOptionalTexture({
+        scene,
+        assetPath: options.iconPath,
+        onReady: () => this.showImage(handle.textureKey),
+      });
+      this.cancelLoad = handle.cancel;
+
+      if (scene.textures.exists(handle.textureKey)) {
+        this.showImage(handle.textureKey);
       }
-    } else {
-      this.textureKey = null;
     }
   }
 
   destroy(): void {
     this.destroyed = true;
-    if (this.textureKey) {
-      this.scene.load.off(`filecomplete-image-${this.textureKey}`, this.onLoadComplete);
-      this.scene.load.off('loaderror', this.onLoadError);
-    }
+    this.cancelLoad?.();
+    this.cancelLoad = null;
     this.image?.destroy();
     this.container.destroy();
   }
 
-  private showImage(): void {
-    if (this.destroyed || !this.textureKey || !this.scene.textures.exists(this.textureKey)) {
+  reparentTo(parent: Phaser.GameObjects.Container): void {
+    parent.add(this.container);
+  }
+
+  private showImage(textureKey: string): void {
+    if (this.destroyed || !this.scene.textures.exists(textureKey)) {
       return;
     }
 
     this.image?.destroy();
-    this.image = this.scene.add.image(0, 0, this.textureKey).setDisplaySize(this.size, this.size);
+    this.image = this.scene.add.image(0, 0, textureKey).setDisplaySize(this.size, this.size);
     this.container.addAt(this.image, 0);
     this.fallback.setVisible(false);
     this.letter.setVisible(false);

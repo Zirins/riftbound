@@ -1,6 +1,7 @@
 // src/data/items.ts
 // V2 inventory item definitions — pure configuration.
 
+import { ASSET_PATHS } from '../constants/assetPaths';
 import type { InventoryItemType, RewardBundle } from '../types';
 
 export type ItemCategory =
@@ -37,7 +38,7 @@ export const ITEMS: ItemDefinition[] = [
     rarity: 'common',
     maxStack: 99_999,
     consumable: false,
-    iconPath: 'assets/items/xp_fragment.png',
+    iconPath: ASSET_PATHS.items.xpFragment,
   },
   {
     id: 'sigil_dust',
@@ -48,7 +49,7 @@ export const ITEMS: ItemDefinition[] = [
     rarity: 'uncommon',
     maxStack: 99_999,
     consumable: false,
-    iconPath: 'assets/items/sigil_dust.png',
+    iconPath: ASSET_PATHS.items.sigilDust,
   },
   {
     id: 'awakening_crystal',
@@ -59,7 +60,7 @@ export const ITEMS: ItemDefinition[] = [
     rarity: 'epic',
     maxStack: 999,
     consumable: false,
-    iconPath: 'assets/items/awakening_crystal.png',
+    iconPath: ASSET_PATHS.items.awakeningCrystal,
   },
   {
     id: 'hero_shard_voucher',
@@ -70,7 +71,7 @@ export const ITEMS: ItemDefinition[] = [
     rarity: 'rare',
     maxStack: 999,
     consumable: false,
-    iconPath: 'assets/items/hero_shard_voucher.png',
+    iconPath: ASSET_PATHS.items.heroShardVoucher,
   },
   {
     id: 'sigil_box_common',
@@ -81,7 +82,7 @@ export const ITEMS: ItemDefinition[] = [
     rarity: 'common',
     maxStack: 99,
     consumable: true,
-    iconPath: 'assets/items/sigil_box_common.png',
+    iconPath: ASSET_PATHS.items.sigilBoxCommon,
     openRewards: {
       source: 'dev_grant',
       items: [{ itemId: 'sigil_dust', quantity: 5 }],
@@ -96,7 +97,7 @@ export const ITEMS: ItemDefinition[] = [
     rarity: 'rare',
     maxStack: 99,
     consumable: true,
-    iconPath: 'assets/items/sigil_box_rare.png',
+    iconPath: ASSET_PATHS.items.sigilBoxRare,
     openRewards: {
       source: 'dev_grant',
       items: [{ itemId: 'sigil_dust', quantity: 15 }],
@@ -111,7 +112,7 @@ export const ITEMS: ItemDefinition[] = [
     rarity: 'epic',
     maxStack: 99,
     consumable: true,
-    iconPath: 'assets/items/sigil_box_epic.png',
+    iconPath: ASSET_PATHS.items.sigilBoxEpic,
     openRewards: {
       source: 'dev_grant',
       items: [{ itemId: 'sigil_dust', quantity: 30 }],
@@ -126,7 +127,7 @@ export const ITEMS: ItemDefinition[] = [
     rarity: 'uncommon',
     maxStack: 99,
     consumable: true,
-    iconPath: 'assets/items/reward_box_daily.png',
+    iconPath: ASSET_PATHS.items.rewardBoxDaily,
     openRewards: {
       source: 'dev_grant',
       currencies: [{ type: 'gold', amount: 1_000 }],
@@ -142,7 +143,7 @@ export const ITEMS: ItemDefinition[] = [
     rarity: 'rare',
     maxStack: 99,
     consumable: true,
-    iconPath: 'assets/items/reward_box_weekly.png',
+    iconPath: ASSET_PATHS.items.rewardBoxWeekly,
     openRewards: {
       source: 'dev_grant',
       currencies: [{ type: 'gold', amount: 5_000 }, { type: 'rift_crystal', amount: 30 }],
@@ -158,7 +159,7 @@ export const ITEMS: ItemDefinition[] = [
     rarity: 'uncommon',
     maxStack: 999,
     consumable: false,
-    iconPath: 'assets/items/covenant_badge.png',
+    iconPath: ASSET_PATHS.items.covenantBadge,
   },
   {
     id: 'rift_season_emblem',
@@ -169,7 +170,7 @@ export const ITEMS: ItemDefinition[] = [
     rarity: 'rare',
     maxStack: 99,
     consumable: false,
-    iconPath: 'assets/items/rift_season_emblem.png',
+    iconPath: ASSET_PATHS.items.riftSeasonEmblem,
   },
   {
     id: 'void_trial_relic',
@@ -180,7 +181,7 @@ export const ITEMS: ItemDefinition[] = [
     rarity: 'epic',
     maxStack: 99,
     consumable: false,
-    iconPath: 'assets/items/void_trial_relic.png',
+    iconPath: ASSET_PATHS.items.voidTrialRelic,
   },
 ];
 

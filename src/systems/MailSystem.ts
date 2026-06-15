@@ -2,7 +2,6 @@
 // System mail delivery and attachment claims.
 
 import type { MailMessage, RealmSaveDataV3, RewardBundle } from '../types';
-import * as Economy from './EconomySystem';
 import { RewardSystem } from './RewardSystem';
 import { loadCurrentRealm, saveCurrentRealm } from './SaveSystem';
 
@@ -70,12 +69,9 @@ export function claimAttachments(mailId: string): void {
   if (mail.isClaimed) return;
   if (mail.attachments.length === 0 && !mail.rewardBundle) return;
 
-  const grants = mail.attachments
-    .map((attachment) => toCurrencyGrant(attachment))
-    .filter((grant): grant is Economy.CurrencyGrant => grant !== null);
-
-  if (grants.length > 0) {
-    Economy.grantMultiple(grants);
+  const attachmentBundle = buildAttachmentRewardBundle(mail);
+  if (attachmentBundle) {
+    RewardSystem.grantRewardBundle(save, attachmentBundle);
   }
 
   if (mail.rewardBundle) {
@@ -91,6 +87,39 @@ export function claimAttachments(mailId: string): void {
   saveCurrentRealm(save);
 }
 
+export function claimAllAttachments(): number {
+  const realm = loadCurrentRealm();
+  if (!realm) return 0;
+
+  const save = realm as RealmSaveDataV3;
+  const claimable = save.mail.filter(
+    (m) => !m.isClaimed && (m.attachments.length > 0 || m.rewardBundle !== undefined),
+  );
+
+  if (claimable.length === 0) return 0;
+
+  for (const mail of claimable) {
+    const attachmentBundle = buildAttachmentRewardBundle(mail);
+    if (attachmentBundle) {
+      RewardSystem.grantRewardBundle(save, attachmentBundle);
+    }
+
+    if (mail.rewardBundle) {
+      RewardSystem.grantRewardBundle(save, mail.rewardBundle);
+    }
+  }
+
+  const claimIds = new Set(claimable.map((m) => m.id));
+  save.mail = save.mail.map((m) => (
+    claimIds.has(m.id)
+      ? { ...m, isRead: true, isClaimed: true }
+      : m
+  ));
+
+  saveCurrentRealm(save);
+  return claimable.length;
+}
+
 export function getUnclaimedCount(): number {
   const realm = loadCurrentRealm();
   if (!realm) return 0;
@@ -100,19 +129,35 @@ export function getUnclaimedCount(): number {
   ).length;
 }
 
-function toCurrencyGrant(
-  attachment: MailMessage['attachments'][number],
-): Economy.CurrencyGrant | null {
-  switch (attachment.type) {
-    case 'gold':
-      return { type: 'gold', amount: attachment.amount };
-    case 'crystals':
-      return { type: 'crystals', amount: attachment.amount };
-    case 'xpFragments':
-      return { type: 'xpFragments', amount: attachment.amount };
-    case 'energy':
-      return { type: 'energy', amount: attachment.amount };
-    case 'shards':
-      return null;
+function buildAttachmentRewardBundle(mail: MailMessage): RewardBundle | null {
+  if (mail.attachments.length === 0) return null;
+
+  const currencies: NonNullable<RewardBundle['currencies']> = [];
+  const items: NonNullable<RewardBundle['items']> = [];
+
+  for (const attachment of mail.attachments) {
+    switch (attachment.type) {
+      case 'gold':
+        currencies.push({ type: 'gold', amount: attachment.amount });
+        break;
+      case 'crystals':
+        currencies.push({ type: 'rift_crystal', amount: attachment.amount });
+        break;
+      case 'energy':
+        currencies.push({ type: 'energy', amount: attachment.amount });
+        break;
+      case 'xpFragments':
+        items.push({ itemId: 'xp_fragment', quantity: attachment.amount });
+        break;
+      case 'shards':
+        break;
+    }
   }
+
+  if (currencies.length === 0 && items.length === 0) return null;
+  return {
+    source: 'mail',
+    currencies: currencies.length > 0 ? currencies : undefined,
+    items: items.length > 0 ? items : undefined,
+  };
 }

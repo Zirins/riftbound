@@ -15,7 +15,7 @@ import { getLocalDateKey, getLocalWeekKey } from '../save/utils/saveDateUtils';
 import type { GameEvent, RealmSaveDataV3, WeeklyTaskEntry, WeeklyTaskSaveState } from '../types';
 import { GameEventBus } from './GameEventBus';
 import { RewardSystem } from './RewardSystem';
-import { loadCurrentRealm } from './SaveSystem';
+import { loadCurrentRealm, saveCurrentRealm } from './SaveSystem';
 
 export interface WeeklyMissionClaimResult {
   success: boolean;
@@ -255,4 +255,26 @@ export function getWeeklyTasksFromCurrentRealm(): WeeklyTaskEntry[] {
   const realm = loadCurrentRealm();
   if (!realm) return [];
   return WeeklyTaskSystem.getWeeklyTasks(realm as RealmSaveDataV3);
+}
+
+export function claimAllCompletedWeeklyMissions(): number {
+  const realm = loadCurrentRealm();
+  if (!realm) return 0;
+
+  const save = realm as RealmSaveDataV3;
+  let claimedCount = 0;
+
+  for (const mission of WEEKLY_MISSIONS) {
+    if (!isWeeklyMissionActive(mission.id)) continue;
+    const view = WeeklyTaskSystem.getViewState(save, mission);
+    if (!view.completed || view.claimed) continue;
+    const result = WeeklyTaskSystem.claimMission(save, mission.id);
+    if (result.success) claimedCount += 1;
+  }
+
+  if (claimedCount > 0) {
+    saveCurrentRealm(save);
+  }
+
+  return claimedCount;
 }

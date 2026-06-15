@@ -543,6 +543,7 @@ export type RewardSource =
   | 'daily_task'
   | 'weekly_task'
   | 'achievement'
+  | 'mail'
   | 'rift_chronicle'
   | 'offline_reward'
   | 'arena_match'

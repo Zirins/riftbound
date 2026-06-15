@@ -312,6 +312,35 @@ export class RiftSeasonSystem {
     return { success: true };
   }
 
+  /**
+   * Claims all currently available tier rewards.
+   *
+   * Safety rules:
+   * - Only claims tiers unlocked by current season XP.
+   * - Only claims premium rewards if premiumUnlocked is true.
+   */
+  static claimAllAvailableTiers(save: RealmSaveDataV3): { claimedFree: number; claimedPremium: number } {
+    RiftSeasonSystem.ensureSeasonState(save);
+
+    const unlockedTier = RiftSeasonSystem.getCurrentTier(save);
+    let claimedFree = 0;
+    let claimedPremium = 0;
+
+    for (let tier = 1; tier <= unlockedTier; tier += 1) {
+      if (!save.riftSeasonState.claimedFreeTiers.includes(tier)) {
+        const result = RiftSeasonSystem.claimFreeTier(save, tier);
+        if (result.success) claimedFree += 1;
+      }
+
+      if (save.riftSeasonState.premiumUnlocked && !save.riftSeasonState.claimedPremiumTiers.includes(tier)) {
+        const result = RiftSeasonSystem.claimPremiumTier(save, tier);
+        if (result.success) claimedPremium += 1;
+      }
+    }
+
+    return { claimedFree, claimedPremium };
+  }
+
   static purchasePremium(save: RealmSaveDataV3): RiftSeasonPremiumResult {
     RiftSeasonSystem.ensureSeasonState(save);
 

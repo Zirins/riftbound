@@ -4,10 +4,10 @@
 import { DAILY_TASKS } from '../data/tasks';
 import type { DailyTaskState, RealmSaveDataV3 } from '../types';
 import { getLocalDateKey } from '../save/utils/saveDateUtils';
-import * as Economy from './EconomySystem';
 import { GameEventBus } from './GameEventBus';
 import { loadCurrentRealm, saveCurrentRealm } from './SaveSystem';
 import { WeeklyTaskSystem } from './WeeklyTaskSystem';
+import { RewardSystem } from './RewardSystem';
 
 function buildFreshTasks(date: string): DailyTaskState[] {
   return DAILY_TASKS.map((task) => ({
@@ -92,19 +92,48 @@ export function claimTask(taskId: string): boolean {
 
   if (!definition || !task || !task.completed || task.claimed) return false;
 
-  Economy.grant(definition.reward.type, definition.reward.amount);
+  const updatedSave = loadCurrentRealm() as RealmSaveDataV3 | null;
+  if (!updatedSave) return false;
 
-  const updatedRealm = loadCurrentRealm();
-  if (!updatedRealm) return false;
+  RewardSystem.grantRewardBundle(updatedSave, {
+    source: 'daily_task',
+    currencies: definition.reward.type === 'xpFragments'
+      ? undefined
+      : [{
+        type: definition.reward.type === 'crystals'
+          ? 'rift_crystal'
+          : definition.reward.type === 'energy'
+            ? 'energy'
+            : 'gold',
+        amount: definition.reward.amount,
+      }],
+    items: definition.reward.type === 'xpFragments'
+      ? [{ itemId: 'xp_fragment', quantity: definition.reward.amount }]
+      : undefined,
+  });
 
-  const updatedTasks = updatedRealm.tasks.map((t) => (
+  const updatedTasks = updatedSave.tasks.map((t) => (
     t.taskId === taskId ? { ...t, claimed: true } : t
   ));
 
-  const updatedSave = { ...updatedRealm, tasks: updatedTasks } as RealmSaveDataV3;
+  updatedSave.tasks = updatedTasks;
   WeeklyTaskSystem.checkDisciplinedRoutine(updatedSave);
   saveCurrentRealm(updatedSave);
   return true;
+}
+
+export function claimAllCompletedTasks(): number {
+  const realm = loadCurrentRealm();
+  if (!realm) return 0;
+
+  const claimable = realm.tasks.filter((t) => t.completed && !t.claimed).map((t) => t.taskId);
+  if (claimable.length === 0) return 0;
+
+  let claimedCount = 0;
+  for (const taskId of claimable) {
+    if (claimTask(taskId)) claimedCount += 1;
+  }
+  return claimedCount;
 }
 
 export function getTasksNotificationCount(): number {

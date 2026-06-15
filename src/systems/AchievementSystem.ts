@@ -240,4 +240,19 @@ export class AchievementSystem {
 
     return { success: true };
   }
+
+  static claimAllCompleted(save: RealmSaveDataV3): number {
+    const state = ensureAchievementState(save);
+    const claimable = state.completedAchievementIds.filter(
+      (id) => !state.claimedAchievementIds.includes(id),
+    );
+
+    let claimedCount = 0;
+    for (const id of claimable) {
+      const result = AchievementSystem.claimAchievement(save, id);
+      if (result.success) claimedCount += 1;
+    }
+
+    return claimedCount;
+  }
 }

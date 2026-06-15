@@ -3,6 +3,7 @@
 
 import Phaser from 'phaser';
 import { CANVAS, COMBAT, FORMATION, UI, WAVES } from '../constants/gameConfig';
+import { getBattleBackgroundPath } from '../constants/assetPaths';
 import { getEnemyColor, getEnemyDisplayName } from '../data/enemies';
 import { SCENE_KEYS } from '../constants/sceneKeys';
 import { HEROES_DATA } from '../data/heroes';
@@ -22,6 +23,7 @@ import { SkillSystem } from '../systems/SkillSystem';
 import { UltimateSystem } from '../systems/UltimateSystem';
 import { WaveSystem } from '../systems/WaveSystem';
 import { BossBar } from '../ui/BossBar';
+import { OptionalBackground } from '../ui/OptionalBackground';
 import { drawEnergyBar } from '../ui/EnergyBar';
 import { UltimateButtons, type HudPortraitConfig } from '../ui/UltimateButtons';
 import type {
@@ -154,7 +156,7 @@ export class BattleScene extends Phaser.Scene {
   private energyCost = 0;
   private heroesDeathCount = 0;
 
-  private battleBackground!: Phaser.GameObjects.Rectangle;
+  private battleBackground: OptionalBackground | null = null;
   private waveLabel!: Phaser.GameObjects.Text;
 
   private heroes: BattleHero[] = [];
@@ -316,13 +318,13 @@ export class BattleScene extends Phaser.Scene {
     this.resetBattleSession();
 
     this.cameras.main.setBackgroundColor(UI.BACKGROUND_COLOR);
-    this.battleBackground = this.add.rectangle(
-      CANVAS.WIDTH / 2,
-      CANVAS.BATTLE_HEIGHT / 2,
-      CANVAS.WIDTH,
-      CANVAS.BATTLE_HEIGHT,
-      UI.BACKGROUND_COLOR,
-    );
+
+    const stageData = getStageData(this.stageId);
+    const battleBgPath = stageData ? getBattleBackgroundPath(stageData.chapterId) : null;
+    this.battleBackground = new OptionalBackground(this, CANVAS.WIDTH, CANVAS.BATTLE_HEIGHT, {
+      assetPath: battleBgPath,
+      fallbackColor: UI.BACKGROUND_COLOR,
+    });
 
     this.waveLabel = this.add.text(UI.WAVE_LABEL_X, UI.WAVE_LABEL_Y, 'WAVE 1', {
       fontSize: '14px',
@@ -379,7 +381,6 @@ export class BattleScene extends Phaser.Scene {
     this.waveSystem.on('battleVictory', this.onBattleVictory);
     this.waveSystem.on('bossHpUpdate', this.onBossHpUpdate);
 
-    const stageData = getStageData(this.stageId);
     const waveConfigs = this.stageId === 'arena' && this.arenaOpponentId
       ? buildArenaWaveConfig(this.arenaOpponentId)
       : this.stageId === 'void_trial' && this.voidTrialFloor !== null
@@ -718,6 +719,7 @@ export class BattleScene extends Phaser.Scene {
     this.teardownBattleSystems();
 
     this.battleBackground?.destroy();
+    this.battleBackground = null;
     this.waveLabel?.destroy();
 
     for (const visual of this.heroVisuals.values()) {

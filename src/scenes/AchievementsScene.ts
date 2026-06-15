@@ -56,6 +56,32 @@ export class AchievementsScene extends Phaser.Scene {
       100,
     );
 
+    const claimAllCount = AchievementSystem.getUnclaimedCount(save);
+    const claimAll = new ButtonPrimary(
+      this,
+      CANVAS.WIDTH - 140,
+      72,
+      claimAllCount > 0 ? 'CLAIM ALL' : 'NO CLAIMS',
+      () => {
+        const current = loadCurrentRealm();
+        if (!current) return;
+        const updated = current as RealmSaveDataV3;
+        AchievementSystem.syncSnapshotAchievements(updated);
+        const claimed = AchievementSystem.claimAllCompleted(updated);
+        if (claimed <= 0) {
+          this.showToast('No claimable achievements');
+          return;
+        }
+        saveCurrentRealm(updated);
+        this.showToast(`Claimed ${claimed} achievement reward${claimed === 1 ? '' : 's'}!`);
+        this.time.delayedCall(UI.SCENE_RESTART_DELAY_MS, () => this.scene.restart());
+      },
+      160,
+      28,
+    );
+    if (claimAllCount <= 0) claimAll.setEnabled(false);
+    this.categoryButtons.push(claimAll);
+
     this.add.text(CANVAS.WIDTH / 2, 32, 'ACHIEVEMENTS', {
       fontSize: '16px',
       color: '#ffffff',

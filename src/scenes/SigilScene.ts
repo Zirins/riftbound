@@ -132,6 +132,7 @@ export class SigilScene extends Phaser.Scene {
     if (!definition) return null;
     return {
       instanceId: owned.instanceId,
+      definitionId: owned.definitionId,
       name: definition.name,
       rarity: definition.rarity,
       element: definition.element,

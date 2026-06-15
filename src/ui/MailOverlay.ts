@@ -117,8 +117,22 @@ export class MailOverlay {
     this.container.add([dim, panel, title]);
     this.drawMail();
 
+    const claimableCount = MailSystem.getUnclaimedCount();
     this.addContainerButton(
-      CANVAS.WIDTH / 2,
+      CANVAS.WIDTH / 2 - 80,
+      CANVAS.HEIGHT / 2 + 140,
+      claimableCount > 0 ? 'CLAIM ALL' : 'NO CLAIMS',
+      () => {
+        if (MailSystem.claimAllAttachments() <= 0) return;
+        this.onRefresh();
+        this.render();
+      },
+      140,
+      claimableCount > 0 ? 0x3355aa : 0x444455,
+    );
+
+    this.addContainerButton(
+      CANVAS.WIDTH / 2 + 120,
       CANVAS.HEIGHT / 2 + 140,
       'CLOSE',
       () => this.close(),
@@ -132,10 +146,11 @@ export class MailOverlay {
     label: string,
     onClick: () => void,
     width = 80,
+    fillColor = 0x3355aa,
   ): void {
     if (!this.container) return;
 
-    const bg = this.scene.add.rectangle(x, y, width, BUTTON_HEIGHT, 0x3355aa);
+    const bg = this.scene.add.rectangle(x, y, width, BUTTON_HEIGHT, fillColor);
     const text = this.scene.add.text(x, y, label, {
       fontSize: '12px',
       color: '#ffffff',

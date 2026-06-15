@@ -152,6 +152,26 @@ export class RiftSeasonScene extends Phaser.Scene {
     ).setOrigin(0.5);
     this.rowTexts.push(tierTitle);
 
+    const currentTier = RiftSeasonSystem.getCurrentTier(save);
+    const hasPremium = save.riftSeasonState.premiumUnlocked;
+    const claimableFree = Array.from({ length: currentTier }, (_, i) => i + 1)
+      .some((tier) => !save.riftSeasonState.claimedFreeTiers.includes(tier));
+    const claimablePremium = hasPremium
+      && Array.from({ length: currentTier }, (_, i) => i + 1)
+        .some((tier) => !save.riftSeasonState.claimedPremiumTiers.includes(tier));
+
+    const claimAll = new ButtonPrimary(
+      this,
+      CANVAS.WIDTH - 110,
+      72,
+      (claimableFree || claimablePremium) ? 'CLAIM ALL' : 'NO CLAIMS',
+      () => this.handleClaimAll(),
+      160,
+      28,
+    );
+    if (!claimableFree && !claimablePremium) claimAll.setEnabled(false);
+    this.actionButtons.push(claimAll);
+
     const rewards = getRiftSeasonTierRewards(this.selectedTier);
     if (!rewards) return;
 
@@ -160,7 +180,6 @@ export class RiftSeasonScene extends Phaser.Scene {
     const unlocked = xp >= requiredXp;
     const freeClaimed = save.riftSeasonState.claimedFreeTiers.includes(this.selectedTier);
     const premiumClaimed = save.riftSeasonState.claimedPremiumTiers.includes(this.selectedTier);
-    const hasPremium = save.riftSeasonState.premiumUnlocked;
 
     const freeLine = this.add.text(60, 145, `FREE: ${formatRewardBundle(rewards.free)}`, {
       fontSize: '10px',
@@ -283,6 +302,25 @@ export class RiftSeasonScene extends Phaser.Scene {
 
     saveCurrentRealm(save);
     this.showToast('Premium track unlocked!');
+    this.scene.restart();
+  }
+
+  private handleClaimAll(): void {
+    const save = this.loadSave();
+    if (!save) return;
+
+    const result = RiftSeasonSystem.claimAllAvailableTiers(save);
+    if (result.claimedFree + result.claimedPremium <= 0) {
+      this.showToast('No claimable tiers');
+      return;
+    }
+
+    saveCurrentRealm(save);
+    if (result.claimedPremium > 0) {
+      this.showToast(`Claimed ${result.claimedFree} free and ${result.claimedPremium} premium tier reward(s)!`);
+    } else {
+      this.showToast(`Claimed ${result.claimedFree} free tier reward(s)!`);
+    }
     this.scene.restart();
   }
 

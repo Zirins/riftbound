@@ -15,6 +15,12 @@ RiftSeasonSystem.init();
 WeeklyTaskSystem.init();
 
 if (import.meta.env.DEV) {
+  void import('./dev/devAssetFallbackHarness').then((module) => {
+    module.exposeDevAssetFallbackHarness();
+  });
+  void import('./dev/devWorldFeedHarness').then((module) => {
+    module.exposeDevWorldFeedHarness();
+  });
   void import('./dev/phase7CombatHarness').then((module) => {
     module.exposePhase7CombatHarness();
   });
