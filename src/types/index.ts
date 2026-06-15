@@ -737,6 +737,9 @@ export interface GlobalStatModifiers {
   hpPercent?: number;
   attackPercent?: number;
   defensePercent?: number;
+  energyRegenPercent?: number;
+  campaignGoldPercent?: number;
+  covenantCoinGainPercent?: number;
 }
 
 export interface ActiveBond {

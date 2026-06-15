@@ -4,8 +4,11 @@
 import Phaser from 'phaser';
 import { CANVAS, UI } from '../constants/gameConfig';
 import { SCENE_KEYS } from '../constants/sceneKeys';
+import { COVENANT_CONTRIBUTION } from '../data/covenantContribution';
 import { SIMULATED_COVENANT_PRESET } from '../data/npcCovenantMembers';
 import { CovSystem } from '../systems/CovSystem';
+import { CovTechSystem } from '../systems/CovTechSystem';
+import { EconomySystem } from '../systems/EconomySystem';
 import { loadCurrentRealm, saveCurrentRealm } from '../systems/SaveSystem';
 import type { RealmSaveDataV3 } from '../types';
 import { ButtonPrimary } from '../ui/ButtonPrimary';
@@ -39,6 +42,7 @@ export class CovHubScene extends Phaser.Scene {
     }
 
     const save = realm as RealmSaveDataV3;
+    CovSystem.syncDailyContribution(save);
 
     this.backButton = new ButtonPrimary(
       this,
@@ -177,43 +181,153 @@ export class CovHubScene extends Phaser.Scene {
   private renderInCovenantView(save: RealmSaveDataV3): void {
     this.clearActionContent();
     const state = CovSystem.getState(save);
+    const progress = CovSystem.getLevelProgress(save);
+    const availability = CovSystem.getContributionAvailability(save);
+    const techLabels = CovTechSystem.formatActiveTechLabels(save);
 
-    const summary = [
-      state.covName ?? 'Sect',
-      `Level ${state.covLevel}  ·  XP ${state.covXP.toLocaleString()}`,
-      `Members ${state.memberCount}`,
-    ];
+    const nameText = this.add.text(CANVAS.WIDTH / 2, 68, state.covName ?? 'Sect', {
+      fontSize: '16px',
+      color: '#ffffff',
+      fontFamily: 'monospace',
+    }).setOrigin(0.5);
+    this.infoTexts.push(nameText);
 
-    summary.forEach((line, index) => {
-      const color = index === 0 ? '#ffffff' : '#aaaacc';
-      const size = index === 0 ? '18px' : '12px';
-      const text = this.add.text(CANVAS.WIDTH / 2, 110 + index * 28, line, {
-        fontSize: size,
-        color,
+    const levelLine = progress.isMaxLevel
+      ? `Level ${state.covLevel}  ·  XP ${state.covXP.toLocaleString()} (MAX)`
+      : `Level ${state.covLevel}  ·  XP ${state.covXP.toLocaleString()}  (${progress.currentInLevel}/${progress.requiredForNext} to Lv${state.covLevel + 1})`;
+    const levelText = this.add.text(CANVAS.WIDTH / 2, 92, levelLine, {
+      fontSize: '11px',
+      color: '#aaaacc',
+      fontFamily: 'monospace',
+    }).setOrigin(0.5);
+    this.infoTexts.push(levelText);
+
+    const memberText = this.add.text(
+      CANVAS.WIDTH / 2,
+      112,
+      `Members ${state.memberCount}  ·  Sect Coins ${EconomySystem.getCurrencyBalance(save, 'covenant_coin')}`,
+      {
+        fontSize: '10px',
+        color: '#888899',
         fontFamily: 'monospace',
+      },
+    ).setOrigin(0.5);
+    this.infoTexts.push(memberText);
+
+    const techHeader = this.add.text(CANVAS.WIDTH / 2, 132, 'ACTIVE TECH', {
+      fontSize: '10px',
+      color: '#44ccff',
+      fontFamily: 'monospace',
+    }).setOrigin(0.5);
+    this.infoTexts.push(techHeader);
+
+    const techBody = techLabels.length > 0
+      ? techLabels.slice(0, 4).join('  ·  ')
+      : 'None yet — level up to unlock';
+    const techText = this.add.text(CANVAS.WIDTH / 2, 150, techBody, {
+      fontSize: '9px',
+      color: '#aaaacc',
+      fontFamily: 'monospace',
+      align: 'center',
+      wordWrap: { width: 600 },
+    }).setOrigin(0.5);
+    this.infoTexts.push(techText);
+
+    const goldButton = new ButtonPrimary(
+      this,
+      CANVAS.WIDTH / 2 - 150,
+      198,
+      `GOLD (${COVENANT_CONTRIBUTION.GOLD_COST.toLocaleString()})`,
+      () => this.handleContributeGold(),
+      200,
+      30,
+    );
+    goldButton.setEnabled(availability.canContributeGold);
+
+    const crystalButton = new ButtonPrimary(
+      this,
+      CANVAS.WIDTH / 2 + 150,
+      198,
+      `CRYSTALS (${COVENANT_CONTRIBUTION.CRYSTAL_COST})`,
+      () => this.handleContributeCrystal(),
+      200,
+      30,
+    );
+    crystalButton.setEnabled(availability.canContributeCrystal);
+
+    if (!availability.canContributeGold && availability.goldReason) {
+      const goldHint = this.add.text(CANVAS.WIDTH / 2 - 150, 218, availability.goldReason, {
+        fontSize: '8px',
+        color: '#666688',
+        fontFamily: 'monospace',
+        align: 'center',
+        wordWrap: { width: 190 },
       }).setOrigin(0.5);
-      this.infoTexts.push(text);
-    });
+      this.infoTexts.push(goldHint);
+    }
+
+    if (!availability.canContributeCrystal && availability.crystalReason) {
+      const crystalHint = this.add.text(CANVAS.WIDTH / 2 + 150, 218, availability.crystalReason, {
+        fontSize: '8px',
+        color: '#666688',
+        fontFamily: 'monospace',
+        align: 'center',
+        wordWrap: { width: 190 },
+      }).setOrigin(0.5);
+      this.infoTexts.push(crystalHint);
+    }
 
     const membersButton = new ButtonPrimary(
       this,
-      CANVAS.WIDTH / 2,
-      220,
+      CANVAS.WIDTH / 2 - 100,
+      268,
       'VIEW MEMBERS',
       () => this.scene.start(SCENE_KEYS.COVENANT_MEMBER),
-      180,
+      160,
+      30,
     );
 
     const leaveButton = new ButtonPrimary(
       this,
-      CANVAS.WIDTH / 2,
-      280,
+      CANVAS.WIDTH / 2 + 100,
+      268,
       'LEAVE SECT',
       () => this.confirmLeave(),
-      180,
+      140,
+      30,
     );
 
-    this.actionButtons.push(membersButton, leaveButton);
+    this.actionButtons.push(goldButton, crystalButton, membersButton, leaveButton);
+  }
+
+  private handleContributeGold(): void {
+    const save = loadCurrentRealm() as RealmSaveDataV3 | null;
+    if (!save) return;
+
+    const result = CovSystem.contributeGold(save);
+    if (!result.success) {
+      this.showToast(result.reason ?? 'Contribution failed');
+      return;
+    }
+
+    saveCurrentRealm(save);
+    this.showToast(`+${result.coinsGranted} Sect Coins, +${result.xpGranted} Sect XP`);
+    this.scene.restart();
+  }
+
+  private handleContributeCrystal(): void {
+    const save = loadCurrentRealm() as RealmSaveDataV3 | null;
+    if (!save) return;
+
+    const result = CovSystem.contributeCrystals(save);
+    if (!result.success) {
+      this.showToast(result.reason ?? 'Contribution failed');
+      return;
+    }
+
+    saveCurrentRealm(save);
+    this.showToast(`+${result.coinsGranted} Sect Coins, +${result.xpGranted} Sect XP`);
+    this.scene.restart();
   }
 
   private handleCreate(): void {

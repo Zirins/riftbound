@@ -2,7 +2,7 @@
 // Placeholder reset hooks for systems not yet built — wired by ResetService.
 
 import type { RealmSaveDataV3 } from '../types';
-
+import { CovSystem } from './CovSystem';
 import { WeeklyTaskSystem } from './WeeklyTaskSystem';
 
 export function resetWeeklyTasks(save: RealmSaveDataV3, weekKey: string): void {
@@ -15,8 +15,7 @@ export function resetFriendDailyGifts(save: RealmSaveDataV3, dateKey: string): v
 }
 
 export function resetCovenantDailyContribution(save: RealmSaveDataV3, dateKey: string): void {
-  void save;
-  void dateKey;
+  CovSystem.resetDailyContribution(save, dateKey);
 }
 
 export function resetCovenantBossWeekly(save: RealmSaveDataV3, weekKey: string): void {

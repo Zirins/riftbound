@@ -90,6 +90,15 @@ export function formatModifierSummary(modifiers: GlobalStatModifiers): string {
   if (modifiers.hpPercent) parts.push(`HP+${Math.round(modifiers.hpPercent * 100)}%`);
   if (modifiers.attackPercent) parts.push(`ATK+${Math.round(modifiers.attackPercent * 100)}%`);
   if (modifiers.defensePercent) parts.push(`DEF+${Math.round(modifiers.defensePercent * 100)}%`);
+  if (modifiers.energyRegenPercent) {
+    parts.push(`Energy regen+${Math.round(modifiers.energyRegenPercent * 100)}%`);
+  }
+  if (modifiers.campaignGoldPercent) {
+    parts.push(`Campaign Gold+${Math.round(modifiers.campaignGoldPercent * 100)}%`);
+  }
+  if (modifiers.covenantCoinGainPercent) {
+    parts.push(`Sect Coin gain+${Math.round(modifiers.covenantCoinGainPercent * 100)}%`);
+  }
   return parts.length > 0 ? parts.join(', ') : 'No bonus';
 }
 
@@ -104,6 +113,9 @@ export function mergeGlobalModifiers(
     hpPercent: (target.hpPercent ?? 0) + (source.hpPercent ?? 0),
     attackPercent: (target.attackPercent ?? 0) + (source.attackPercent ?? 0),
     defensePercent: (target.defensePercent ?? 0) + (source.defensePercent ?? 0),
+    energyRegenPercent: (target.energyRegenPercent ?? 0) + (source.energyRegenPercent ?? 0),
+    campaignGoldPercent: (target.campaignGoldPercent ?? 0) + (source.campaignGoldPercent ?? 0),
+    covenantCoinGainPercent: (target.covenantCoinGainPercent ?? 0) + (source.covenantCoinGainPercent ?? 0),
   };
 }
 

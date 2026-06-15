@@ -30,6 +30,8 @@ import type {
 } from '../types';
 import { SigilSystem } from './SigilSystem';
 
+import { CovTechSystem } from './CovTechSystem';
+
 export class BondSystem {
   static computeActiveBonds(save: RealmSaveDataV3): ActiveBond[] {
     return BondSystem.buildBondCatalog(save).filter((bond) => bond.isActive);
@@ -61,6 +63,8 @@ export class BondSystem {
         modifiers = mergeGlobalModifiers(modifiers, pair.modifiers);
       }
     }
+
+    modifiers = mergeGlobalModifiers(modifiers, CovTechSystem.computeTechModifiers(save));
 
     return modifiers;
   }

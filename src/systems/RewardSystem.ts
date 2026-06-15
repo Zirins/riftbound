@@ -21,6 +21,7 @@ import { getStageData } from './StageLoader';
 import { loadCurrentRealm, saveCurrentRealm } from './SaveSystem';
 import { reportProgress } from './TaskSystem';
 import { applyRewardBundle } from './rewardBundleGrant';
+import { CovTechSystem } from './CovTechSystem';
 
 function computeStars(heroesThatDied: number): number {
   if (heroesThatDied === 0) return 3;
@@ -100,7 +101,7 @@ export function grantReward(reward: StageReward): void {
   const bundle: RewardBundle = {
     source: 'campaign_clear',
     currencies: [
-      { type: 'gold', amount: reward.gold },
+      { type: 'gold', amount: CovTechSystem.scaleCampaignGold(save, reward.gold) },
       { type: 'rift_crystal', amount: reward.crystals },
     ],
     heroShards: reward.shardGrants.map((grant) => ({
@@ -175,7 +176,7 @@ export function grantSweepReward(save: RealmSaveDataV3, reward: StageReward): Gr
   const bundle: RewardBundle = {
     source: 'campaign_sweep',
     currencies: [
-      { type: 'gold', amount: reward.gold },
+      { type: 'gold', amount: CovTechSystem.scaleCampaignGold(save, reward.gold) },
       { type: 'rift_crystal', amount: reward.crystals },
     ],
     heroShards: reward.shardGrants.map((grant) => ({

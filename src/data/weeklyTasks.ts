@@ -77,8 +77,7 @@ export const WEEKLY_MISSIONS: WeeklyMissionDefinition[] = [
     name: 'Sect Supporter',
     description: 'Contribute to your Sect 5 times',
     requiredProgress: 5,
-    availability: 'locked',
-    lockReason: 'Unlocks when Sect opens',
+    availability: 'active',
     reward: {
       source: 'weekly_task',
       currencies: [

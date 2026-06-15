@@ -4,6 +4,7 @@
 import { ENERGY } from '../constants/gameConfig';
 import type { PlayerInventoryV3, RealmSaveDataV3 } from '../types';
 import * as Economy from './EconomySystem';
+import { BondSystem } from './BondSystem';
 import { loadCurrentRealm, saveCurrentRealm } from './SaveSystem';
 
 function getMaxEnergy(inventory: PlayerInventoryV3): number {
@@ -21,7 +22,8 @@ export function applyRegenToSave(save: RealmSaveDataV3, now = Date.now()): void 
   }
 
   const elapsedMs = now - inventory.lastEnergyRegenAt;
-  const regenPerMs = ENERGY.REGEN_PER_MINUTE / 60_000;
+  const regenBonus = BondSystem.computeGlobalModifiers(save).energyRegenPercent ?? 0;
+  const regenPerMs = (ENERGY.REGEN_PER_MINUTE / 60_000) * (1 + regenBonus);
   const gained = Math.floor(elapsedMs * regenPerMs);
 
   if (gained <= 0) return;
