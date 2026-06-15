@@ -1,6 +1,6 @@
 # Riftbound Sigils
 
-**Original wuxia-inspired hero-collector auto-battler RPG** — built as solo/personal project IP, not affiliated with any other game.
+**Original xianxia-inspired cultivation fantasy hero-collector auto-battler RPG** — built as solo/personal project IP, not affiliated with any other game.
 
 ## What it is
 
