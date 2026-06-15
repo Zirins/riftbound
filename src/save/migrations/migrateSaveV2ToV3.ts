@@ -2,6 +2,7 @@
 // Idempotent realm migration from V1.1 (schema 2) to V2 (schema 3) save fields.
 
 import { HERO_POOL_IDS } from '../../data/heroes';
+import { PatronSystem } from '../../systems/PatronSystem';
 import { createDefaultAchievementState } from '../defaults/createDefaultAchievementState';
 import { createDefaultArenaSeasonFields } from '../defaults/createDefaultArenaSeasonFields';
 import { createDefaultAwakeningState } from '../defaults/createDefaultAwakeningState';
@@ -69,6 +70,7 @@ export function migrateSaveV2ToV3(save: RealmSaveDataV2): RealmSaveDataV3 {
   }
   migrated.friendState ??= createDefaultFriendState();
   migrated.patronState ??= createDefaultPatronState();
+  PatronSystem.syncPatronTier(migrated);
   migrated.riftSeasonState ??= createDefaultRiftSeasonState();
   if (migrated.riftSeasonState) {
     const rs = migrated.riftSeasonState;

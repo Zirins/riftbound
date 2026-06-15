@@ -63,6 +63,9 @@ if (import.meta.env.DEV) {
   void import('./dev/phase27FeaturedBannerHarness').then((module) => {
     module.exposePhase27FeaturedBannerHarness();
   });
+  void import('./dev/phase28MonetizationHarness').then((module) => {
+    module.exposePhase28MonetizationHarness();
+  });
 }
 
 new Phaser.Game(gameConfig);

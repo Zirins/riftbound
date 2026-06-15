@@ -507,6 +507,8 @@ export const FEATURE_UNLOCKS = {
   ACHIEVEMENTS:       { type: 'stage_clear', stageId: 'stage_1_3' },
   COVENANT:           { type: 'stage_clear', stageId: 'stage_1_8' },
   RIFT_SEASON:        { type: 'stage_clear', stageId: 'stage_1_8' },
+  VOID_GEM_STORE:     { type: 'stage_clear', stageId: 'stage_1_8' },
+  PATRON_TIER:        { type: 'stage_clear', stageId: 'stage_1_8' },
   HERO_DETAIL_LEVEL:  { type: 'always' },
   HERO_DETAIL_STAR:   { type: 'always' },
 } as const;

@@ -63,19 +63,27 @@ function pickNonFeaturedLegendary(featuredHeroId: string): string {
   return legendaries[Math.floor(Math.random() * legendaries.length)];
 }
 
-function resolveLegendaryHero(save: RealmSaveDataV3, featuredHeroId: string): string {
+export type LegendaryResolvePath = 'guarantee' | 'fifty_fifty_win' | 'fifty_fifty_loss';
+
+function resolveLegendaryHero(
+  save: RealmSaveDataV3,
+  featuredHeroId: string,
+): { heroId: string; path: LegendaryResolvePath } {
   if (save.featuredBannerState.guaranteedFeatured) {
     save.featuredBannerState.guaranteedFeatured = false;
-    return featuredHeroId;
+    return { heroId: featuredHeroId, path: 'guarantee' };
   }
 
   if (Math.random() < 0.5) {
     save.featuredBannerState.guaranteedFeatured = false;
-    return featuredHeroId;
+    return { heroId: featuredHeroId, path: 'fifty_fifty_win' };
   }
 
   save.featuredBannerState.guaranteedFeatured = true;
-  return pickNonFeaturedLegendary(featuredHeroId);
+  return {
+    heroId: pickNonFeaturedLegendary(featuredHeroId),
+    path: 'fifty_fifty_loss',
+  };
 }
 
 function computeFeaturedRarity(pityCount: number, forceMinRarity?: HeroRarity): HeroRarity {
@@ -224,9 +232,11 @@ export class FeaturedBannerSystem {
 
       const pityCount = save.featuredBannerState.pityCounter;
       const rarity = computeFeaturedRarity(pityCount, forceMinRarity);
-      const heroId = rarity === 'legendary'
+      const legendaryResolve = rarity === 'legendary'
         ? resolveLegendaryHero(save, banner.featuredHeroId)
-        : pickHeroFromFeaturedPool(pool, rarity);
+        : null;
+      const heroId = legendaryResolve?.heroId
+        ?? pickHeroFromFeaturedPool(pool, rarity);
 
       const outcome = applyPullOutcome(save, heroId);
       save.featuredBannerState.pityCounter = rarity === 'legendary' ? 0 : pityCount + 1;
@@ -237,6 +247,7 @@ export class FeaturedBannerSystem {
         rarity,
         isNew: outcome.isNew,
         shardsGranted: outcome.shardsGranted,
+        ...(legendaryResolve ? { legendaryResolvePath: legendaryResolve.path } : {}),
       });
     }
 

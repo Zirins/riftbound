@@ -1487,6 +1487,6 @@ export function assertAllHeroesHaveKits(): void {
   }
 }
 
-if (import.meta.env.DEV) {
+if (import.meta.env?.DEV) {
   assertAllHeroesHaveKits();
 }

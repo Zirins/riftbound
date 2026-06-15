@@ -352,6 +352,8 @@ export interface SummonResult {
   rarity: HeroRarity;
   isNew: boolean;
   shardsGranted: number;  // 0 if isNew, shard value if duplicate
+  /** Dev/trace: which legendary resolution branch ran (featured banner only). */
+  legendaryResolvePath?: 'guarantee' | 'fifty_fifty_win' | 'fifty_fifty_loss';
 }
 
 // ─── Player inventory / save data ────────────────────────────────────────────
@@ -939,6 +941,21 @@ export interface MonetizationState {
   growthFundPurchased: boolean;
   growthFundClaimedMilestones: number[];
   testPurchaseHistory: string[];
+}
+
+export interface PurchaseResult {
+  success: boolean;
+  reason?: string;
+  packageId?: string;
+  entitlementId?: string;
+  voidGemsGranted?: number;
+  patronPointsGranted?: number;
+}
+
+export interface RestoreResult {
+  success: boolean;
+  reason?: string;
+  restoredEntitlements: string[];
 }
 
 export interface WorldFeedState {
