@@ -1049,6 +1049,7 @@ export type TargetRule =
   | 'random_enemy'
   | 'self'
   | 'lowest_hp_ally'
+  | 'isolated_enemy'
   | 'all_allies'
   | 'all_enemies'
   | 'area_forward_box'
@@ -1123,7 +1124,8 @@ export interface SkillEffect {
     | 'move_to_target'
     | 'gain_energy'
     | 'revive'
-    | 'stat_modifier';
+    | 'stat_modifier'
+    | 'detonate_status';
   scaling?: {
     stat: 'atk' | 'maxHp' | 'def' | 'currentHpMissing';
     multiplier: number;
@@ -1134,6 +1136,9 @@ export interface SkillEffect {
   summonId?: string;
   maxTargets?: number;
   area?: AreaDefinition;
+  /** Bonus damage multiplier when the target enemy has no nearby allies. */
+  isolationBonus?: number;
+  isolationRadius?: number;
 }
 
 export interface HeroSkill {
@@ -1202,7 +1207,8 @@ export type StatusEffectId =
   | 'vulnerable'
   | 'damage_reduction'
   | 'atk_up'
-  | 'def_up';
+  | 'def_up'
+  | 'judgment_mark';
 
 export interface StatusEffectDefinition {
   id: StatusEffectId;

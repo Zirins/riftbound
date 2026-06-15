@@ -10,6 +10,7 @@ import { RiftSeasonSystem } from './RiftSeasonSystem';
 import { resetDailyGifts as resetFriendDailyGiftsHandler } from './FriendSystem';
 import { resetWeekly as resetFriendShopWeekly } from './FriendShopSystem';
 import { WeeklyTaskSystem } from './WeeklyTaskSystem';
+import { FeaturedBannerSystem } from './FeaturedBannerSystem';
 
 export function resetWeeklyTasks(save: RealmSaveDataV3, weekKey: string): void {
   WeeklyTaskSystem.resetWeekly(save, weekKey);
@@ -40,8 +41,7 @@ export function rolloverArenaSeasonIfExpired(save: RealmSaveDataV3, now: Date): 
 }
 
 export function rotateFeaturedBannerIfExpired(save: RealmSaveDataV3, now: Date): void {
-  void save;
-  void now;
+  FeaturedBannerSystem.rotateIfExpired(save, now);
 }
 
 export function resetVoidTrialDaily(save: RealmSaveDataV3, dateKey: string): void {

@@ -1,7 +1,7 @@
 // src/systems/SkillSystem.ts
 // V2 data-driven skill execution — reads HeroCombatKit, resolves targets, applies effects.
 
-import { COMBAT } from '../constants/gameConfig';
+import { COMBAT, HERO_NEW } from '../constants/gameConfig';
 import { getHeroCombatKit } from '../data/heroKits';
 import { AwakeningModifierSystem } from './AwakeningModifierSystem';
 import { getStatusEffectDefinition, isKnownStatusEffect } from '../data/statusEffects';
@@ -24,6 +24,7 @@ import {
   clampHeroEnergy,
   getUnitId,
   heroRef,
+  enemyRef,
   isUnitAlive,
   scaleStatValue,
 } from './battleStateUtils';
@@ -32,6 +33,7 @@ import {
   resolveAreaAroundPoint,
   resolveMultiBacklineEnemies,
   resolveTargets,
+  isEnemyIsolated,
 } from './TargetingSystem';
 import { StatusEffectSystem } from './StatusEffectSystem';
 import { SummonUnitSystem } from './SummonUnitSystem';
@@ -243,7 +245,18 @@ export class SkillSystem {
           break;
         }
         case 'damage': {
-          const rawDamage = this.computeEffectAmount(caster, effect);
+          let rawDamage = this.computeEffectAmount(caster, effect);
+          if (
+            effect.isolationBonus
+            && target.side === 'enemy'
+            && isEnemyIsolated(
+              target.unit,
+              battleState.enemies,
+              effect.isolationRadius ?? HERO_NEW.LIN.ISOLATION_RADIUS,
+            )
+          ) {
+            rawDamage = Math.floor(rawDamage * (1 + effect.isolationBonus));
+          }
           const dealt = StatusEffectSystem.applyDamageWithMitigation(target, rawDamage);
           results.push({
             effectType: 'damage',
@@ -345,6 +358,44 @@ export class SkillSystem {
             blocked: true,
           });
           break;
+        case 'detonate_status': {
+          const statusId = this.toStatusEffectId(effect.statusId);
+          if (!statusId) break;
+
+          let totalStacks = 0;
+          for (const enemy of battleState.enemies) {
+            if (!enemy.isAlive) continue;
+            const ref = enemyRef(enemy);
+            const stacks = StatusEffectSystem.getStatusStacks(ref, statusId);
+            if (stacks <= 0) continue;
+
+            totalStacks += stacks;
+            const perStack = this.computeEffectAmount(caster, effect);
+            const dealt = StatusEffectSystem.applyDamageWithMitigation(
+              ref,
+              Math.floor(perStack * stacks),
+            );
+            results.push({
+              effectType: 'detonate_status',
+              targetUnitId: getUnitId(ref),
+              targetSide: ref.side,
+              amount: dealt,
+              statusId,
+            });
+            StatusEffectSystem.removeStatus(ref, statusId);
+          }
+
+          if (totalStacks > 0) {
+            results.push({
+              effectType: 'detonate_status',
+              targetUnitId: getUnitId(heroRef(caster)),
+              targetSide: 'hero',
+              amount: totalStacks,
+              statusId,
+            });
+          }
+          break;
+        }
         default:
           break;
       }
@@ -407,6 +458,10 @@ export class SkillSystem {
         effect.area,
         effect.maxTargets,
       );
+    }
+
+    if (effect.effectType === 'detonate_status') {
+      return resolveTargets('all_enemies', caster, battleState);
     }
 
     if (effect.effectType === 'apply_status' || effect.effectType === 'stat_modifier') {

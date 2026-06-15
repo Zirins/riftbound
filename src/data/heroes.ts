@@ -1,5 +1,5 @@
 // src/data/heroes.ts
-// Static hero definitions — all 10 V1.1 pool heroes. No logic.
+// Static hero definitions — all 14 implemented pool heroes. No logic.
 
 import { HERO_NEW, HEROES } from '../constants/gameConfig';
 import type { HeroData } from '../types';
@@ -14,6 +14,10 @@ const V = HERO_NEW.VEYRA;
 const T = HERO_NEW.THANE;
 const C = HERO_NEW.CAIRA;
 const MK = HERO_NEW.MAREK;
+const LN = HERO_NEW.LIN;
+const WE = HERO_NEW.WEI;
+const FE = HERO_NEW.FEN;
+const LI = HERO_NEW.LIAN;
 
 export const HEROES_DATA: HeroData[] = [
   {
@@ -245,6 +249,98 @@ export const HEROES_DATA: HeroData[] = [
     energyGainOnTaken: MK.ENERGY_GAIN_ON_TAKEN,
     passiveId: 'gathering_squall',
     ultimateId: 'stormreign_cleave',
+  },
+  {
+    id: LN.ID,
+    name: 'Lin Mo',
+    title: 'The Hollow Silence',
+    heroClass: 'assassin',
+    rarity: 'rare',
+    faction: 'hollow',
+    animaForm: 'Void Shroud',
+    color: LN.COLOR,
+    radius: LN.RADIUS,
+    baseHP: LN.BASE_HP,
+    hpPerLevel: LN.HP_PER_LEVEL,
+    baseAttack: LN.BASE_ATTACK,
+    attackPerLevel: LN.ATTACK_PER_LEVEL,
+    baseDefense: LN.BASE_DEFENSE,
+    defensePerLevel: LN.DEFENSE_PER_LEVEL,
+    attackCooldown: LN.ATTACK_COOLDOWN,
+    moveSpeed: LN.SPEED,
+    energyGainOnHit: LN.ENERGY_GAIN_ON_HIT,
+    energyGainOnTaken: LN.ENERGY_GAIN_ON_TAKEN,
+    passiveId: 'hollow_isolation',
+    ultimateId: 'silence_requiem',
+  },
+  {
+    id: WE.ID,
+    name: 'Wei An',
+    title: 'Blade of the Argent Verdict',
+    heroClass: 'fighter',
+    rarity: 'epic',
+    faction: 'argent',
+    animaForm: 'Trial Edge',
+    color: WE.COLOR,
+    radius: WE.RADIUS,
+    baseHP: WE.BASE_HP,
+    hpPerLevel: WE.HP_PER_LEVEL,
+    baseAttack: WE.BASE_ATTACK,
+    attackPerLevel: WE.ATTACK_PER_LEVEL,
+    baseDefense: WE.BASE_DEFENSE,
+    defensePerLevel: WE.DEFENSE_PER_LEVEL,
+    attackCooldown: WE.ATTACK_COOLDOWN,
+    moveSpeed: WE.SPEED,
+    energyGainOnHit: WE.ENERGY_GAIN_ON_HIT,
+    energyGainOnTaken: WE.ENERGY_GAIN_ON_TAKEN,
+    passiveId: 'trial_discipline',
+    ultimateId: 'verdict_cleave',
+  },
+  {
+    id: FE.ID,
+    name: 'Fen Rou',
+    title: 'Whisper of the Squall',
+    heroClass: 'support',
+    rarity: 'uncommon',
+    faction: 'freebound',
+    animaForm: 'Phantom Echo',
+    color: FE.COLOR,
+    radius: FE.RADIUS,
+    baseHP: FE.BASE_HP,
+    hpPerLevel: FE.HP_PER_LEVEL,
+    baseAttack: FE.BASE_ATTACK,
+    attackPerLevel: FE.ATTACK_PER_LEVEL,
+    baseDefense: FE.BASE_DEFENSE,
+    defensePerLevel: FE.DEFENSE_PER_LEVEL,
+    attackCooldown: FE.HEAL_COOLDOWN,
+    moveSpeed: FE.SPEED,
+    energyGainOnHit: FE.ENERGY_GAIN_ON_ABILITY,
+    energyGainOnTaken: FE.ENERGY_GAIN_ON_TAKEN,
+    passiveId: 'squall_whisper',
+    ultimateId: 'phantom_strike',
+  },
+  {
+    id: LI.ID,
+    name: 'Lian Qing',
+    title: 'Herald of Judgment',
+    heroClass: 'mage',
+    rarity: 'legendary',
+    faction: 'radiant',
+    animaForm: 'Sunbrand Seal',
+    color: LI.COLOR,
+    radius: LI.RADIUS,
+    baseHP: LI.BASE_HP,
+    hpPerLevel: LI.HP_PER_LEVEL,
+    baseAttack: LI.BASE_ATTACK,
+    attackPerLevel: LI.ATTACK_PER_LEVEL,
+    baseDefense: LI.BASE_DEFENSE,
+    defensePerLevel: LI.DEFENSE_PER_LEVEL,
+    attackCooldown: LI.ATTACK_COOLDOWN,
+    moveSpeed: LI.SPEED,
+    energyGainOnHit: LI.ENERGY_GAIN_ON_HIT,
+    energyGainOnTaken: LI.ENERGY_GAIN_ON_TAKEN,
+    passiveId: 'radiant_scrutiny',
+    ultimateId: 'judgment_detonate',
   },
 ];
 

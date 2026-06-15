@@ -1,18 +1,20 @@
 // src/save/defaults/createDefaultFeaturedBannerState.ts
 
 import { FEATURED_BANNER } from '../../constants/gameConfig';
+import { FEATURED_BANNER_ROTATION } from '../../data/banners';
 import type { FeaturedBannerState } from '../../types';
-import { toDateString } from '../utils/saveDateUtils';
+import { getLocalDateKey, parseLocalDateKey } from '../utils/saveDateUtils';
 
 export function createDefaultFeaturedBannerState(now = Date.now()): FeaturedBannerState {
-  const bannerStartDate = toDateString(now);
-  const endDate = new Date(now);
+  const firstBanner = FEATURED_BANNER_ROTATION[0];
+  const bannerStartDate = getLocalDateKey(new Date(now));
+  const endDate = parseLocalDateKey(bannerStartDate);
   endDate.setDate(endDate.getDate() + FEATURED_BANNER.DURATION_DAYS);
 
   return {
-    currentBannerId: 'featured_starter',
+    currentBannerId: firstBanner.id,
     bannerStartDate,
-    bannerEndDate: toDateString(endDate.getTime()),
+    bannerEndDate: getLocalDateKey(endDate),
     pityCounter: 0,
     guaranteedFeatured: false,
     totalPullsOnCurrentBanner: 0,

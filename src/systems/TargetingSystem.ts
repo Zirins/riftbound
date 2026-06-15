@@ -2,7 +2,7 @@
 // Per-class target selection AI for heroes and enemies.
 // V2: data-driven TargetRule resolution for SkillSystem.
 
-import { MAGE, SUPPORT } from '../constants/gameConfig';
+import { HERO_NEW, MAGE, SUPPORT } from '../constants/gameConfig';
 import type {
   AreaDefinition,
   BattleHero,
@@ -62,6 +62,9 @@ export function resolveTargets(
       break;
     case 'lowest_hp_ally':
       targets = pickHeroRef(findLowestHpAlly(caster, livingHeroes));
+      break;
+    case 'isolated_enemy':
+      targets = pickEnemyRef(findIsolatedEnemy(caster, livingEnemies));
       break;
     case 'all_allies':
       targets = livingHeroes.map((hero) => heroRef(hero));
@@ -270,6 +273,27 @@ function filterEnemiesAroundPoint(
       && enemy.y <= originY + height / 2,
     )
     .map((enemy) => enemyRef(enemy));
+}
+
+function findIsolatedEnemy(
+  hero: HeroRuntimeState,
+  enemies: EnemyRuntimeState[],
+): EnemyRuntimeState | null {
+  const radius = HERO_NEW.LIN.ISOLATION_RADIUS;
+  const isolated = enemies.filter((enemy) => isEnemyIsolated(enemy, enemies, radius));
+  if (isolated.length === 0) return null;
+  return isolated.reduce((best, enemy) =>
+    (getDistance(hero, enemy) < getDistance(hero, best) ? enemy : best),
+  );
+}
+
+export function isEnemyIsolated(
+  target: EnemyRuntimeState,
+  enemies: EnemyRuntimeState[],
+  radius: number = HERO_NEW.LIN.ISOLATION_RADIUS,
+): boolean {
+  if (!target.isAlive) return false;
+  return countAlliesWithinRadius(target, enemies, radius) === 0;
 }
 
 function findLowestHpEnemy(

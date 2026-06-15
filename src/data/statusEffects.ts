@@ -81,6 +81,13 @@ export const STATUS_EFFECTS: StatusEffectDefinition[] = [
     isDebuff: false,
     maxStacks: 5,
   },
+  {
+    id: 'judgment_mark',
+    name: 'Judgment Mark',
+    description: 'Stacking mark that can be detonated for burst damage.',
+    isDebuff: true,
+    maxStacks: 5,
+  },
 ];
 
 const STATUS_BY_ID = new Map(STATUS_EFFECTS.map((status) => [status.id, status]));

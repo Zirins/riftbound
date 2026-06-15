@@ -1,6 +1,7 @@
 // src/save/migrations/migrateSaveV2ToV3.ts
 // Idempotent realm migration from V1.1 (schema 2) to V2 (schema 3) save fields.
 
+import { HERO_POOL_IDS } from '../../data/heroes';
 import { createDefaultAchievementState } from '../defaults/createDefaultAchievementState';
 import { createDefaultArenaSeasonFields } from '../defaults/createDefaultArenaSeasonFields';
 import { createDefaultAwakeningState } from '../defaults/createDefaultAwakeningState';
@@ -79,6 +80,9 @@ export function migrateSaveV2ToV3(save: RealmSaveDataV2): RealmSaveDataV3 {
     if (rs.allWeeklyBonusWeekKey === undefined) rs.allWeeklyBonusWeekKey = '';
   }
   migrated.featuredBannerState ??= createDefaultFeaturedBannerState();
+  if (migrated.featuredBannerState.currentBannerId === 'featured_starter') {
+    migrated.featuredBannerState.currentBannerId = 'featured_caira';
+  }
   migrated.voidTrialState ??= createDefaultVoidTrialState();
   if (migrated.voidTrialState.weeklyMilestoneClaimed === undefined) {
     migrated.voidTrialState.weeklyMilestoneClaimed = false;
@@ -119,6 +123,14 @@ export function migrateSaveV2ToV3(save: RealmSaveDataV2): RealmSaveDataV3 {
     }
     if (migrated.arenaState.inactivityDecayThroughDate === undefined) {
       migrated.arenaState.inactivityDecayThroughDate = '';
+    }
+  }
+
+  // Roster v14: ensure awakening entries exist for any newly added hero IDs already owned.
+  for (const heroId of HERO_POOL_IDS) {
+    const owned = migrated.ownedHeroes.find((hero) => hero.heroId === heroId && hero.isOwned);
+    if (owned && !migrated.awakeningState[heroId]) {
+      migrated.awakeningState[heroId] = { heroId, awakeningLevel: 0 };
     }
   }
 

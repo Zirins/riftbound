@@ -28,14 +28,16 @@ export class SummonResultScene extends Phaser.Scene {
   private againButton: ButtonPrimary | null = null;
   private readonly cardObjects: Phaser.GameObjects.GameObject[] = [];
   private flashOverlay: Phaser.GameObjects.Rectangle | null = null;
+  private returnTab: 'standard' | 'featured' = 'standard';
 
   constructor() {
     super({ key: SummonResultScene.KEY });
   }
 
-  init(data: { results?: SummonResult[] }): void {
+  init(data: { results?: SummonResult[]; tab?: 'standard' | 'featured' }): void {
     this.results = data.results ?? [];
     this.revealIndex = 0;
+    this.returnTab = data.tab ?? 'standard';
   }
 
   create(): void {
@@ -67,7 +69,7 @@ export class SummonResultScene extends Phaser.Scene {
       CANVAS.WIDTH / 2 - 120,
       CANVAS.HEIGHT - 36,
       'SUMMON AGAIN',
-      () => this.scene.start(SCENE_KEYS.SUMMON_TEMPLE),
+      () => this.scene.start(SCENE_KEYS.SUMMON_TEMPLE, { tab: this.returnTab }),
       180,
     );
 
@@ -76,7 +78,7 @@ export class SummonResultScene extends Phaser.Scene {
       CANVAS.WIDTH / 2 + 120,
       CANVAS.HEIGHT - 36,
       'DONE',
-      () => this.scene.start(SCENE_KEYS.SUMMON_TEMPLE),
+      () => this.scene.start(SCENE_KEYS.SUMMON_TEMPLE, { tab: this.returnTab }),
       120,
     );
 

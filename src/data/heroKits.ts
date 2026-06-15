@@ -1071,6 +1071,384 @@ const marekKit: HeroCombatKit = {
   ],
 };
 
+// ─── Lin Mo — Hollow isolation assassin ───────────────────────────────────────
+
+const LN = HERO_NEW.LIN;
+
+const linKit: HeroCombatKit = {
+  heroId: LN.ID,
+  role: 'assassin',
+  classType: 'striker',
+  element: 'void',
+  targetingProfile: { defaultTargetRule: 'backline_enemy', fallbackTargetRule: 'isolated_enemy' },
+  aiProfile: {
+    ultimatePriority: 'execute',
+    sideSkillPriority: ['lin_void_reap', 'lin_shade_step', 'lin_hollow_needle'],
+  },
+  passive: skill(
+    'hollow_isolation',
+    LN.ID,
+    'Hollow Isolation',
+    'passive',
+    'Strikes against isolated foes deal bonus void damage.',
+    'on_hit',
+    'nearest_enemy',
+    [atkDamage(0.8, { isolationBonus: LN.ISOLATION_DAMAGE_BONUS, isolationRadius: LN.ISOLATION_RADIUS })],
+    ['damage', 'execute'],
+  ),
+  ultimate: skill(
+    'silence_requiem',
+    LN.ID,
+    'Silence Requiem',
+    'ultimate',
+    'Blink to an isolated enemy and deliver a lethal void requiem.',
+    'manual_or_auto_ultimate',
+    'isolated_enemy',
+    [
+      { effectType: 'move_to_target' },
+      atkDamage(2.8, { isolationBonus: LN.ISOLATION_DAMAGE_BONUS, isolationRadius: LN.ISOLATION_RADIUS }),
+      applyStatus('vulnerable', 3000, 0.18),
+    ],
+    ['dash', 'damage', 'execute'],
+    { energyCost: 100 },
+  ),
+  sideSkills: [
+    skill(
+      'lin_void_reap',
+      LN.ID,
+      'Void Reap',
+      'side',
+      'Execute an isolated foe with a precision void blade.',
+      'cooldown',
+      'isolated_enemy',
+      [atkDamage(2.2, { isolationBonus: LN.ISOLATION_DAMAGE_BONUS, isolationRadius: LN.ISOLATION_RADIUS })],
+      ['damage', 'execute'],
+      { cooldownMs: 8000, initialCooldownMs: 2000 },
+    ),
+    skill(
+      'lin_shade_step',
+      LN.ID,
+      'Shade Step',
+      'side',
+      'Slip through hollow shade and strike the nearest foe.',
+      'cooldown',
+      'nearest_enemy',
+      [
+        { effectType: 'move_to_target' },
+        atkDamage(1.5),
+      ],
+      ['dash', 'damage'],
+      { cooldownMs: 7000, initialCooldownMs: 1500 },
+    ),
+    skill(
+      'lin_hollow_needle',
+      LN.ID,
+      'Hollow Needle',
+      'side',
+      'Pierce a vulnerable target, exposing them further.',
+      'cooldown',
+      'lowest_hp_enemy',
+      [atkDamage(1.6), applyStatus('vulnerable', 3500, 0.14)],
+      ['damage', 'debuff'],
+      { cooldownMs: 9000, initialCooldownMs: 2500 },
+    ),
+  ],
+  awakeningTrack: [
+    awakening(1, 'Isolation strikes cut deeper.', { attack: 40 }, [
+      { targetSkillId: 'hollow_isolation', modifierType: 'increase_multiplier', value: 0.20 },
+    ]),
+    awakening(2, 'Void Reap cooldown shortens.', { attack: 60, critChance: 0.04 }, [
+      { targetSkillId: 'lin_void_reap', modifierType: 'reduce_cooldown', value: 1500 },
+    ]),
+    awakening(3, 'Silence Requiem gains bonus damage on isolated targets.', { attack: 85 }, [
+      { targetSkillId: 'silence_requiem', modifierType: 'increase_multiplier', value: 0.30 },
+    ]),
+  ],
+};
+
+// ─── Wei An — Argent discipline striker ───────────────────────────────────────
+
+const WE = HERO_NEW.WEI;
+
+const weiKit: HeroCombatKit = {
+  heroId: WE.ID,
+  role: 'bruiser',
+  classType: 'striker',
+  element: 'iron',
+  targetingProfile: { defaultTargetRule: 'nearest_enemy', fallbackTargetRule: 'frontline_enemy' },
+  aiProfile: {
+    ultimatePriority: 'enemy_clustered',
+    sideSkillPriority: ['wei_trial_slash', 'wei_formation_edge', 'wei_iron_focus'],
+  },
+  passive: skill(
+    'trial_discipline',
+    WE.ID,
+    'Trial Discipline',
+    'passive',
+    'Damage taken forges discipline — each hit stacks attack power.',
+    'on_hit',
+    'self',
+    [statMod('atk_up', WE.DISCIPLINE_DURATION, WE.DISCIPLINE_STACK)],
+    ['buff'],
+  ),
+  ultimate: skill(
+    'verdict_cleave',
+    WE.ID,
+    'Verdict Cleave',
+    'ultimate',
+    'Unleash a disciplined cleave through the enemy front line.',
+    'manual_or_auto_ultimate',
+    'all_enemies',
+    [
+      flatDamage(WE.ULTIMATE_DAMAGE),
+      atkDamage(1.2),
+    ],
+    ['damage', 'area'],
+    { energyCost: 100 },
+  ),
+  sideSkills: [
+    skill(
+      'wei_trial_slash',
+      WE.ID,
+      'Trial Slash',
+      'side',
+      'A measured slash that exposes the target.',
+      'cooldown',
+      'nearest_enemy',
+      [atkDamage(1.9), applyStatus('vulnerable', 3000, 0.12)],
+      ['damage', 'debuff'],
+      { cooldownMs: 7500, initialCooldownMs: 2000 },
+    ),
+    skill(
+      'wei_formation_edge',
+      WE.ID,
+      'Formation Edge',
+      'side',
+      'Hold the formation line with iron-hardened resolve.',
+      'cooldown',
+      'self',
+      [statMod('damage_reduction', 5000, 0.15), statMod('atk_up', 5000, 0.10)],
+      ['buff'],
+      { cooldownMs: 11000, initialCooldownMs: 3000 },
+    ),
+    skill(
+      'wei_iron_focus',
+      WE.ID,
+      'Iron Focus',
+      'side',
+      'Focus trial intent into a piercing iron strike.',
+      'cooldown',
+      'frontline_enemy',
+      [atkDamage(2.1)],
+      ['damage'],
+      { cooldownMs: 9000, initialCooldownMs: 2500 },
+    ),
+  ],
+  awakeningTrack: [
+    awakening(1, 'Discipline stacks hit harder.', { attack: 35 }, [
+      { targetSkillId: 'trial_discipline', modifierType: 'increase_multiplier', value: 0.25 },
+    ]),
+    awakening(2, 'Verdict Cleave damage increases.', { attack: 55 }, [
+      { targetSkillId: 'verdict_cleave', modifierType: 'increase_multiplier', value: 0.18 },
+    ]),
+    awakening(3, 'Trial Slash applies brief slow on hit.', { attack: 75, hp: 150 }, [
+      {
+        targetSkillId: 'wei_trial_slash',
+        modifierType: 'add_status',
+        value: applyStatus('slow', 2000, 0.15),
+      },
+    ]),
+  ],
+};
+
+// ─── Fen Rou — Freebound phantom support ────────────────────────────────────────
+
+const FE = HERO_NEW.FEN;
+
+const fenKit: HeroCombatKit = {
+  heroId: FE.ID,
+  role: 'support',
+  classType: 'mystic',
+  element: 'storm',
+  targetingProfile: { defaultTargetRule: 'lowest_hp_ally', fallbackTargetRule: 'self' },
+  aiProfile: {
+    ultimatePriority: 'ally_low_hp',
+    sideSkillPriority: ['fen_squall_mend', 'fen_wind_veil', 'fen_static_chime'],
+  },
+  passive: skill(
+    'squall_whisper',
+    FE.ID,
+    'Squall Whisper',
+    'passive',
+    'Whispers of the squall grant allies brief haste after combat begins.',
+    'combat_start',
+    'all_allies',
+    [statMod('haste', 3000, 0.08)],
+    ['buff'],
+  ),
+  ultimate: skill(
+    'phantom_strike',
+    FE.ID,
+    'Phantom Strike',
+    'ultimate',
+    'Grant an ally a phantom echo — they strike twice per cycle for several seconds.',
+    'manual_or_auto_ultimate',
+    'lowest_hp_ally',
+    [statMod('haste', FE.PHANTOM_DURATION, FE.PHANTOM_HASTE)],
+    ['buff'],
+    { energyCost: 100 },
+  ),
+  sideSkills: [
+    skill(
+      'fen_squall_mend',
+      FE.ID,
+      'Squall Mend',
+      'side',
+      'Mend the weakest ally with storm-touched healing.',
+      'cooldown',
+      'lowest_hp_ally',
+      [flatHeal(95)],
+      ['heal'],
+      { cooldownMs: 8000, initialCooldownMs: 2000 },
+    ),
+    skill(
+      'fen_wind_veil',
+      FE.ID,
+      'Wind Veil',
+      'side',
+      'Wrap an ally in wind, shielding and quickening them.',
+      'cooldown',
+      'lowest_hp_ally',
+      [shield(80, 4000), statMod('haste', 3000, 0.12)],
+      ['shield', 'buff'],
+      { cooldownMs: 10000, initialCooldownMs: 3000 },
+    ),
+    skill(
+      'fen_static_chime',
+      FE.ID,
+      'Static Chime',
+      'side',
+      'Chime static through foes, slowing the nearest enemy.',
+      'cooldown',
+      'nearest_enemy',
+      [atkDamage(0.9), applyStatus('slow', 3000, 0.18)],
+      ['damage', 'control', 'debuff'],
+      { cooldownMs: 9000, initialCooldownMs: 2500 },
+    ),
+  ],
+  awakeningTrack: [
+    awakening(1, 'Phantom Strike lasts longer.', { hp: 80 }, [
+      { targetSkillId: 'phantom_strike', modifierType: 'increase_duration', value: 1000 },
+    ]),
+    awakening(2, 'Squall Mend heals more.', { hp: 120 }, [
+      { targetSkillId: 'fen_squall_mend', modifierType: 'increase_multiplier', value: 0.20 },
+    ]),
+    awakening(3, 'Wind Veil shields grow stronger.', { hp: 160 }, [
+      { targetSkillId: 'fen_wind_veil', modifierType: 'increase_multiplier', value: 0.25 },
+    ]),
+  ],
+};
+
+// ─── Lian Qing — Radiant judgment debuffer ────────────────────────────────────
+
+const LI = HERO_NEW.LIAN;
+
+const lianKit: HeroCombatKit = {
+  heroId: LI.ID,
+  role: 'caster',
+  classType: 'oracle',
+  element: 'light',
+  targetingProfile: { defaultTargetRule: 'highest_atk_enemy', fallbackTargetRule: 'nearest_enemy' },
+  aiProfile: {
+    ultimatePriority: 'enemy_clustered',
+    sideSkillPriority: ['lian_sunbrand', 'lian_expose', 'lian_radiant_lance'],
+  },
+  passive: skill(
+    'radiant_scrutiny',
+    LI.ID,
+    'Radiant Scrutiny',
+    'passive',
+    'Basic scrutiny applies judgment marks to struck foes.',
+    'on_hit',
+    'nearest_enemy',
+    [applyStatus('judgment_mark', LI.MARK_DURATION, LI.MARK_STACK_VULN)],
+    ['debuff'],
+  ),
+  ultimate: skill(
+    'judgment_detonate',
+    LI.ID,
+    'Judgment Detonate',
+    'ultimate',
+    'Detonate all judgment marks across the battlefield for radiant burst damage.',
+    'manual_or_auto_ultimate',
+    'all_enemies',
+    [{
+      effectType: 'detonate_status',
+      statusId: 'judgment_mark',
+      flatAmount: LI.DETONATE_BASE,
+      scaling: { stat: 'atk', multiplier: LI.DETONATE_ATK_MULT },
+    }],
+    ['damage', 'area', 'debuff'],
+    { energyCost: 100 },
+  ),
+  sideSkills: [
+    skill(
+      'lian_sunbrand',
+      LI.ID,
+      'Sunbrand',
+      'side',
+      'Brand an enemy with a stacking judgment mark.',
+      'cooldown',
+      'highest_atk_enemy',
+      [atkDamage(1.3), applyStatus('judgment_mark', LI.MARK_DURATION, LI.MARK_STACK_VULN)],
+      ['damage', 'debuff'],
+      { cooldownMs: 7000, initialCooldownMs: 2000 },
+    ),
+    skill(
+      'lian_expose',
+      LI.ID,
+      'Expose',
+      'side',
+      'Expose a marked foe, layering judgment and vulnerability.',
+      'cooldown',
+      'nearest_enemy',
+      [
+        applyStatus('judgment_mark', LI.MARK_DURATION, LI.MARK_STACK_VULN),
+        applyStatus('vulnerable', 3000, 0.10),
+      ],
+      ['debuff'],
+      { cooldownMs: 9000, initialCooldownMs: 2500 },
+    ),
+    skill(
+      'lian_radiant_lance',
+      LI.ID,
+      'Radiant Lance',
+      'side',
+      'Hurl a lance of morning light through the enemy line.',
+      'cooldown',
+      'backline_enemy',
+      [atkDamage(2.0)],
+      ['damage'],
+      { cooldownMs: 8000, initialCooldownMs: 2000 },
+    ),
+  ],
+  awakeningTrack: [
+    awakening(1, 'Judgment marks linger longer.', { attack: 40 }, [
+      { targetSkillId: 'lian_sunbrand', modifierType: 'increase_duration', value: 1500 },
+    ]),
+    awakening(2, 'Detonation hits harder per mark.', { attack: 60 }, [
+      { targetSkillId: 'judgment_detonate', modifierType: 'increase_multiplier', value: 0.20 },
+    ]),
+    awakening(3, 'Sunbrand applies an extra mark stack on cast.', { attack: 80, hp: 120 }, [
+      {
+        targetSkillId: 'lian_sunbrand',
+        modifierType: 'add_status',
+        value: applyStatus('judgment_mark', 2000, LI.MARK_STACK_VULN),
+      },
+    ]),
+  ],
+};
+
 // ─── Registry ─────────────────────────────────────────────────────────────────
 
 export const HERO_KITS: Record<string, HeroCombatKit> = {
@@ -1084,6 +1462,10 @@ export const HERO_KITS: Record<string, HeroCombatKit> = {
   [T.ID]: thaneKit,
   [C.ID]: cairaKit,
   [MK.ID]: marekKit,
+  [LN.ID]: linKit,
+  [WE.ID]: weiKit,
+  [FE.ID]: fenKit,
+  [LI.ID]: lianKit,
 };
 
 export const HERO_KIT_IDS = Object.keys(HERO_KITS);

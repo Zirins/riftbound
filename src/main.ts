@@ -60,6 +60,9 @@ if (import.meta.env.DEV) {
   void import('./dev/phase26RiftSeasonHarness').then((module) => {
     module.exposePhase26RiftSeasonHarness();
   });
+  void import('./dev/phase27FeaturedBannerHarness').then((module) => {
+    module.exposePhase27FeaturedBannerHarness();
+  });
 }
 
 new Phaser.Game(gameConfig);

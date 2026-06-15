@@ -57,6 +57,27 @@ export const PAIR_BOND_DEFINITIONS: PairBondDefinition[] = [
     heroIds: ['solenne_arclight', 'veyra_hollowglass'],
     modifiers: { defensePercent: 0.03 },
   },
+  {
+    id: 'pair_lin_veyra',
+    name: 'Hollow Silence',
+    description: 'Lin Mo and Huan Li hunt from the mirror dark.',
+    heroIds: ['lin_hollowshade', 'veyra_hollowglass'],
+    modifiers: { attackPercent: 0.02 },
+  },
+  {
+    id: 'pair_wei_kael',
+    name: 'Order Formation',
+    description: 'Wei An and Tie Shan hold the Argent line together.',
+    heroIds: ['wei_argentblade', 'kael'],
+    modifiers: { defensePercent: 0.03 },
+  },
+  {
+    id: 'pair_lian_han_jue',
+    name: 'Frost Judgment',
+    description: 'Lian Qing and Han Jue pass sentence as one. (Untestable until han_jue ships.)',
+    heroIds: ['lian_sunscourge', 'han_jue'],
+    modifiers: { attackPercent: 0.03 },
+  },
 ];
 
 export const CLASS_LABELS: Record<HeroClass, string> = {

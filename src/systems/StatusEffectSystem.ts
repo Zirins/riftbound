@@ -179,6 +179,12 @@ export class StatusEffectSystem {
     }
   }
 
+  static getStatusStacks(target: BattleUnitRef, statusId: StatusEffectId): number {
+    return target.unit.v2StatusEffects
+      .filter((effect) => effect.statusId === statusId && effect.durationRemainingMs > 0)
+      .reduce((total, effect) => total + effect.stacks, 0);
+  }
+
   private static getStatusStrength(target: BattleUnitRef, statusId: StatusEffectId): number {
     return target.unit.v2StatusEffects
       .filter((effect) => effect.statusId === statusId && effect.durationRemainingMs > 0)
