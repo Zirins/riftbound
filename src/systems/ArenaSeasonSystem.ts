@@ -13,6 +13,7 @@ import {
 import type { RealmSaveDataV3, RewardBundle } from '../types';
 import { getTierFromPoints, getTierName } from './ArenaMatchSystem';
 import { createRewardMail } from './MailSystem';
+import { RiftSeasonSystem } from './RiftSeasonSystem';
 
 function daysBetween(startDateKey: string, endDateKey: string): number {
   const start = parseLocalDateKey(startDateKey);
@@ -193,6 +194,9 @@ export class ArenaSeasonSystem {
       return false;
     }
 
+    // Shared calendar — reset battle pass before advancing Arena season dates.
+    RiftSeasonSystem.rolloverIfExpired(save, now);
+
     const tier = getTierFromPoints(save.arenaState.rankPoints);
     const pointsBeforeReset = save.arenaState.rankPoints;
 
@@ -206,6 +210,8 @@ export class ArenaSeasonSystem {
     save.arenaState.inactivityDecayBaseRankPoints = softResetPoints;
     save.arenaState.inactivityDecayMatchDate = save.arenaState.lastMatchDate;
     save.arenaState.inactivityDecayThroughDate = getLocalDateKey(now);
+
+    RiftSeasonSystem.ensureSeasonState(save, now);
 
     if (import.meta.env.DEV) {
       console.info('[ArenaSeasonSystem] season rollover', {

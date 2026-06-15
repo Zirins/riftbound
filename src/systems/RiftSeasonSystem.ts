@@ -142,6 +142,14 @@ function checkAllWeeklyMissionsBonus(save: RealmSaveDataV3, now = new Date()): v
   addSeasonXp(save, RIFT_SEASON.XP_ALL_WEEKLY_BONUS, 'all_weekly_missions_bonus');
 }
 
+function hasRiftSeasonProgress(save: RealmSaveDataV3): boolean {
+  const state = save.riftSeasonState;
+  return state.currentXp > 0
+    || state.claimedFreeTiers.length > 0
+    || state.claimedPremiumTiers.length > 0
+    || state.premiumUnlocked;
+}
+
 let handlersRegistered = false;
 
 export class RiftSeasonSystem {
@@ -211,6 +219,13 @@ export class RiftSeasonSystem {
   static ensureSeasonState(save: RealmSaveDataV3, now = new Date()): void {
     ensureRiftSeasonFields(save);
     ArenaSeasonSystem.ensureSeasonState(save, now.getTime());
+
+    const seasonDrifted = save.riftSeasonState.seasonStartDate !== ''
+      && save.riftSeasonState.seasonStartDate !== save.arenaState.seasonStartDate;
+    if (seasonDrifted && hasRiftSeasonProgress(save)) {
+      resetSeasonProgress(save);
+    }
+
     syncSeasonDatesFromArena(save);
   }
 
@@ -326,18 +341,34 @@ export class RiftSeasonSystem {
 
   /** Resets progress when the shared Arena season ends. Premium does not persist. */
   static rolloverIfExpired(save: RealmSaveDataV3, now = new Date()): boolean {
-    RiftSeasonSystem.ensureSeasonState(save, now);
+    ensureRiftSeasonFields(save);
+    ArenaSeasonSystem.ensureSeasonState(save, now.getTime());
 
-    if (!isSeasonExpired(save.arenaState.seasonEndDate, now)) {
+    const arenaExpired = isSeasonExpired(save.arenaState.seasonEndDate, now);
+    const seasonDrifted = save.riftSeasonState.seasonStartDate !== ''
+      && save.riftSeasonState.seasonStartDate !== save.arenaState.seasonStartDate;
+
+    if (!arenaExpired && !seasonDrifted) {
+      syncSeasonDatesFromArena(save);
       return false;
     }
 
-    resetSeasonProgress(save);
+    if (arenaExpired || (seasonDrifted && hasRiftSeasonProgress(save))) {
+      resetSeasonProgress(save);
+      syncSeasonDatesFromArena(save);
 
-    if (import.meta.env.DEV) {
-      console.info('[RiftSeasonSystem] season rollover — progress reset for new Arena season');
+      if (import.meta.env.DEV) {
+        console.info('[RiftSeasonSystem] season rollover', {
+          arenaExpired,
+          seasonDrifted,
+          arenaSeasonStart: save.arenaState.seasonStartDate,
+        });
+      }
+
+      return true;
     }
 
-    return true;
+    syncSeasonDatesFromArena(save);
+    return false;
   }
 }
