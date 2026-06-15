@@ -6,7 +6,8 @@ import { ARENA_OPPONENTS, type ArenaOpponent } from '../data/arenaOpponents';
 import { HEROES_DATA } from '../data/heroes';
 import type { ArenaMatchResult, RealmSaveDataV3, WaveConfig } from '../types';
 import { getLocalDateKey } from '../save/utils/saveDateUtils';
-import * as Economy from './EconomySystem';
+import { buildLegacyCurrencyBundle } from './legacyRewardBundle';
+import { RewardSystem } from './RewardSystem';
 import { ArenaSeasonSystem } from './ArenaSeasonSystem';
 import { GameEventBus } from './GameEventBus';
 import { computeRP } from './HeroProgressionSystem';
@@ -213,20 +214,19 @@ export function claimDailyReward(): boolean {
   const realm = loadCurrentRealm();
   if (!realm) return false;
 
-  const tier = getTierFromPoints(realm.arenaState.rankPoints);
-  Economy.grant('gold', tier.dailyGold);
-  Economy.grant('crystals', tier.dailyCrystals);
+  const save = realm as RealmSaveDataV3;
+  const tier = getTierFromPoints(save.arenaState.rankPoints);
+  RewardSystem.grantRewardBundle(save, buildLegacyCurrencyBundle('arena_season', [
+    { type: 'gold', amount: tier.dailyGold },
+    { type: 'crystals', amount: tier.dailyCrystals },
+  ]));
 
-  const currentRealm = loadCurrentRealm();
-  if (!currentRealm) return false;
+  save.arenaState = {
+    ...save.arenaState,
+    lastRewardClaimDate: todayString(),
+  };
 
-  saveCurrentRealm({
-    ...currentRealm,
-    arenaState: {
-      ...currentRealm.arenaState,
-      lastRewardClaimDate: todayString(),
-    },
-  });
+  saveCurrentRealm(save);
   return true;
 }
 
@@ -261,39 +261,30 @@ export function resolveMatchResult(win: boolean, opponentId?: string): ArenaMatc
   const newTier = getTierFromPoints(newRankPoints);
   const rewards = getMatchRewards(win, save.arenaState.rankPoints);
 
-  if (rewards.gold > 0) Economy.grant('gold', rewards.gold);
-  if (rewards.crystals > 0) Economy.grant('crystals', rewards.crystals);
-
-  const updatedRealm = loadCurrentRealm();
-  if (!updatedRealm) {
-    return {
-      win,
-      rankPointsDelta: delta,
-      newRankPoints,
-      newTier: newTier.name,
-      rewardGold: rewards.gold,
-      rewardCrystals: rewards.crystals,
-    };
+  if (rewards.gold > 0 || rewards.crystals > 0) {
+    RewardSystem.grantRewardBundle(save, buildLegacyCurrencyBundle('arena_match', [
+      { type: 'gold', amount: rewards.gold },
+      { type: 'crystals', amount: rewards.crystals },
+    ]));
   }
 
-  const updatedSave = updatedRealm as RealmSaveDataV3;
-  updatedSave.arenaState = {
-    ...updatedSave.arenaState,
+  save.arenaState = {
+    ...save.arenaState,
     rankPoints: newRankPoints,
     rankTier: newTier.id,
-    attemptsUsedToday: updatedSave.arenaState.attemptsUsedToday + 1,
+    attemptsUsedToday: save.arenaState.attemptsUsedToday + 1,
   };
 
-  ArenaSeasonSystem.recordMatchPlayed(updatedSave);
+  ArenaSeasonSystem.recordMatchPlayed(save);
 
   if (win) {
-    GameEventBus.emit(updatedSave, {
+    GameEventBus.emit(save, {
       type: 'arena_won',
       opponentId: opponentId ?? 'unknown_opponent',
     });
   }
 
-  saveCurrentRealm(updatedSave);
+  saveCurrentRealm(save);
 
   return {
     win,

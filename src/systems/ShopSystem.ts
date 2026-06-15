@@ -3,9 +3,11 @@
 
 import { SHOP_ITEMS, type ShopItemDefinition } from '../data/shopItems';
 import { HEROES_DATA } from '../data/heroes';
-import type { RealmSaveDataV3 } from '../types';
+import type { RealmSaveDataV3, RewardBundle } from '../types';
 import { getLocalDateKey } from '../save/utils/saveDateUtils';
-import * as Economy from './EconomySystem';
+import { EconomySystem } from './EconomySystem';
+import { buildLegacyCurrencyBundle } from './legacyRewardBundle';
+import { RewardSystem } from './RewardSystem';
 import { loadCurrentRealm, saveCurrentRealm } from './SaveSystem';
 
 function createSeededRng(seed: string): () => number {
@@ -67,71 +69,64 @@ export function purchase(itemId: string): boolean {
   const realm = loadCurrentRealm();
   if (!realm || isPurchased(itemId)) return false;
 
-  if (!Economy.canAfford(item.costType, item.costAmount)
-    || !Economy.deduct(item.costType, item.costAmount)) {
-    return false;
+  const save = realm as RealmSaveDataV3;
+  const cost = {
+    type: item.costType === 'gold' ? 'gold' as const : 'rift_crystal' as const,
+    amount: item.costAmount,
+  };
+  if (!EconomySystem.canAfford(save, [cost])) return false;
+  const spend = EconomySystem.spendCurrencies(save, [cost], 'shop_purchase');
+  if (!spend.success) return false;
+
+  const bundle = buildShopRewardBundle(save, item);
+  if (bundle) {
+    RewardSystem.grantRewardBundle(save, bundle);
   }
 
-  grantItemReward(item);
+  save.dailyShopState = {
+    ...save.dailyShopState,
+    purchasedItemIds: [...save.dailyShopState.purchasedItemIds, itemId],
+  };
 
-  const currentRealm = loadCurrentRealm();
-  if (!currentRealm) return false;
-
-  saveCurrentRealm({
-    ...currentRealm,
-    dailyShopState: {
-      ...currentRealm.dailyShopState,
-      purchasedItemIds: [...currentRealm.dailyShopState.purchasedItemIds, itemId],
-    },
-  });
+  saveCurrentRealm(save);
   return true;
 }
 
-function grantItemReward(item: ShopItemDefinition): void {
+function buildShopRewardBundle(save: RealmSaveDataV3, item: ShopItemDefinition): RewardBundle | null {
   switch (item.rewardType) {
     case 'xpFragments':
     case 'gold':
     case 'crystals':
     case 'energy':
-      Economy.grant(item.rewardType, item.amount);
-      break;
+      return buildLegacyCurrencyBundle('shop_purchase', [{
+        type: item.rewardType,
+        amount: item.amount,
+      }]);
     case 'heroShards':
-      if (item.heroId) grantHeroShards(item.heroId, item.amount);
-      break;
-    case 'randomRareShards':
-      grantRandomRareShards(item.amount);
-      break;
+      if (!item.heroId) return null;
+      return {
+        source: 'shop_purchase',
+        heroShards: [{ heroId: item.heroId, quantity: item.amount }],
+      };
+    case 'randomRareShards': {
+      const heroId = pickRandomRareShardHeroId(save);
+      return {
+        source: 'shop_purchase',
+        heroShards: [{ heroId, quantity: item.amount }],
+      };
+    }
+    default:
+      return null;
   }
 }
 
-function grantHeroShards(heroId: string, amount: number): void {
-  const realm = loadCurrentRealm();
-  if (!realm) return;
-
-  const current = realm.inventory.heroShards[heroId] ?? 0;
-  saveCurrentRealm({
-    ...realm,
-    inventory: {
-      ...realm.inventory,
-      heroShards: {
-        ...realm.inventory.heroShards,
-        [heroId]: current + amount,
-      },
-    },
-  });
-}
-
-function grantRandomRareShards(amount: number): void {
-  const realm = loadCurrentRealm();
-  if (!realm) return;
-
-  const ownedRareIds = realm.ownedHeroes
+function pickRandomRareShardHeroId(save: RealmSaveDataV3): string {
+  const ownedRareIds = save.ownedHeroes
     .filter((hero) => hero.isOwned)
     .map((hero) => hero.heroId)
     .filter((heroId) => HEROES_DATA.find((h) => h.id === heroId)?.rarity === 'rare');
 
-  const heroId = ownedRareIds[0] ?? 'kael';
-  grantHeroShards(heroId, amount);
+  return ownedRareIds[0] ?? 'kael';
 }
 
 export function getRefreshCountdownMs(): number {

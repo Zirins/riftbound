@@ -556,6 +556,7 @@ export type RewardSource =
   | 'friend_shop'
   | 'rift_season'
   | 'gacha_pull'
+  | 'shop_purchase'
   | 'iap_purchase'
   | 'dev_grant';
 

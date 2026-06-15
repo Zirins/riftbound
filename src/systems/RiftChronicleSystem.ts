@@ -3,8 +3,10 @@
 
 import { HEROES, RIFT_CHRONICLE_REWARDS } from '../constants/gameConfig';
 import { HEROES_DATA } from '../data/heroes';
-import * as Economy from './EconomySystem';
+import { buildLegacyCurrencyBundle } from './legacyRewardBundle';
+import { RewardSystem } from './RewardSystem';
 import { loadCurrentRealm, saveCurrentRealm } from './SaveSystem';
+import type { RealmSaveDataV3, RewardBundle } from '../types';
 
 function todayString(): string {
   return new Date().toISOString().slice(0, 10);
@@ -36,78 +38,61 @@ export function claimToday(): boolean {
   const rewardEntry = getTodayReward();
   if (!rewardEntry) return false;
 
+  const save = realm as RealmSaveDataV3;
   for (const reward of rewardEntry.rewards) {
-    grantChronicleReward(reward);
+    const bundle = buildChronicleRewardBundle(save, reward);
+    if (bundle) {
+      RewardSystem.grantRewardBundle(save, bundle);
+    }
   }
 
-  const updatedRealm = loadCurrentRealm();
-  if (!updatedRealm) return false;
+  save.riftChronicle = {
+    currentStreak: save.riftChronicle.currentStreak + 1,
+    lastClaimDate: todayString(),
+    totalDaysClaimed: save.riftChronicle.totalDaysClaimed + 1,
+  };
 
-  saveCurrentRealm({
-    ...updatedRealm,
-    riftChronicle: {
-      currentStreak: updatedRealm.riftChronicle.currentStreak + 1,
-      lastClaimDate: todayString(),
-      totalDaysClaimed: updatedRealm.riftChronicle.totalDaysClaimed + 1,
-    },
-  });
-
+  saveCurrentRealm(save);
   return true;
 }
 
-function grantChronicleReward(
+function buildChronicleRewardBundle(
+  save: RealmSaveDataV3,
   reward: (typeof RIFT_CHRONICLE_REWARDS)[number]['rewards'][number],
-): void {
+): RewardBundle | null {
   switch (reward.type) {
     case 'gold':
-      Economy.grant('gold', reward.amount);
-      break;
+      return buildLegacyCurrencyBundle('rift_chronicle', [{ type: 'gold', amount: reward.amount }]);
     case 'crystals':
-      Economy.grant('crystals', reward.amount);
-      break;
+      return buildLegacyCurrencyBundle('rift_chronicle', [{ type: 'crystals', amount: reward.amount }]);
     case 'xpFragments':
-      Economy.grant('xpFragments', reward.amount);
-      break;
-    case 'shards_rare_random':
-      grantRandomRareShards(reward.amount);
-      break;
+      return buildLegacyCurrencyBundle('rift_chronicle', [{ type: 'xpFragments', amount: reward.amount }]);
+    case 'shards_rare_random': {
+      const heroId = pickRandomRareShardHeroId(save);
+      return {
+        source: 'rift_chronicle',
+        heroShards: [{ heroId, quantity: reward.amount }],
+      };
+    }
     case 'shards_hero':
       if ('heroId' in reward && typeof reward.heroId === 'string') {
-        grantHeroShards(reward.heroId, reward.amount);
+        return {
+          source: 'rift_chronicle',
+          heroShards: [{ heroId: reward.heroId, quantity: reward.amount }],
+        };
       }
-      break;
+      return null;
     default:
-      break;
+      return null;
   }
 }
 
-function grantRandomRareShards(amount: number): void {
-  const realm = loadCurrentRealm();
-  if (!realm) return;
-
-  const rareOwnedIds = realm.ownedHeroes
+function pickRandomRareShardHeroId(save: RealmSaveDataV3): string {
+  const rareOwnedIds = save.ownedHeroes
     .filter((hero) => hero.isOwned)
     .map((hero) => hero.heroId)
     .filter((heroId) => HEROES_DATA.find((data) => data.id === heroId)?.rarity === 'rare');
 
   const pool = rareOwnedIds.length > 0 ? rareOwnedIds : [HEROES.KAEL.ID];
-  const heroId = pool[Math.floor(Math.random() * pool.length)] ?? HEROES.KAEL.ID;
-  grantHeroShards(heroId, amount);
-}
-
-function grantHeroShards(heroId: string, amount: number): void {
-  const realm = loadCurrentRealm();
-  if (!realm) return;
-
-  const current = realm.inventory.heroShards[heroId] ?? 0;
-  saveCurrentRealm({
-    ...realm,
-    inventory: {
-      ...realm.inventory,
-      heroShards: {
-        ...realm.inventory.heroShards,
-        [heroId]: current + amount,
-      },
-    },
-  });
+  return pool[Math.floor(Math.random() * pool.length)] ?? HEROES.KAEL.ID;
 }
