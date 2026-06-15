@@ -753,6 +753,7 @@ export interface ActiveBond {
 }
 
 export interface AchievementSaveState {
+  progressById: Record<string, number>;
   completedAchievementIds: string[];
   claimedAchievementIds: string[];
 }

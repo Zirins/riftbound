@@ -7,6 +7,7 @@ import { HEROES_DATA } from '../data/heroes';
 import { SCENE_KEYS } from '../constants/sceneKeys';
 import type { SceneKey } from '../constants/sceneKeys';
 import * as EnergySystem from '../systems/EnergySystem';
+import { AchievementSystem } from '../systems/AchievementSystem';
 import {
   getUnlockMessage,
   isUnlocked,
@@ -62,6 +63,7 @@ export class HubScene extends Phaser.Scene {
   private bottomButtons: ButtonPrimary[] = [];
   private mailDot: NotificationDot | null = null;
   private tasksDot: NotificationDot | null = null;
+  private achievementsDot: NotificationDot | null = null;
   private chronicleDot: NotificationDot | null = null;
   private lockIcons: Phaser.GameObjects.Text[] = [];
   private toastTimer: Phaser.Time.TimerEvent | null = null;
@@ -98,6 +100,7 @@ export class HubScene extends Phaser.Scene {
     this.toastLabel?.destroy();
     this.mailDot?.destroy();
     this.tasksDot?.destroy();
+    this.achievementsDot?.destroy();
     this.chronicleDot?.destroy();
 
     for (const icon of this.lockIcons) icon.destroy();
@@ -114,6 +117,7 @@ export class HubScene extends Phaser.Scene {
     this.toastLabel = null;
     this.mailDot = null;
     this.tasksDot = null;
+    this.achievementsDot = null;
     this.chronicleDot = null;
   }
 
@@ -180,37 +184,56 @@ export class HubScene extends Phaser.Scene {
     const mailButton = new ButtonPrimary(this, 120, 340, '📬 MAIL', () => this.openMailOverlay(), 120);
     this.mailDot = new NotificationDot(this, 168, 322);
 
-    const tasksButton = new ButtonPrimary(this, 280, 340, '☑ TASKS', () => this.openTasksOverlay(), 120);
-    this.tasksDot = new NotificationDot(this, 328, 322);
+    const tasksButton = new ButtonPrimary(this, 250, 340, '☑ TASKS', () => this.openTasksOverlay(), 110);
+    this.tasksDot = new NotificationDot(this, 298, 322);
+
+    const achievementsButton = new ButtonPrimary(
+      this,
+      380,
+      340,
+      '🏆 ACHIEV',
+      () => this.onAchievementsTap(),
+      110,
+    );
+    this.achievementsDot = new NotificationDot(this, 428, 322);
 
     const settingsButton = new ButtonPrimary(
       this,
-      440,
+      510,
       340,
       '⚙ SETTINGS',
       () => this.scene.start(SCENE_KEYS.SETTINGS),
-      120,
+      110,
     );
 
     const inventoryButton = new ButtonPrimary(
       this,
-      580,
+      640,
       340,
       '🎒 BAG',
       () => this.onInventoryTap(),
-      100,
+      90,
     );
 
     const quickBattle = new ButtonPrimary(
       this,
-      700,
+      750,
       340,
-      '▶▶ QUICK BATTLE',
+      '▶▶ QUICK',
       () => this.scene.start(SCENE_KEYS.FORMATION, { origin: 'quickBattle' }),
-      180,
+      120,
     );
 
-    this.bottomButtons.push(mailButton, tasksButton, settingsButton, inventoryButton, quickBattle);
+    this.bottomButtons.push(mailButton, tasksButton, achievementsButton, settingsButton, inventoryButton, quickBattle);
+  }
+
+  private onAchievementsTap(): void {
+    if (!isUnlocked('ACHIEVEMENTS')) {
+      this.showToast(getUnlockMessage('ACHIEVEMENTS'));
+      return;
+    }
+
+    this.scene.start(SCENE_KEYS.ACHIEVEMENTS);
   }
 
   private onInventoryTap(): void {
@@ -259,6 +282,7 @@ export class HubScene extends Phaser.Scene {
     }
 
     OfflineRewardSystem.syncOnHubLoad(save);
+    AchievementSystem.syncSnapshotAchievements(save);
     saveCurrentRealm(save);
   }
 
@@ -327,6 +351,13 @@ export class HubScene extends Phaser.Scene {
     const taskCount = TaskSystem.getTasksNotificationCount();
     if (taskCount > 0) this.tasksDot?.show(taskCount);
     else this.tasksDot?.hide();
+
+    const realm = loadCurrentRealm();
+    const achievementCount = realm
+      ? AchievementSystem.getUnclaimedCount(realm as RealmSaveDataV3)
+      : 0;
+    if (achievementCount > 0) this.achievementsDot?.show(achievementCount);
+    else this.achievementsDot?.hide();
 
     if (RiftChronicleSystem.isAvailableToday()) this.chronicleDot?.show();
     else this.chronicleDot?.hide();

@@ -16,6 +16,7 @@ import type {
   StageReward,
 } from '../types';
 import { checkUnlocks } from './FeatureUnlockSystem';
+import { GameEventBus } from './GameEventBus';
 import { getStageData } from './StageLoader';
 import { loadCurrentRealm, saveCurrentRealm } from './SaveSystem';
 import { reportProgress } from './TaskSystem';
@@ -90,6 +91,7 @@ export function computeStageReward(
   };
 }
 
+/** Campaign battle victory only (VictoryScene). Updates clearedStages and emits stage_cleared. */
 export function grantReward(reward: StageReward): void {
   const realm = loadCurrentRealm();
   if (!realm) return;
@@ -156,9 +158,15 @@ export function grantReward(reward: StageReward): void {
 
   save.clearedStages = clearedStages;
   save.accountLevel = computeAccountLevel(clearedStages.length);
-  saveCurrentRealm(save);
 
   reportProgress('task_complete_stages', 1);
+  GameEventBus.emit(save, {
+    type: 'stage_cleared',
+    stageId: reward.stageId,
+    stars: reward.stars,
+    swept: false,
+  });
+  saveCurrentRealm(save);
   checkUnlocks();
 }
 
@@ -196,6 +204,7 @@ export function buildSweepPerformance(stageId: string): BattlePerformance {
 }
 
 export class RewardSystem {
+  /** Applies a reward bundle only — does not emit GameEvents or mutate campaign progress. */
   static grantRewardBundle(save: RealmSaveDataV3, bundle: RewardBundle): GrantResult {
     if (import.meta.env.DEV) {
       console.info('[RewardSystem] grant', { source: bundle.source, bundle });

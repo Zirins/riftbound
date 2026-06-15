@@ -503,6 +503,7 @@ export const FEATURE_UNLOCKS = {
   MAIL:               { type: 'always' },
   RIFT_CHRONICLE:     { type: 'always' },
   VOID_TRIAL:         { type: 'stage_clear', stageId: 'stage_2_4' },
+  ACHIEVEMENTS:       { type: 'stage_clear', stageId: 'stage_1_3' },
   HERO_DETAIL_LEVEL:  { type: 'always' },
   HERO_DETAIL_STAR:   { type: 'always' },
 } as const;

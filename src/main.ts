@@ -6,6 +6,9 @@
 
 import Phaser from 'phaser';
 import { gameConfig } from './game';
+import { AchievementSystem } from './systems/AchievementSystem';
+
+AchievementSystem.init();
 
 if (import.meta.env.DEV) {
   void import('./dev/phase7CombatHarness').then((module) => {
@@ -28,6 +31,9 @@ if (import.meta.env.DEV) {
   });
   void import('./dev/phase17OfflineRewardHarness').then((module) => {
     module.exposePhase17OfflineRewardHarness();
+  });
+  void import('./dev/phase18AchievementHarness').then((module) => {
+    module.exposePhase18AchievementHarness();
   });
 }
 

@@ -4,6 +4,7 @@ import type { AchievementSaveState } from '../../types';
 
 export function createDefaultAchievementState(): AchievementSaveState {
   return {
+    progressById: {},
     completedAchievementIds: [],
     claimedAchievementIds: [],
   };

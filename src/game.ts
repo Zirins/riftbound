@@ -25,6 +25,7 @@ import { DefeatScene } from './scenes/DefeatScene';
 import { SigilScene } from './scenes/SigilScene';
 import { SigilUpgradeScene } from './scenes/SigilUpgradeScene';
 import { VoidTrialScene } from './scenes/VoidTrialScene';
+import { AchievementsScene } from './scenes/AchievementsScene';
 
 export const gameConfig: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -54,6 +55,7 @@ export const gameConfig: Phaser.Types.Core.GameConfig = {
     SigilScene,
     SigilUpgradeScene,
     VoidTrialScene,
+    AchievementsScene,
   ],
   scale: {
     mode: Phaser.Scale.FIT,

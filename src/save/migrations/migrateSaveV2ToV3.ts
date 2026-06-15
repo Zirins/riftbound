@@ -33,6 +33,9 @@ export function migrateSaveV2ToV3(save: RealmSaveDataV2): RealmSaveDataV3 {
   migrated.bondState ??= createDefaultBondState();
   migrated.formationPresets ??= [];
   migrated.achievementState ??= createDefaultAchievementState();
+  if (!migrated.achievementState.progressById) {
+    migrated.achievementState.progressById = {};
+  }
   migrated.weeklyTaskState ??= createDefaultWeeklyTaskState();
   migrated.offlineRewardState ??= createDefaultOfflineRewardState();
   if (migrated.offlineRewardState) {
