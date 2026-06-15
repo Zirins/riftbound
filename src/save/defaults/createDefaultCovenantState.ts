@@ -31,6 +31,7 @@ export function createDefaultCovenantState(now = Date.now()): CovenantState {
       lastNpcDamageDate: '',
       npcDamageToday: [],
       killRewardMailSent: false,
+      killRewardMailWeekKey: '',
     },
     shopState: {
       weekKey,

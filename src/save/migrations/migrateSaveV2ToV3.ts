@@ -63,6 +63,7 @@ export function migrateSaveV2ToV3(save: RealmSaveDataV2): RealmSaveDataV3 {
     if (boss.lastNpcDamageDate === undefined) boss.lastNpcDamageDate = '';
     if (boss.npcDamageToday === undefined) boss.npcDamageToday = [];
     if (boss.killRewardMailSent === undefined) boss.killRewardMailSent = false;
+    if (boss.killRewardMailWeekKey === undefined) boss.killRewardMailWeekKey = '';
   }
   migrated.friendState ??= createDefaultFriendState();
   migrated.patronState ??= createDefaultPatronState();

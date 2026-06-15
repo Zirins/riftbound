@@ -63,9 +63,20 @@ function ensureBossStateFields(bossState: CovenantBossState): void {
   if (bossState.lastNpcDamageDate === undefined) bossState.lastNpcDamageDate = '';
   if (bossState.npcDamageToday === undefined) bossState.npcDamageToday = [];
   if (bossState.killRewardMailSent === undefined) bossState.killRewardMailSent = false;
+  if (bossState.killRewardMailWeekKey === undefined) bossState.killRewardMailWeekKey = '';
+
+  if (bossState.killRewardMailSent
+    && bossState.killRewardMailWeekKey !== bossState.lastWeeklyResetWeekKey) {
+    bossState.killRewardMailSent = false;
+    bossState.killRewardMailWeekKey = '';
+  }
 }
 
-/** Remap Phase 20 placeholder boss ids (e.g. void_colossus) to the real weekly pool. */
+/**
+ * Remap Phase 20 placeholder boss ids (e.g. void_colossus) to the real weekly pool.
+ * If the stale id had any kill progress, start a fresh fight on the remapped boss —
+ * never inherit defeated/mail flags from an invalid identity (avoids double kill mails).
+ */
 function normalizeStaleBossId(bossState: CovenantBossState): void {
   if (getCovenantBoss(bossState.bossId)) return;
 
@@ -73,16 +84,29 @@ function normalizeStaleBossId(bossState: CovenantBossState): void {
   const boss = getCovenantBoss(bossId);
   if (!boss) return;
 
+  const staleHadKillProgress = bossState.defeatedThisWeek
+    || bossState.killRewardMailSent
+    || bossState.currentHp <= 0;
+
   if (import.meta.env.DEV) {
     console.info('[CovBossSystem] remapped stale bossId', {
       from: bossState.bossId,
       to: bossId,
+      staleHadKillProgress,
     });
   }
 
   bossState.bossId = bossId;
   bossState.maxHp = boss.maxHp;
-  bossState.currentHp = Math.min(bossState.currentHp, boss.maxHp);
+
+  if (staleHadKillProgress) {
+    bossState.currentHp = boss.maxHp;
+    bossState.defeatedThisWeek = false;
+    bossState.killRewardMailSent = false;
+    bossState.killRewardMailWeekKey = '';
+  } else {
+    bossState.currentHp = Math.min(bossState.currentHp, boss.maxHp);
+  }
 }
 
 function buildFreshBossState(weekKey: string): CovenantBossState {
@@ -101,6 +125,7 @@ function buildFreshBossState(weekKey: string): CovenantBossState {
     lastNpcDamageDate: '',
     npcDamageToday: [],
     killRewardMailSent: false,
+    killRewardMailWeekKey: '',
   };
 }
 
@@ -326,10 +351,23 @@ export class CovBossSystem {
   }
 
   static deliverKillCacheMail(save: RealmSaveDataV3): void {
+    if (!save.covenantState) return;
+
+    // Remap invalid boss ids before naming the mail — one identity per weekly instance.
+    CovBossSystem.ensureBossState(save);
     const bossState = save.covenantState.bossState;
-    if (bossState.killRewardMailSent) return;
+    const weekKey = bossState.lastWeeklyResetWeekKey;
+
+    if (bossState.killRewardMailSent && bossState.killRewardMailWeekKey === weekKey) {
+      if (import.meta.env.DEV) {
+        console.info('[CovBossSystem] deliverKillCacheMail skipped — already sent this week', { weekKey });
+      }
+      return;
+    }
 
     bossState.killRewardMailSent = true;
+    bossState.killRewardMailWeekKey = weekKey;
+
     const boss = getCovenantBoss(bossState.bossId);
     const bundle = buildKillCacheBundle(save);
 

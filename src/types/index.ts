@@ -816,6 +816,8 @@ export interface CovenantBossState {
   lastNpcDamageDate: string;
   npcDamageToday: CovenantNpcDamageEntry[];
   killRewardMailSent: boolean;
+  /** ISO week key when kill cache mail was sent — prevents duplicate mails per weekly instance. */
+  killRewardMailWeekKey: string;
 }
 
 export interface CovenantShopState {
