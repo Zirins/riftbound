@@ -74,11 +74,11 @@ export const WEEKLY_MISSIONS: WeeklyMissionDefinition[] = [
   },
   {
     id: 'weekly_covenant_supporter',
-    name: 'Covenant Supporter',
-    description: 'Contribute to Covenant 5 times',
+    name: 'Sect Supporter',
+    description: 'Contribute to your Sect 5 times',
     requiredProgress: 5,
     availability: 'locked',
-    lockReason: 'Unlocks when Covenant opens',
+    lockReason: 'Unlocks when Sect opens',
     reward: {
       source: 'weekly_task',
       currencies: [

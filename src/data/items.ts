@@ -151,8 +151,8 @@ export const ITEMS: ItemDefinition[] = [
   },
   {
     id: 'covenant_badge',
-    name: 'Covenant Badge',
-    description: 'Proof of Covenant contribution used in weekly shop exchanges.',
+    name: 'Sect Badge',
+    description: 'Proof of Sect contribution used in weekly shop exchanges.',
     type: 'material',
     category: 'material',
     rarity: 'uncommon',

@@ -73,8 +73,8 @@ const CURRENCY_DISPLAY: CurrencyDisplayConfig[] = [
   },
   {
     id: 'covenant_coin',
-    name: 'Covenant Coin',
-    description: 'Covenant contribution currency for the weekly shop.',
+    name: 'Sect Coin',
+    description: 'Sect contribution currency for the weekly shop.',
     currencyType: 'covenant_coin',
     iconPath: 'assets/currencies/covenant_coin.png',
     rarity: 'uncommon',

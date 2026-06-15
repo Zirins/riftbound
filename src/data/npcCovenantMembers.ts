@@ -13,7 +13,7 @@ export interface SimulatedCovenantPreset {
 /** Pre-seeded NPC Covenant the player can join in V2. */
 export const SIMULATED_COVENANT_PRESET: SimulatedCovenantPreset = {
   covId: 'cov_sim_moonwake',
-  covName: 'Moonwake Covenant',
+  covName: 'Moonwake Sect',
   covLevel: 4,
   covXP: 450,
 };

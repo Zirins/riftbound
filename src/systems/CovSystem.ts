@@ -62,11 +62,11 @@ export class CovSystem {
   static createCovenant(save: RealmSaveDataV3, covName: string): CovenantActionResult {
     const trimmed = covName.trim();
     if (trimmed.length < 2) {
-      return { success: false, reason: 'Covenant name must be at least 2 characters' };
+      return { success: false, reason: 'Sect name must be at least 2 characters' };
     }
 
     if (CovSystem.isInCovenant(save)) {
-      return { success: false, reason: 'Already in a Covenant' };
+      return { success: false, reason: 'Already in a Sect' };
     }
 
     const defaults = createDefaultCovenantState();
@@ -89,7 +89,7 @@ export class CovSystem {
 
   static joinSimulatedCovenant(save: RealmSaveDataV3): CovenantActionResult {
     if (CovSystem.isInCovenant(save)) {
-      return { success: false, reason: 'Already in a Covenant' };
+      return { success: false, reason: 'Already in a Sect' };
     }
 
     const defaults = createDefaultCovenantState();
@@ -114,7 +114,7 @@ export class CovSystem {
 
   static leaveCovenant(save: RealmSaveDataV3): CovenantActionResult {
     if (!CovSystem.isInCovenant(save)) {
-      return { success: false, reason: 'Not in a Covenant' };
+      return { success: false, reason: 'Not in a Sect' };
     }
 
     save.covenantState = createDefaultCovenantState();

@@ -50,7 +50,7 @@ const HUB_ZONES: HubZoneConfig[] = [
   { label: 'CELESTIAL MARKET', sublabel: 'Exchange goods', x: 422, y: 240, featureKey: 'CELESTIAL_MARKET', sceneKey: SCENE_KEYS.SHOP },
   { label: 'RIFT CHRONICLE', sublabel: 'Daily rewards', x: 694, y: 240, featureKey: 'RIFT_CHRONICLE', overlay: 'chronicle' },
   { label: 'VOID TRIAL', sublabel: 'Weekly tower', x: 422, y: 300, featureKey: 'VOID_TRIAL', sceneKey: SCENE_KEYS.VOID_TRIAL },
-  { label: 'COVENANT', sublabel: 'Guild hall', x: 694, y: 300, featureKey: 'COVENANT', sceneKey: SCENE_KEYS.COVENANT_HUB },
+  { label: 'SECT', sublabel: 'Guild hall', x: 694, y: 300, featureKey: 'COVENANT', sceneKey: SCENE_KEYS.COVENANT_HUB },
 ];
 
 export class HubScene extends Phaser.Scene {

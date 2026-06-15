@@ -1,5 +1,5 @@
 // src/scenes/CovHubScene.ts
-// Covenant hub — create/join when unaffiliated, overview when in a Covenant (Section 25.1).
+// Sect hub — create/join when unaffiliated, overview when in a Sect (Section 25.1).
 
 import Phaser from 'phaser';
 import { CANVAS, UI } from '../constants/gameConfig';
@@ -19,6 +19,7 @@ export class CovHubScene extends Phaser.Scene {
   private backButton: ButtonPrimary | null = null;
   private actionButtons: ButtonPrimary[] = [];
   private infoTexts: Phaser.GameObjects.Text[] = [];
+  private createPanel: Phaser.GameObjects.Rectangle | null = null;
   private leaveModal: ModalBase | null = null;
   private nameInput: HTMLInputElement | null = null;
   private toastLabel: Phaser.GameObjects.Text | null = null;
@@ -48,7 +49,7 @@ export class CovHubScene extends Phaser.Scene {
       100,
     );
 
-    this.add.text(CANVAS.WIDTH / 2, 32, 'COVENANT HUB', {
+    this.add.text(CANVAS.WIDTH / 2, 32, 'SECT HUB', {
       fontSize: '16px',
       color: '#ffffff',
       fontFamily: 'monospace',
@@ -62,11 +63,11 @@ export class CovHubScene extends Phaser.Scene {
   }
 
   private renderNoCovenantView(): void {
-    this.clearInfoTexts();
+    this.clearActionContent();
 
     const lines = [
-      'Covenant is your guild — band together for shared rewards.',
-      'Create your own Covenant or join a simulated one to begin.',
+      'Your Sect is your guild — band together for shared rewards.',
+      'Create your own Sect or join a simulated one to begin.',
     ];
 
     lines.forEach((line, index) => {
@@ -84,8 +85,8 @@ export class CovHubScene extends Phaser.Scene {
       this,
       CANVAS.WIDTH / 2,
       200,
-      'CREATE COVENANT',
-      () => this.openCreateNameInput(),
+      'CREATE SECT',
+      () => this.enterCreateForm(),
       200,
     );
 
@@ -101,12 +102,84 @@ export class CovHubScene extends Phaser.Scene {
     this.actionButtons.push(createButton, joinButton);
   }
 
+  private enterCreateForm(): void {
+    this.clearActionContent();
+    this.closeNameInput();
+
+    this.createPanel = this.add.rectangle(
+      CANVAS.WIDTH / 2,
+      230,
+      420,
+      200,
+      0x1a1a2e,
+    );
+    this.createPanel.setStrokeStyle(2, 0x44ccff);
+
+    const title = this.add.text(CANVAS.WIDTH / 2, 150, 'NAME YOUR SECT', {
+      fontSize: '14px',
+      color: '#ffffff',
+      fontFamily: 'monospace',
+    }).setOrigin(0.5);
+    this.infoTexts.push(title);
+
+    const hint = this.add.text(CANVAS.WIDTH / 2, 172, 'Choose a name (2–24 characters)', {
+      fontSize: '11px',
+      color: '#aaaacc',
+      fontFamily: 'monospace',
+    }).setOrigin(0.5);
+    this.infoTexts.push(hint);
+
+    this.nameInput = document.createElement('input');
+    this.nameInput.type = 'text';
+    this.nameInput.maxLength = MAX_COVENANT_NAME_LENGTH;
+    this.nameInput.placeholder = 'Sect name';
+    this.nameInput.style.position = 'absolute';
+    this.nameInput.style.left = '50%';
+    this.nameInput.style.top = '50%';
+    this.nameInput.style.transform = 'translate(-50%, 20px)';
+    this.nameInput.style.width = '280px';
+    this.nameInput.style.padding = '8px';
+    this.nameInput.style.fontSize = '16px';
+    this.nameInput.style.fontFamily = 'monospace';
+    this.nameInput.style.textAlign = 'center';
+    this.nameInput.style.zIndex = '1000';
+
+    const parent = document.getElementById('game-container') ?? document.body;
+    parent.appendChild(this.nameInput);
+    this.nameInput.focus();
+
+    const confirmButton = new ButtonPrimary(
+      this,
+      CANVAS.WIDTH / 2,
+      300,
+      'CONFIRM CREATE',
+      () => this.handleCreate(),
+      180,
+    );
+
+    const cancelButton = new ButtonPrimary(
+      this,
+      CANVAS.WIDTH / 2,
+      340,
+      'CANCEL',
+      () => this.cancelCreateForm(),
+      120,
+    );
+
+    this.actionButtons.push(confirmButton, cancelButton);
+  }
+
+  private cancelCreateForm(): void {
+    this.closeNameInput();
+    this.renderNoCovenantView();
+  }
+
   private renderInCovenantView(save: RealmSaveDataV3): void {
-    this.clearInfoTexts();
+    this.clearActionContent();
     const state = CovSystem.getState(save);
 
     const summary = [
-      state.covName ?? 'Covenant',
+      state.covName ?? 'Sect',
       `Level ${state.covLevel}  ·  XP ${state.covXP.toLocaleString()}`,
       `Members ${state.memberCount}`,
     ];
@@ -135,62 +208,12 @@ export class CovHubScene extends Phaser.Scene {
       this,
       CANVAS.WIDTH / 2,
       280,
-      'LEAVE COVENANT',
+      'LEAVE SECT',
       () => this.confirmLeave(),
       180,
     );
 
     this.actionButtons.push(membersButton, leaveButton);
-  }
-
-  private openCreateNameInput(): void {
-    this.closeNameInput();
-
-    this.nameInput = document.createElement('input');
-    this.nameInput.type = 'text';
-    this.nameInput.maxLength = MAX_COVENANT_NAME_LENGTH;
-    this.nameInput.placeholder = 'Covenant name';
-    this.nameInput.style.position = 'absolute';
-    this.nameInput.style.left = '50%';
-    this.nameInput.style.top = '50%';
-    this.nameInput.style.transform = 'translate(-50%, 20px)';
-    this.nameInput.style.width = '280px';
-    this.nameInput.style.padding = '8px';
-    this.nameInput.style.fontSize = '16px';
-    this.nameInput.style.fontFamily = 'monospace';
-    this.nameInput.style.textAlign = 'center';
-    this.nameInput.style.zIndex = '1000';
-
-    const parent = document.getElementById('game-container') ?? document.body;
-    parent.appendChild(this.nameInput);
-    this.nameInput.focus();
-
-    const confirmButton = new ButtonPrimary(
-      this,
-      CANVAS.WIDTH / 2,
-      320,
-      'CONFIRM CREATE',
-      () => this.handleCreate(),
-      180,
-    );
-
-    const cancelButton = new ButtonPrimary(
-      this,
-      CANVAS.WIDTH / 2,
-      360,
-      'CANCEL',
-      () => {
-        this.closeNameInput();
-        confirmButton.destroy();
-        cancelButton.destroy();
-        this.actionButtons = this.actionButtons.filter(
-          (button) => button !== confirmButton && button !== cancelButton,
-        );
-      },
-      120,
-    );
-
-    this.actionButtons.push(confirmButton, cancelButton);
   }
 
   private handleCreate(): void {
@@ -226,8 +249,8 @@ export class CovHubScene extends Phaser.Scene {
     this.leaveModal?.destroy();
     this.leaveModal = new ModalBase(
       this,
-      'Leave Covenant?',
-      'You will lose access to Covenant rewards until you create or join again.',
+      'Leave Sect?',
+      'You will lose access to Sect rewards until you create or join again.',
       {
         confirmLabel: 'LEAVE',
         cancelLabel: 'STAY',
@@ -287,12 +310,15 @@ export class CovHubScene extends Phaser.Scene {
     this.nameInput = null;
   }
 
-  private clearInfoTexts(): void {
+  private clearActionContent(): void {
     for (const text of this.infoTexts) text.destroy();
     this.infoTexts.length = 0;
 
     for (const button of this.actionButtons) button.destroy();
     this.actionButtons.length = 0;
+
+    this.createPanel?.destroy();
+    this.createPanel = null;
   }
 
   shutdown(): void {
@@ -305,6 +331,6 @@ export class CovHubScene extends Phaser.Scene {
     this.closeNameInput();
     this.backButton?.destroy();
     this.backButton = null;
-    this.clearInfoTexts();
+    this.clearActionContent();
   }
 }

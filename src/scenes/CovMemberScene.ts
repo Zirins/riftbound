@@ -55,7 +55,7 @@ export class CovMemberScene extends Phaser.Scene {
       this,
       72,
       32,
-      '← COVENANT',
+      '← SECT HUB',
       () => this.scene.start(SCENE_KEYS.COVENANT_HUB),
       120,
     );
