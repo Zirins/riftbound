@@ -19,8 +19,6 @@ import { RewardSystem } from './RewardSystem';
 import { ResetService } from './ResetService';
 import { resetVoidTrialDaily } from './resetHandlers';
 
-const RIFT_SEASON_VOID_TRIAL_XP = 10;
-
 function ensureVoidTrialState(save: RealmSaveDataV3): void {
   if (save.voidTrialState.weeklyMilestoneClaimed === undefined) {
     save.voidTrialState = {
@@ -206,7 +204,6 @@ export class VoidTrialSystem {
           firstClearBundle = bundle;
         }
 
-        save.riftSeasonState.currentXp += RIFT_SEASON_VOID_TRIAL_XP;
         GameEventBus.emit(save, { type: 'void_trial_floor_cleared', floorNumber });
       }
     }

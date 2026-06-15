@@ -78,8 +78,13 @@ function applyMissionProgress(
   if (!entry || entry.claimed) return;
 
   const next = Math.min(definition.requiredProgress, entry.currentProgress + increment);
+  const wasCompleted = entry.completed;
   entry.currentProgress = next;
   entry.completed = next >= definition.requiredProgress;
+
+  if (!wasCompleted && entry.completed) {
+    GameEventBus.emit(save, { type: 'weekly_mission_completed', missionId });
+  }
 }
 
 function syncDisciplinedRoutineProgress(save: RealmSaveDataV3): void {
@@ -88,9 +93,14 @@ function syncDisciplinedRoutineProgress(save: RealmSaveDataV3): void {
   const definition = getWeeklyMissionDefinition('weekly_disciplined_routine');
   if (!entry || !definition || entry.claimed) return;
 
+  const wasCompleted = entry.completed;
   const days = state.disciplinedRoutineDayKeys.length;
   entry.currentProgress = Math.min(definition.requiredProgress, days);
   entry.completed = entry.currentProgress >= definition.requiredProgress;
+
+  if (!wasCompleted && entry.completed) {
+    GameEventBus.emit(save, { type: 'weekly_mission_completed', missionId: 'weekly_disciplined_routine' });
+  }
 }
 
 let handlersRegistered = false;

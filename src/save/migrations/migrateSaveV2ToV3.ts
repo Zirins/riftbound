@@ -69,6 +69,15 @@ export function migrateSaveV2ToV3(save: RealmSaveDataV2): RealmSaveDataV3 {
   migrated.friendState ??= createDefaultFriendState();
   migrated.patronState ??= createDefaultPatronState();
   migrated.riftSeasonState ??= createDefaultRiftSeasonState();
+  if (migrated.riftSeasonState) {
+    const rs = migrated.riftSeasonState;
+    if (rs.dailyXpDateKey === undefined) rs.dailyXpDateKey = '';
+    if (!rs.dailyXpGrantedTaskIds) rs.dailyXpGrantedTaskIds = [];
+    if (rs.allDailyBonusDateKey === undefined) rs.allDailyBonusDateKey = '';
+    if (rs.weeklyXpWeekKey === undefined) rs.weeklyXpWeekKey = '';
+    if (!rs.weeklyXpGrantedMissionIds) rs.weeklyXpGrantedMissionIds = [];
+    if (rs.allWeeklyBonusWeekKey === undefined) rs.allWeeklyBonusWeekKey = '';
+  }
   migrated.featuredBannerState ??= createDefaultFeaturedBannerState();
   migrated.voidTrialState ??= createDefaultVoidTrialState();
   if (migrated.voidTrialState.weeklyMilestoneClaimed === undefined) {

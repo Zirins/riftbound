@@ -6,6 +6,7 @@ import { CovSystem } from './CovSystem';
 import { resetWeekly as resetCovenantShopWeekly } from './CovShopSystem';
 import { CovBossSystem } from './CovBossSystem';
 import { ArenaSeasonSystem } from './ArenaSeasonSystem';
+import { RiftSeasonSystem } from './RiftSeasonSystem';
 import { resetDailyGifts as resetFriendDailyGiftsHandler } from './FriendSystem';
 import { resetWeekly as resetFriendShopWeekly } from './FriendShopSystem';
 import { WeeklyTaskSystem } from './WeeklyTaskSystem';
@@ -31,8 +32,7 @@ export function resetCovenantShopWeeklyHandler(save: RealmSaveDataV3, weekKey: s
 }
 
 export function rolloverRiftSeasonIfExpired(save: RealmSaveDataV3, now: Date): void {
-  void save;
-  void now;
+  RiftSeasonSystem.rolloverIfExpired(save, now);
 }
 
 export function rolloverArenaSeasonIfExpired(save: RealmSaveDataV3, now: Date): void {

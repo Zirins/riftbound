@@ -641,8 +641,10 @@ export type GameEvent =
   | { type: 'covenant_joined'; covenantId: string }
   | { type: 'covenant_contributed'; amount: number; currency: CurrencyType }
   | { type: 'friend_gift_sent'; friendId: string }
-  | { type: 'rift_season_tier_claimed'; tier: number }
-  | { type: 'void_trial_floor_cleared'; floorNumber: number };
+  | { type: 'rift_season_tier_claimed'; tier: number; premium: boolean }
+  | { type: 'void_trial_floor_cleared'; floorNumber: number }
+  | { type: 'daily_task_completed'; taskId: string }
+  | { type: 'weekly_mission_completed'; missionId: string };
 
 export interface ResetResult {
   dailyResetApplied: boolean;
@@ -881,6 +883,16 @@ export interface RiftSeasonState {
   claimedFreeTiers: number[];
   claimedPremiumTiers: number[];
   premiumUnlocked: boolean;
+  /** Local date key for daily-task XP dedup — cleared on date change. */
+  dailyXpDateKey: string;
+  dailyXpGrantedTaskIds: string[];
+  /** Last date the all-daily-tasks bonus was granted. */
+  allDailyBonusDateKey: string;
+  /** Week key for weekly-mission XP dedup — cleared on week change. */
+  weeklyXpWeekKey: string;
+  weeklyXpGrantedMissionIds: string[];
+  /** Last week key the all-weekly-missions bonus was granted. */
+  allWeeklyBonusWeekKey: string;
 }
 
 export interface FeaturedBannerState {

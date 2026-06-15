@@ -5,6 +5,7 @@ import { DAILY_TASKS } from '../data/tasks';
 import type { DailyTaskState, RealmSaveDataV3 } from '../types';
 import { getLocalDateKey } from '../save/utils/saveDateUtils';
 import * as Economy from './EconomySystem';
+import { GameEventBus } from './GameEventBus';
 import { loadCurrentRealm, saveCurrentRealm } from './SaveSystem';
 import { WeeklyTaskSystem } from './WeeklyTaskSystem';
 
@@ -70,6 +71,14 @@ export function reportProgress(taskId: string, increment: number): void {
   });
 
   const updatedSave = { ...realm, tasks: updatedTasks } as RealmSaveDataV3;
+
+  for (const task of updatedTasks) {
+    const before = realm.tasks.find((entry) => entry.taskId === task.taskId);
+    if (before && !before.completed && task.completed) {
+      GameEventBus.emit(updatedSave, { type: 'daily_task_completed', taskId: task.taskId });
+    }
+  }
+
   WeeklyTaskSystem.checkDisciplinedRoutine(updatedSave);
   saveCurrentRealm(updatedSave);
 }

@@ -31,6 +31,7 @@ import { CovMemberScene } from './scenes/CovMemberScene';
 import { CovShopScene } from './scenes/CovShopScene';
 import { CovBossScene } from './scenes/CovBossScene';
 import { FriendScene } from './scenes/FriendScene';
+import { RiftSeasonScene } from './scenes/RiftSeasonScene';
 
 export const gameConfig: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -66,6 +67,7 @@ export const gameConfig: Phaser.Types.Core.GameConfig = {
     CovShopScene,
     CovBossScene,
     FriendScene,
+    RiftSeasonScene,
   ],
   scale: {
     mode: Phaser.Scale.FIT,

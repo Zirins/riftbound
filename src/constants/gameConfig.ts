@@ -506,6 +506,7 @@ export const FEATURE_UNLOCKS = {
   VOID_TRIAL:         { type: 'stage_clear', stageId: 'stage_2_4' },
   ACHIEVEMENTS:       { type: 'stage_clear', stageId: 'stage_1_3' },
   COVENANT:           { type: 'stage_clear', stageId: 'stage_1_8' },
+  RIFT_SEASON:        { type: 'stage_clear', stageId: 'stage_1_8' },
   HERO_DETAIL_LEVEL:  { type: 'always' },
   HERO_DETAIL_STAR:   { type: 'always' },
 } as const;
@@ -638,8 +639,16 @@ export const ARENA_SEASON = {
 export const RIFT_SEASON = {
   TOTAL_TIERS: 30,
   XP_PER_TIER: 100,
+  MAX_XP: 3_000,
   SEASON_DURATION_DAYS: 30,
   PREMIUM_TRACK_COST_VOID_GEMS: 800,
+  XP_DAILY_TASK: 10,
+  XP_ALL_DAILY_BONUS: 20,
+  XP_WEEKLY_MISSION: 50,
+  XP_ALL_WEEKLY_BONUS: 100,
+  XP_ARENA_WIN: 5,
+  XP_CAMPAIGN_CLEAR: 3,
+  XP_VOID_TRIAL_FLOOR: 10,
 } as const;
 
 // ─── V2 Featured Banner ───────────────────────────────────────────────────────

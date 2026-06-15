@@ -7,9 +7,11 @@
 import Phaser from 'phaser';
 import { gameConfig } from './game';
 import { AchievementSystem } from './systems/AchievementSystem';
+import { RiftSeasonSystem } from './systems/RiftSeasonSystem';
 import { WeeklyTaskSystem } from './systems/WeeklyTaskSystem';
 
 AchievementSystem.init();
+RiftSeasonSystem.init();
 WeeklyTaskSystem.init();
 
 if (import.meta.env.DEV) {
@@ -54,6 +56,9 @@ if (import.meta.env.DEV) {
   });
   void import('./dev/phase25ArenaSeasonHarness').then((module) => {
     module.exposePhase25ArenaSeasonHarness();
+  });
+  void import('./dev/phase26RiftSeasonHarness').then((module) => {
+    module.exposePhase26RiftSeasonHarness();
   });
 }
 

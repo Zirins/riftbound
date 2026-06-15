@@ -186,47 +186,56 @@ export class HubScene extends Phaser.Scene {
     const mailButton = new ButtonPrimary(this, 120, 340, '📬 MAIL', () => this.openMailOverlay(), 120);
     this.mailDot = new NotificationDot(this, 168, 322);
 
-    const tasksButton = new ButtonPrimary(this, 250, 340, '☑ TASKS', () => this.openTasksOverlay(), 110);
-    this.tasksDot = new NotificationDot(this, 298, 322);
+    const tasksButton = new ButtonPrimary(this, 230, 340, '☑ TASKS', () => this.openTasksOverlay(), 100);
+    this.tasksDot = new NotificationDot(this, 278, 322);
+
+    const riftSeasonButton = new ButtonPrimary(
+      this,
+      345,
+      340,
+      '🎫 PASS',
+      () => this.onRiftSeasonTap(),
+      90,
+    );
 
     const achievementsButton = new ButtonPrimary(
       this,
-      380,
+      450,
       340,
       '🏆 ACHIEV',
       () => this.onAchievementsTap(),
-      110,
+      100,
     );
-    this.achievementsDot = new NotificationDot(this, 428, 322);
+    this.achievementsDot = new NotificationDot(this, 498, 322);
 
     const settingsButton = new ButtonPrimary(
       this,
-      510,
+      565,
       340,
       '⚙ SETTINGS',
       () => this.scene.start(SCENE_KEYS.SETTINGS),
-      110,
+      100,
     );
 
     const inventoryButton = new ButtonPrimary(
       this,
-      640,
+      680,
       340,
       '🎒 BAG',
       () => this.onInventoryTap(),
-      90,
+      80,
     );
 
     const quickBattle = new ButtonPrimary(
       this,
-      750,
+      775,
       340,
       '▶▶ QUICK',
       () => this.scene.start(SCENE_KEYS.FORMATION, { origin: 'quickBattle' }),
-      120,
+      110,
     );
 
-    this.bottomButtons.push(mailButton, tasksButton, achievementsButton, settingsButton, inventoryButton, quickBattle);
+    this.bottomButtons.push(mailButton, tasksButton, riftSeasonButton, achievementsButton, settingsButton, inventoryButton, quickBattle);
   }
 
   private onAchievementsTap(): void {
@@ -236,6 +245,15 @@ export class HubScene extends Phaser.Scene {
     }
 
     this.scene.start(SCENE_KEYS.ACHIEVEMENTS);
+  }
+
+  private onRiftSeasonTap(): void {
+    if (!isUnlocked('RIFT_SEASON')) {
+      this.showToast(getUnlockMessage('RIFT_SEASON'));
+      return;
+    }
+
+    this.scene.start(SCENE_KEYS.RIFT_SEASON);
   }
 
   private onInventoryTap(): void {

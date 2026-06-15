@@ -27,6 +27,8 @@ function registerNoOpHandlers(): void {
     'friend_gift_sent',
     'rift_season_tier_claimed',
     'void_trial_floor_cleared',
+    'daily_task_completed',
+    'weekly_mission_completed',
   ];
 
   for (const type of eventTypes) {

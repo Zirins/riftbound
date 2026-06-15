@@ -19,7 +19,6 @@ import {
 import { getStageData } from './StageLoader';
 import { loadCurrentRealm, saveCurrentRealm } from './SaveSystem';
 
-const RIFT_SEASON_CAMPAIGN_XP = 3;
 const SWEEP_COUNTS = [1, 10] as const;
 export type SweepCount = (typeof SWEEP_COUNTS)[number];
 
@@ -45,12 +44,20 @@ function reportDailyTaskProgress(save: RealmSaveDataV3, taskId: string, incremen
   save.tasks = save.tasks.map((task) => {
     if (task.taskId !== taskId || task.claimed) return task;
 
+    const before = task;
     const currentProgress = task.currentProgress + increment;
-    return {
+    const completed = currentProgress >= definition.requiredProgress;
+    const updated = {
       ...task,
       currentProgress,
-      completed: currentProgress >= definition.requiredProgress,
+      completed,
     };
+
+    if (!before.completed && completed) {
+      GameEventBus.emit(save, { type: 'daily_task_completed', taskId });
+    }
+
+    return updated;
   });
 }
 
@@ -63,7 +70,6 @@ function applyCampaignClearProgression(
   const stars = record?.stars ?? 3;
 
   reportDailyTaskProgress(save, 'task_complete_stages', 1);
-  save.riftSeasonState.currentXp += RIFT_SEASON_CAMPAIGN_XP;
   GameEventBus.emit(save, { type: 'stage_cleared', stageId, stars, swept });
 }
 
