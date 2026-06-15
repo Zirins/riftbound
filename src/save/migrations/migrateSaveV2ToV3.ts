@@ -18,7 +18,7 @@ import { createDefaultResetState } from '../defaults/createDefaultResetState';
 import { createDefaultRiftSeasonState } from '../defaults/createDefaultRiftSeasonState';
 import { createDefaultSigilState } from '../defaults/createDefaultSigilState';
 import { createDefaultVoidTrialState } from '../defaults/createDefaultVoidTrialState';
-import { createDefaultWeeklyTaskState } from '../defaults/createDefaultWeeklyTaskState';
+import { createDefaultWeeklyTaskState, buildFreshWeeklyTaskEntries } from '../defaults/createDefaultWeeklyTaskState';
 import { createDefaultWorldFeedState } from '../defaults/createDefaultWorldFeedState';
 import type { RealmSaveDataV2, RealmSaveDataV3, OfflineRewardState } from '../../types';
 
@@ -37,6 +37,12 @@ export function migrateSaveV2ToV3(save: RealmSaveDataV2): RealmSaveDataV3 {
     migrated.achievementState.progressById = {};
   }
   migrated.weeklyTaskState ??= createDefaultWeeklyTaskState();
+  if (!migrated.weeklyTaskState.disciplinedRoutineDayKeys) {
+    migrated.weeklyTaskState.disciplinedRoutineDayKeys = [];
+  }
+  if (migrated.weeklyTaskState.tasks.length === 0) {
+    migrated.weeklyTaskState.tasks = buildFreshWeeklyTaskEntries();
+  }
   migrated.offlineRewardState ??= createDefaultOfflineRewardState();
   if (migrated.offlineRewardState) {
     const offlineState = migrated.offlineRewardState as OfflineRewardState & { lastClaimAt?: number };

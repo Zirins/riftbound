@@ -768,6 +768,8 @@ export interface WeeklyTaskEntry {
 export interface WeeklyTaskSaveState {
   weekKey: string;
   tasks: WeeklyTaskEntry[];
+  /** Date keys (YYYY-MM-DD) when all daily tasks were completed this week. */
+  disciplinedRoutineDayKeys: string[];
 }
 
 export interface OfflineRewardState {

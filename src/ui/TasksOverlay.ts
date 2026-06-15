@@ -1,17 +1,21 @@
 // src/ui/TasksOverlay.ts
-// Daily tasks list overlay launched from Hub.
+// Daily and weekly tasks overlay launched from Hub.
 
 import Phaser from 'phaser';
 import { CANVAS } from '../constants/gameConfig';
 import { DAILY_TASKS } from '../data/tasks';
 import * as TaskSystem from '../systems/TaskSystem';
 import { ProgressBar } from './ProgressBar';
+import { WeeklyTasksPanel } from './WeeklyTasksOverlay';
 
 const PANEL_WIDTH = 620;
-const PANEL_HEIGHT = 320;
+const PANEL_HEIGHT_DAILY = 320;
+const PANEL_HEIGHT_WEEKLY = 460;
 const ROW_HEIGHT = 64;
 const BUTTON_HEIGHT = 36;
 const OVERLAY_DEPTH = 100;
+
+type TasksTab = 'daily' | 'weekly';
 
 interface OverlayButtonParts {
   bg: Phaser.GameObjects.Rectangle;
@@ -25,6 +29,10 @@ export class TasksOverlay {
   private readonly overlayButtons: OverlayButtonParts[] = [];
   private readonly progressBars: ProgressBar[] = [];
   private readonly rowTexts: Phaser.GameObjects.Text[] = [];
+  private weeklyPanel: WeeklyTasksPanel | null = null;
+  private activeTab: TasksTab = 'daily';
+  private panel: Phaser.GameObjects.Rectangle | null = null;
+  private title: Phaser.GameObjects.Text | null = null;
   private readonly onClose: () => void;
   private readonly onRefresh: () => void;
 
@@ -41,6 +49,8 @@ export class TasksOverlay {
     this.container = this.scene.add.container(0, 0).setDepth(OVERLAY_DEPTH);
     this.container.setSize(CANVAS.WIDTH, CANVAS.HEIGHT);
 
+    const panelHeight = this.activeTab === 'daily' ? PANEL_HEIGHT_DAILY : PANEL_HEIGHT_WEEKLY;
+
     const dim = this.scene.add.rectangle(
       CANVAS.WIDTH / 2,
       CANVAS.HEIGHT / 2,
@@ -50,30 +60,76 @@ export class TasksOverlay {
       0.75,
     );
 
-    const panel = this.scene.add.rectangle(
+    this.panel = this.scene.add.rectangle(
       CANVAS.WIDTH / 2,
       CANVAS.HEIGHT / 2,
       PANEL_WIDTH,
-      PANEL_HEIGHT,
+      panelHeight,
       0x1a1a2e,
     );
-    panel.setStrokeStyle(2, 0x44ccff);
+    this.panel.setStrokeStyle(2, 0x44ccff);
 
-    const title = this.scene.add.text(CANVAS.WIDTH / 2, CANVAS.HEIGHT / 2 - 140, 'DAILY TASKS', {
-      fontSize: '16px',
-      color: '#ffffff',
-      fontFamily: 'monospace',
-    }).setOrigin(0.5);
+    this.title = this.scene.add.text(
+      CANVAS.WIDTH / 2,
+      CANVAS.HEIGHT / 2 - panelHeight / 2 + 24,
+      this.activeTab === 'daily' ? 'DAILY TASKS' : 'WEEKLY MISSIONS',
+      {
+        fontSize: '16px',
+        color: '#ffffff',
+        fontFamily: 'monospace',
+      },
+    ).setOrigin(0.5);
 
-    this.container.add([dim, panel, title]);
-    this.drawTasks();
+    this.container.add([dim, this.panel, this.title]);
+    this.drawTabs(panelHeight);
+
+    if (this.activeTab === 'daily') {
+      this.drawDailyTasks(panelHeight);
+    } else if (this.container) {
+      this.weeklyPanel = new WeeklyTasksPanel(this.scene, this.container, () => {
+        this.onRefresh();
+        this.render();
+      });
+    }
 
     this.addContainerButton(
       CANVAS.WIDTH / 2,
-      CANVAS.HEIGHT / 2 + 140,
+      CANVAS.HEIGHT / 2 + panelHeight / 2 - 28,
       'CLOSE',
       () => this.close(),
       100,
+    );
+  }
+
+  private drawTabs(panelHeight: number): void {
+    const tabY = CANVAS.HEIGHT / 2 - panelHeight / 2 + 52;
+    const dailyActive = this.activeTab === 'daily';
+    const weeklyActive = this.activeTab === 'weekly';
+
+    this.addContainerButton(
+      CANVAS.WIDTH / 2 - 70,
+      tabY,
+      'DAILY',
+      () => {
+        if (this.activeTab === 'daily') return;
+        this.activeTab = 'daily';
+        this.render();
+      },
+      90,
+      dailyActive ? 0x4466aa : 0x223344,
+    );
+
+    this.addContainerButton(
+      CANVAS.WIDTH / 2 + 70,
+      tabY,
+      'WEEKLY',
+      () => {
+        if (this.activeTab === 'weekly') return;
+        this.activeTab = 'weekly';
+        this.render();
+      },
+      90,
+      weeklyActive ? 0x4466aa : 0x223344,
     );
   }
 
@@ -83,10 +139,11 @@ export class TasksOverlay {
     label: string,
     onClick: () => void,
     width = 80,
+    fillColor = 0x3355aa,
   ): void {
     if (!this.container) return;
 
-    const bg = this.scene.add.rectangle(x, y, width, BUTTON_HEIGHT, 0x3355aa);
+    const bg = this.scene.add.rectangle(x, y, width, BUTTON_HEIGHT, fillColor);
     const text = this.scene.add.text(x, y, label, {
       fontSize: '12px',
       color: '#ffffff',
@@ -100,9 +157,9 @@ export class TasksOverlay {
     this.overlayButtons.push({ bg, label: text, zone });
   }
 
-  private drawTasks(): void {
+  private drawDailyTasks(panelHeight: number): void {
     const tasks = TaskSystem.getDailyTasks();
-    const startY = CANVAS.HEIGHT / 2 - 95;
+    const startY = CANVAS.HEIGHT / 2 - panelHeight / 2 + 100;
 
     for (let i = 0; i < tasks.length; i += 1) {
       const taskState = tasks[i];
@@ -177,6 +234,9 @@ export class TasksOverlay {
   }
 
   private destroyContent(): void {
+    this.weeklyPanel?.destroy();
+    this.weeklyPanel = null;
+
     for (const button of this.overlayButtons) button.zone.off('pointerup');
     this.overlayButtons.length = 0;
 
@@ -185,6 +245,8 @@ export class TasksOverlay {
 
     this.container?.destroy(true);
     this.container = null;
+    this.panel = null;
+    this.title = null;
     this.rowTexts.length = 0;
   }
 

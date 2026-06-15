@@ -6,6 +6,7 @@ import type { DailyTaskState, RealmSaveDataV3 } from '../types';
 import { getLocalDateKey } from '../save/utils/saveDateUtils';
 import * as Economy from './EconomySystem';
 import { loadCurrentRealm, saveCurrentRealm } from './SaveSystem';
+import { WeeklyTaskSystem } from './WeeklyTaskSystem';
 
 function buildFreshTasks(date: string): DailyTaskState[] {
   return DAILY_TASKS.map((task) => ({
@@ -68,7 +69,9 @@ export function reportProgress(taskId: string, increment: number): void {
     };
   });
 
-  saveCurrentRealm({ ...realm, tasks: updatedTasks });
+  const updatedSave = { ...realm, tasks: updatedTasks } as RealmSaveDataV3;
+  WeeklyTaskSystem.checkDisciplinedRoutine(updatedSave);
+  saveCurrentRealm(updatedSave);
 }
 
 export function claimTask(taskId: string): boolean {
@@ -89,13 +92,24 @@ export function claimTask(taskId: string): boolean {
     t.taskId === taskId ? { ...t, claimed: true } : t
   ));
 
-  saveCurrentRealm({ ...updatedRealm, tasks: updatedTasks });
+  const updatedSave = { ...updatedRealm, tasks: updatedTasks } as RealmSaveDataV3;
+  WeeklyTaskSystem.checkDisciplinedRoutine(updatedSave);
+  saveCurrentRealm(updatedSave);
   return true;
 }
 
 export function getTasksNotificationCount(): number {
-  const tasks = getDailyTasks();
-  const claimable = tasks.filter((t) => t.completed && !t.claimed).length;
-  if (claimable > 0) return claimable;
-  return tasks.filter((t) => !t.claimed && !t.completed).length > 0 ? 1 : 0;
+  const realm = loadCurrentRealm();
+  const tasks = realm?.tasks ?? [];
+  const dailyClaimable = tasks.filter((t) => t.completed && !t.claimed).length;
+  const weeklyClaimable = realm
+    ? WeeklyTaskSystem.getUnclaimedCount(realm as RealmSaveDataV3)
+    : 0;
+
+  if (dailyClaimable + weeklyClaimable > 0) {
+    return dailyClaimable + weeklyClaimable;
+  }
+
+  const dailyIncomplete = tasks.filter((t) => !t.claimed && !t.completed).length;
+  return dailyIncomplete > 0 ? 1 : 0;
 }

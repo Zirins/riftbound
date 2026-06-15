@@ -7,8 +7,10 @@
 import Phaser from 'phaser';
 import { gameConfig } from './game';
 import { AchievementSystem } from './systems/AchievementSystem';
+import { WeeklyTaskSystem } from './systems/WeeklyTaskSystem';
 
 AchievementSystem.init();
+WeeklyTaskSystem.init();
 
 if (import.meta.env.DEV) {
   void import('./dev/phase7CombatHarness').then((module) => {
@@ -34,6 +36,9 @@ if (import.meta.env.DEV) {
   });
   void import('./dev/phase18AchievementHarness').then((module) => {
     module.exposePhase18AchievementHarness();
+  });
+  void import('./dev/phase19WeeklyTaskHarness').then((module) => {
+    module.exposePhase19WeeklyTaskHarness();
   });
 }
 

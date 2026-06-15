@@ -3,9 +3,10 @@
 
 import type { RealmSaveDataV3 } from '../types';
 
+import { WeeklyTaskSystem } from './WeeklyTaskSystem';
+
 export function resetWeeklyTasks(save: RealmSaveDataV3, weekKey: string): void {
-  void save;
-  void weekKey;
+  WeeklyTaskSystem.resetWeekly(save, weekKey);
 }
 
 export function resetFriendDailyGifts(save: RealmSaveDataV3, dateKey: string): void {

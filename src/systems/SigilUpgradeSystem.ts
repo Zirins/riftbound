@@ -4,6 +4,7 @@
 import { SIGIL } from '../constants/gameConfig';
 import { getSigilDefinition } from '../data/sigils';
 import { EconomySystem } from './EconomySystem';
+import { GameEventBus } from './GameEventBus';
 import { InventorySystem } from './InventorySystem';
 import { RewardSystem } from './RewardSystem';
 import { SigilSystem } from './SigilSystem';
@@ -31,6 +32,11 @@ export class SigilUpgradeSystem {
     }
 
     owned.level += 1;
+    GameEventBus.emit(save, {
+      type: 'sigil_upgraded',
+      sigilId: owned.instanceId,
+      newLevel: owned.level,
+    });
     return { success: true, newLevel: owned.level };
   }
 
@@ -84,6 +90,11 @@ export class SigilUpgradeSystem {
 
     owned.breakthroughLevel = nextBreakthrough;
     owned.secondaryStats = [...owned.secondaryStats, roll];
+    GameEventBus.emit(save, {
+      type: 'sigil_upgraded',
+      sigilId: owned.instanceId,
+      newLevel: owned.level,
+    });
     return { success: true, newBreakthroughLevel: owned.breakthroughLevel };
   }
 
