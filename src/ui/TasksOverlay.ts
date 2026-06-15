@@ -6,6 +6,7 @@ import { CANVAS } from '../constants/gameConfig';
 import { DAILY_TASKS } from '../data/tasks';
 import * as TaskSystem from '../systems/TaskSystem';
 import { ProgressBar } from './ProgressBar';
+import { createOverlayDim } from './HubOverlayPanel';
 import { WeeklyTasksPanel } from './WeeklyTasksOverlay';
 
 const PANEL_WIDTH = 620;
@@ -51,14 +52,7 @@ export class TasksOverlay {
 
     const panelHeight = this.activeTab === 'daily' ? PANEL_HEIGHT_DAILY : PANEL_HEIGHT_WEEKLY;
 
-    const dim = this.scene.add.rectangle(
-      CANVAS.WIDTH / 2,
-      CANVAS.HEIGHT / 2,
-      CANVAS.WIDTH,
-      CANVAS.HEIGHT,
-      0x000000,
-      0.75,
-    );
+    const dim = createOverlayDim(this.scene);
 
     this.panel = this.scene.add.rectangle(
       CANVAS.WIDTH / 2,

@@ -26,6 +26,8 @@ import { SigilScene } from './scenes/SigilScene';
 import { SigilUpgradeScene } from './scenes/SigilUpgradeScene';
 import { VoidTrialScene } from './scenes/VoidTrialScene';
 import { AchievementsScene } from './scenes/AchievementsScene';
+import { CovHubScene } from './scenes/CovHubScene';
+import { CovMemberScene } from './scenes/CovMemberScene';
 
 export const gameConfig: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -56,6 +58,8 @@ export const gameConfig: Phaser.Types.Core.GameConfig = {
     SigilUpgradeScene,
     VoidTrialScene,
     AchievementsScene,
+    CovHubScene,
+    CovMemberScene,
   ],
   scale: {
     mode: Phaser.Scale.FIT,

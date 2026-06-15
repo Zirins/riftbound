@@ -5,6 +5,23 @@ import Phaser from 'phaser';
 import { CANVAS } from '../constants/gameConfig';
 import { ButtonPrimary } from './ButtonPrimary';
 
+/** Full-screen dim that blocks pointer events to scene content below. */
+export function createOverlayDim(
+  scene: Phaser.Scene,
+  alpha = 0.75,
+): Phaser.GameObjects.Rectangle {
+  const dim = scene.add.rectangle(
+    CANVAS.WIDTH / 2,
+    CANVAS.HEIGHT / 2,
+    CANVAS.WIDTH,
+    CANVAS.HEIGHT,
+    0x000000,
+    alpha,
+  );
+  dim.setInteractive();
+  return dim;
+}
+
 export class HubOverlayPanel {
   private container: Phaser.GameObjects.Container | null = null;
   private readonly buttons: ButtonPrimary[] = [];
@@ -16,15 +33,7 @@ export class HubOverlayPanel {
     this.close();
 
     const container = this.scene.add.container(0, 0);
-    const dim = this.scene.add.rectangle(
-      CANVAS.WIDTH / 2,
-      CANVAS.HEIGHT / 2,
-      CANVAS.WIDTH,
-      CANVAS.HEIGHT,
-      0x000000,
-      0.75,
-    );
-    dim.setInteractive();
+    const dim = createOverlayDim(this.scene);
 
     const panel = this.scene.add.rectangle(
       CANVAS.WIDTH / 2,

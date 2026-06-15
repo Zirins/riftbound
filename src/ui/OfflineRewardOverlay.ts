@@ -6,6 +6,7 @@ import { CANVAS } from '../constants/gameConfig';
 import { OfflineRewardSystem } from '../systems/OfflineRewardSystem';
 import { loadCurrentRealm, saveCurrentRealm } from '../systems/SaveSystem';
 import type { RealmSaveDataV3 } from '../types';
+import { createOverlayDim } from './HubOverlayPanel';
 
 const PANEL_WIDTH = 420;
 const PANEL_HEIGHT = 260;
@@ -49,14 +50,7 @@ export class OfflineRewardOverlay {
     this.container = this.scene.add.container(0, 0).setDepth(OVERLAY_DEPTH);
     this.container.setSize(CANVAS.WIDTH, CANVAS.HEIGHT);
 
-    const dim = this.scene.add.rectangle(
-      CANVAS.WIDTH / 2,
-      CANVAS.HEIGHT / 2,
-      CANVAS.WIDTH,
-      CANVAS.HEIGHT,
-      0x000000,
-      0.8,
-    );
+    const dim = createOverlayDim(this.scene, 0.8);
 
     const panel = this.scene.add.rectangle(
       CANVAS.WIDTH / 2,

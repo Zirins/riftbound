@@ -6,6 +6,7 @@ import { CANVAS } from '../constants/gameConfig';
 import { loadCurrentRealm } from '../systems/SaveSystem';
 import * as MailSystem from '../systems/MailSystem';
 import type { MailMessage } from '../types';
+import { createOverlayDim } from './HubOverlayPanel';
 
 const PANEL_WIDTH = 620;
 const PANEL_HEIGHT = 320;
@@ -60,14 +61,7 @@ export class MailOverlay {
     this.container = this.scene.add.container(0, 0).setDepth(OVERLAY_DEPTH);
     this.container.setSize(CANVAS.WIDTH, CANVAS.HEIGHT);
 
-    const dim = this.scene.add.rectangle(
-      CANVAS.WIDTH / 2,
-      CANVAS.HEIGHT / 2,
-      CANVAS.WIDTH,
-      CANVAS.HEIGHT,
-      0x000000,
-      0.75,
-    );
+    const dim = createOverlayDim(this.scene);
 
     const panel = this.scene.add.rectangle(
       CANVAS.WIDTH / 2,

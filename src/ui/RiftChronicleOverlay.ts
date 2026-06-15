@@ -6,6 +6,7 @@ import { CANVAS, RIFT_CHRONICLE_REWARDS } from '../constants/gameConfig';
 import { HEROES_DATA } from '../data/heroes';
 import { loadCurrentRealm } from '../systems/SaveSystem';
 import * as RiftChronicleSystem from '../systems/RiftChronicleSystem';
+import { createOverlayDim } from './HubOverlayPanel';
 
 const PANEL_WIDTH = 720;
 const PANEL_HEIGHT = 300;
@@ -62,14 +63,7 @@ export class RiftChronicleOverlay {
     this.container = this.scene.add.container(0, 0).setDepth(OVERLAY_DEPTH);
     this.container.setSize(CANVAS.WIDTH, CANVAS.HEIGHT);
 
-    const dim = this.scene.add.rectangle(
-      CANVAS.WIDTH / 2,
-      CANVAS.HEIGHT / 2,
-      CANVAS.WIDTH,
-      CANVAS.HEIGHT,
-      0x000000,
-      0.75,
-    );
+    const dim = createOverlayDim(this.scene);
 
     const panel = this.scene.add.rectangle(
       CANVAS.WIDTH / 2,

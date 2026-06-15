@@ -40,6 +40,9 @@ if (import.meta.env.DEV) {
   void import('./dev/phase19WeeklyTaskHarness').then((module) => {
     module.exposePhase19WeeklyTaskHarness();
   });
+  void import('./dev/phase20CovenantHarness').then((module) => {
+    module.exposePhase20CovenantHarness();
+  });
 }
 
 new Phaser.Game(gameConfig);

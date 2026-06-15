@@ -3,6 +3,7 @@
 
 import Phaser from 'phaser';
 import { CANVAS } from '../constants/gameConfig';
+import { createOverlayDim } from './HubOverlayPanel';
 
 export interface ModalBaseOptions {
   confirmLabel?: string;
@@ -37,14 +38,7 @@ export class ModalBase {
     this.container = scene.add.container(0, 0).setDepth(200);
     this.container.setSize(CANVAS.WIDTH, CANVAS.HEIGHT);
 
-    const dim = scene.add.rectangle(
-      CANVAS.WIDTH / 2,
-      CANVAS.HEIGHT / 2,
-      CANVAS.WIDTH,
-      CANVAS.HEIGHT,
-      0x000000,
-      0.8,
-    );
+    const dim = createOverlayDim(this.scene, 0.8);
 
     const panel = scene.add.rectangle(
       CANVAS.WIDTH / 2,
