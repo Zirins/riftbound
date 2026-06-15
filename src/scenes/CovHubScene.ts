@@ -279,35 +279,45 @@ export class CovHubScene extends Phaser.Scene {
 
     const membersButton = new ButtonPrimary(
       this,
-      CANVAS.WIDTH / 2 - 160,
+      CANVAS.WIDTH / 2 - 220,
       268,
       'VIEW MEMBERS',
       () => this.scene.start(SCENE_KEYS.COVENANT_MEMBER),
-      140,
+      130,
       30,
     );
 
     const shopButton = new ButtonPrimary(
       this,
-      CANVAS.WIDTH / 2,
+      CANVAS.WIDTH / 2 - 70,
       268,
       'SECT SHOP',
       () => this.scene.start(SCENE_KEYS.COVENANT_SHOP),
-      120,
+      110,
+      30,
+    );
+
+    const bossButton = new ButtonPrimary(
+      this,
+      CANVAS.WIDTH / 2 + 80,
+      268,
+      'SECT BOSS',
+      () => this.scene.start(SCENE_KEYS.COVENANT_BOSS),
+      110,
       30,
     );
 
     const leaveButton = new ButtonPrimary(
       this,
-      CANVAS.WIDTH / 2 + 160,
+      CANVAS.WIDTH / 2 + 220,
       268,
       'LEAVE SECT',
       () => this.confirmLeave(),
-      120,
+      110,
       30,
     );
 
-    this.actionButtons.push(goldButton, crystalButton, membersButton, shopButton, leaveButton);
+    this.actionButtons.push(goldButton, crystalButton, membersButton, shopButton, bossButton, leaveButton);
   }
 
   private handleContributeGold(): void {

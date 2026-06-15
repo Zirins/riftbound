@@ -1,8 +1,9 @@
 // src/systems/MailSystem.ts
 // System mail delivery and attachment claims.
 
-import type { MailMessage } from '../types';
+import type { MailMessage, RealmSaveDataV3, RewardBundle } from '../types';
 import * as Economy from './EconomySystem';
+import { RewardSystem } from './RewardSystem';
 import { loadCurrentRealm, saveCurrentRealm } from './SaveSystem';
 
 const WELCOME_MAIL_ID = 'welcome_mail';
@@ -30,15 +31,44 @@ export function sendWelcomeMail(): void {
   });
 }
 
+export interface CreateRewardMailOptions {
+  fromName?: string;
+  subject: string;
+  body: string;
+  bundle: RewardBundle;
+}
+
+/** Delivers a V2 reward bundle via mail — mutates save.mail; caller persists. */
+export function createRewardMail(save: RealmSaveDataV3, options: CreateRewardMailOptions): string {
+  const id = `reward_mail_${Date.now()}_${save.mail.length}`;
+  const mail: MailMessage = {
+    id,
+    fromName: options.fromName ?? 'System Mail',
+    subject: options.subject,
+    body: options.body,
+    attachments: [],
+    rewardBundle: options.bundle,
+    isRead: false,
+    isClaimed: false,
+    sentAt: Date.now(),
+    expiresAt: null,
+  };
+
+  save.mail = [mail, ...save.mail];
+  return id;
+}
+
 export function claimAttachments(mailId: string): void {
   const realm = loadCurrentRealm();
   if (!realm) return;
 
-  const mailIndex = realm.mail.findIndex((m) => m.id === mailId);
+  const save = realm as RealmSaveDataV3;
+  const mailIndex = save.mail.findIndex((m) => m.id === mailId);
   if (mailIndex < 0) return;
 
-  const mail = realm.mail[mailIndex];
-  if (mail.isClaimed || mail.attachments.length === 0) return;
+  const mail = save.mail[mailIndex];
+  if (mail.isClaimed) return;
+  if (mail.attachments.length === 0 && !mail.rewardBundle) return;
 
   const grants = mail.attachments
     .map((attachment) => toCurrencyGrant(attachment))
@@ -48,16 +78,17 @@ export function claimAttachments(mailId: string): void {
     Economy.grantMultiple(grants);
   }
 
-  const updatedRealm = loadCurrentRealm();
-  if (!updatedRealm) return;
+  if (mail.rewardBundle) {
+    RewardSystem.grantRewardBundle(save, mail.rewardBundle);
+  }
 
-  const updatedMail = updatedRealm.mail.map((m) => (
+  save.mail = save.mail.map((m) => (
     m.id === mailId
       ? { ...m, isRead: true, isClaimed: true }
       : m
   ));
 
-  saveCurrentRealm({ ...updatedRealm, mail: updatedMail });
+  saveCurrentRealm(save);
 }
 
 export function getUnclaimedCount(): number {
@@ -65,7 +96,7 @@ export function getUnclaimedCount(): number {
   if (!realm) return 0;
 
   return realm.mail.filter(
-    (m) => m.attachments.length > 0 && !m.isClaimed,
+    (m) => (!m.isClaimed && (m.attachments.length > 0 || m.rewardBundle !== undefined)),
   ).length;
 }
 

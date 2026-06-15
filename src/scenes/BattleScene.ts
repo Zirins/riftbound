@@ -15,6 +15,7 @@ import { computeHeroStats } from '../systems/HeroProgressionSystem';
 import { computeStageReward } from '../systems/RewardSystem';
 import { buildArenaWaveConfig } from '../systems/ArenaMatchSystem';
 import { getVoidTrialFloorWaves } from '../data/voidTrialFloors';
+import { CovBossSystem } from '../systems/CovBossSystem';
 import { getStageData } from '../systems/StageLoader';
 import { loadCurrentRealm, saveCurrentRealm } from '../systems/SaveSystem';
 import { SkillSystem } from '../systems/SkillSystem';
@@ -148,6 +149,7 @@ export class BattleScene extends Phaser.Scene {
   private stageId = 'stage_1_1';
   private arenaOpponentId: string | null = null;
   private voidTrialFloor: number | null = null;
+  private totalWaveCount = 0;
   private sceneFormation: (string | null)[] | null = null;
   private energyCost = 0;
   private heroesDeathCount = 0;
@@ -223,6 +225,15 @@ export class BattleScene extends Phaser.Scene {
       return;
     }
 
+    if (this.stageId === 'covenant_boss') {
+      this.scene.start(SCENE_KEYS.COVENANT_BOSS, {
+        battleWon: true,
+        wavesCleared: this.totalWaveCount,
+        totalWaves: this.totalWaveCount,
+      });
+      return;
+    }
+
     const stageData = getStageData(this.stageId);
     const waveCount = stageData?.waves.length ?? WAVES.length;
     const performance = {
@@ -292,7 +303,9 @@ export class BattleScene extends Phaser.Scene {
     this.voidTrialFloor = data.voidTrialFloor ?? null;
     this.sceneFormation = data.formation ?? null;
     const stageData = getStageData(this.stageId);
-    this.energyCost = this.stageId === 'void_trial' ? 0 : (stageData?.energyCost ?? 0);
+    this.energyCost = this.stageId === 'void_trial' || this.stageId === 'covenant_boss'
+      ? 0
+      : (stageData?.energyCost ?? 0);
   }
 
   create(): void {
@@ -332,6 +345,16 @@ export class BattleScene extends Phaser.Scene {
 
     const realm = loadCurrentRealm();
     const save = (realm ?? buildDefaultRealmV3('battle', 'Player')) as RealmSaveDataV3;
+
+    if (this.stageId === 'covenant_boss') {
+      const bossName = CovBossSystem.getBossDefinition(save)?.name ?? 'Sect Boss';
+      this.add.text(CANVAS.WIDTH / 2, 18, `Sect Boss — ${bossName}`, {
+        fontSize: '10px',
+        color: '#888899',
+        fontFamily: 'monospace',
+      }).setOrigin(0.5);
+    }
+
     this.spawnHeroes(save);
     const autoUltimate = realm?.settings.defaultAutoUltimate ?? false;
     this.gameState = createBattleGameState(this.heroes, this.enemies, autoUltimate);
@@ -358,8 +381,11 @@ export class BattleScene extends Phaser.Scene {
       ? buildArenaWaveConfig(this.arenaOpponentId)
       : this.stageId === 'void_trial' && this.voidTrialFloor !== null
         ? getVoidTrialFloorWaves(this.voidTrialFloor)
-        : (stageData?.waves
-          ?? ((!this.stageId || this.stageId === 'stage_1_1') ? WAVES : []));
+        : this.stageId === 'covenant_boss'
+          ? CovBossSystem.getBossWaves(save)
+          : (stageData?.waves
+            ?? ((!this.stageId || this.stageId === 'stage_1_1') ? WAVES : []));
+    this.totalWaveCount = waveConfigs.length;
     this.waveSystem.init(waveConfigs.length > 0 ? waveConfigs : WAVES);
 
     this.ultimateSystem = new UltimateSystem(this);
@@ -490,6 +516,15 @@ export class BattleScene extends Phaser.Scene {
       this.scene.start(SCENE_KEYS.VOID_TRIAL, {
         battleWon: false,
         voidTrialFloor: this.voidTrialFloor,
+      });
+      return;
+    }
+
+    if (this.stageId === 'covenant_boss') {
+      this.scene.start(SCENE_KEYS.COVENANT_BOSS, {
+        battleWon: false,
+        wavesCleared: this.waveSystem.getWavesCleared(),
+        totalWaves: this.totalWaveCount,
       });
       return;
     }

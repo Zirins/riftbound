@@ -57,6 +57,13 @@ export function migrateSaveV2ToV3(save: RealmSaveDataV2): RealmSaveDataV3 {
   if (migrated.covenantState?.shopState && !migrated.covenantState.shopState.purchasedItemCounts) {
     migrated.covenantState.shopState.purchasedItemCounts = {};
   }
+  if (migrated.covenantState?.bossState) {
+    const boss = migrated.covenantState.bossState;
+    if (boss.playerDamageThisWeek === undefined) boss.playerDamageThisWeek = 0;
+    if (boss.lastNpcDamageDate === undefined) boss.lastNpcDamageDate = '';
+    if (boss.npcDamageToday === undefined) boss.npcDamageToday = [];
+    if (boss.killRewardMailSent === undefined) boss.killRewardMailSent = false;
+  }
   migrated.friendState ??= createDefaultFriendState();
   migrated.patronState ??= createDefaultPatronState();
   migrated.riftSeasonState ??= createDefaultRiftSeasonState();

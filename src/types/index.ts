@@ -481,6 +481,8 @@ export interface MailMessage {
   subject: string;
   body: string;
   attachments: MailAttachment[];
+  /** V2 reward mail — claimed via RewardSystem when present. */
+  rewardBundle?: RewardBundle;
   isRead: boolean;
   isClaimed: boolean;
   sentAt: number;
@@ -797,6 +799,12 @@ export interface OfflineRewardClaimResult {
   bundle?: RewardBundle;
 }
 
+export interface CovenantNpcDamageEntry {
+  memberId: string;
+  memberName: string;
+  damage: number;
+}
+
 export interface CovenantBossState {
   bossId: string;
   currentHp: number;
@@ -804,6 +812,10 @@ export interface CovenantBossState {
   attemptsUsedThisWeek: number;
   lastWeeklyResetWeekKey: string;
   defeatedThisWeek: boolean;
+  playerDamageThisWeek: number;
+  lastNpcDamageDate: string;
+  npcDamageToday: CovenantNpcDamageEntry[];
+  killRewardMailSent: boolean;
 }
 
 export interface CovenantShopState {

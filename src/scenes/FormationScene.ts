@@ -11,6 +11,7 @@ import { SCENE_KEYS } from '../constants/sceneKeys';
 import { HEROES_DATA } from '../data/heroes';
 import { getStageData } from '../systems/StageLoader';
 import { getOpponentById } from '../systems/ArenaMatchSystem';
+import { CovBossSystem } from '../systems/CovBossSystem';
 import {
   FormationPresetSystem,
   PRESET_NAME_OPTIONS,
@@ -227,7 +228,9 @@ export class FormationScene extends Phaser.Scene {
       ? `Arena — ${getOpponentById(this.arenaOpponentId ?? '')?.displayName ?? 'Rival'}`
       : this.stageId === 'void_trial' && this.voidTrialFloor !== null
         ? `Void Trial — Floor ${this.voidTrialFloor}`
-        : (getStageData(this.stageId)?.name ?? 'Stage');
+        : this.stageId === 'covenant_boss'
+          ? `Sect Boss — ${CovBossSystem.getBossDefinition(loadCurrentRealm() as RealmSaveDataV3)?.name ?? 'Boss'}`
+          : (getStageData(this.stageId)?.name ?? 'Stage');
     this.lineupTitle = this.add.text(
       CANVAS.WIDTH / 2,
       UI.FORMATION_LINEUP_TITLE_Y,

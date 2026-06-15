@@ -14,13 +14,43 @@ const ROW_HEIGHT = 56;
 const BUTTON_HEIGHT = 36;
 const OVERLAY_DEPTH = 100;
 
-interface OverlayButtonParts {
-  bg: Phaser.GameObjects.Rectangle;
-  label: Phaser.GameObjects.Text;
-  zone: Phaser.GameObjects.Zone;
+const CURRENCY_LABELS: Record<string, string> = {
+  gold: 'Gold',
+  rift_crystal: 'Rift Crystals',
+  void_gem: 'Void Gems',
+  energy: 'Energy',
+  arena_coin: 'Arena Coins',
+  covenant_coin: 'Sect Coins',
+  friendship_point: 'Friendship Points',
+};
+
+const ITEM_LABELS: Record<string, string> = {
+  xp_fragment: 'XP Fragments',
+  sigil_dust: 'Sigil Dust',
+  awakening_crystal: 'Awakening Crystal',
+};
+
+function formatRewardBundleSummary(bundle: NonNullable<MailMessage['rewardBundle']>): string {
+  const parts: string[] = [];
+
+  for (const currency of bundle.currencies ?? []) {
+    const label = CURRENCY_LABELS[currency.type] ?? currency.type;
+    parts.push(`${currency.amount} ${label}`);
+  }
+
+  for (const item of bundle.items ?? []) {
+    const label = ITEM_LABELS[item.itemId] ?? item.itemId;
+    parts.push(`${label} x${item.quantity}`);
+  }
+
+  return parts.join(', ');
 }
 
 function formatAttachments(mail: MailMessage): string {
+  if (mail.rewardBundle) {
+    return formatRewardBundleSummary(mail.rewardBundle);
+  }
+
   if (mail.attachments.length === 0) return 'No attachments';
   return mail.attachments.map((attachment) => {
     switch (attachment.type) {
@@ -38,6 +68,12 @@ function formatAttachments(mail: MailMessage): string {
         return attachment.type;
     }
   }).join(', ');
+}
+
+interface OverlayButtonParts {
+  bg: Phaser.GameObjects.Rectangle;
+  label: Phaser.GameObjects.Text;
+  zone: Phaser.GameObjects.Zone;
 }
 
 export class MailOverlay {
@@ -150,7 +186,7 @@ export class MailOverlay {
 
       this.container?.add([subject, sender]);
 
-      if (mail.attachments.length > 0 && !mail.isClaimed) {
+      if ((mail.attachments.length > 0 || mail.rewardBundle) && !mail.isClaimed) {
         this.addContainerButton(
           CANVAS.WIDTH / 2 + 200,
           y,

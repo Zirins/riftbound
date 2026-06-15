@@ -1,13 +1,15 @@
 // src/save/defaults/createDefaultCovenantState.ts
 
 import type { CovenantState } from '../../types';
+import { pickBossIdForWeek, getCovenantBoss } from '../../data/covenantBosses';
 import { getIsoWeekKey } from '../utils/saveDateUtils';
-
-const DEFAULT_BOSS_ID = 'void_colossus';
-const DEFAULT_BOSS_HP = 1_000_000;
 
 export function createDefaultCovenantState(now = Date.now()): CovenantState {
   const weekKey = getIsoWeekKey(now);
+  const bossId = pickBossIdForWeek(weekKey);
+  const boss = getCovenantBoss(bossId);
+  const maxHp = boss?.maxHp ?? 1_000_000;
+
   return {
     covId: null,
     covName: null,
@@ -19,12 +21,16 @@ export function createDefaultCovenantState(now = Date.now()): CovenantState {
     lastContributionDate: '',
     covCoins: 0,
     bossState: {
-      bossId: DEFAULT_BOSS_ID,
-      currentHp: DEFAULT_BOSS_HP,
-      maxHp: DEFAULT_BOSS_HP,
+      bossId,
+      currentHp: maxHp,
+      maxHp,
       attemptsUsedThisWeek: 0,
       lastWeeklyResetWeekKey: weekKey,
       defeatedThisWeek: false,
+      playerDamageThisWeek: 0,
+      lastNpcDamageDate: '',
+      npcDamageToday: [],
+      killRewardMailSent: false,
     },
     shopState: {
       weekKey,

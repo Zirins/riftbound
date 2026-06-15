@@ -29,6 +29,7 @@ import { AchievementsScene } from './scenes/AchievementsScene';
 import { CovHubScene } from './scenes/CovHubScene';
 import { CovMemberScene } from './scenes/CovMemberScene';
 import { CovShopScene } from './scenes/CovShopScene';
+import { CovBossScene } from './scenes/CovBossScene';
 
 export const gameConfig: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -62,6 +63,7 @@ export const gameConfig: Phaser.Types.Core.GameConfig = {
     CovHubScene,
     CovMemberScene,
     CovShopScene,
+    CovBossScene,
   ],
   scale: {
     mode: Phaser.Scale.FIT,
