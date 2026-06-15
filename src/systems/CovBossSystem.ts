@@ -65,6 +65,26 @@ function ensureBossStateFields(bossState: CovenantBossState): void {
   if (bossState.killRewardMailSent === undefined) bossState.killRewardMailSent = false;
 }
 
+/** Remap Phase 20 placeholder boss ids (e.g. void_colossus) to the real weekly pool. */
+function normalizeStaleBossId(bossState: CovenantBossState): void {
+  if (getCovenantBoss(bossState.bossId)) return;
+
+  const bossId = pickBossIdForWeek(bossState.lastWeeklyResetWeekKey);
+  const boss = getCovenantBoss(bossId);
+  if (!boss) return;
+
+  if (import.meta.env.DEV) {
+    console.info('[CovBossSystem] remapped stale bossId', {
+      from: bossState.bossId,
+      to: bossId,
+    });
+  }
+
+  bossState.bossId = bossId;
+  bossState.maxHp = boss.maxHp;
+  bossState.currentHp = Math.min(bossState.currentHp, boss.maxHp);
+}
+
 function buildFreshBossState(weekKey: string): CovenantBossState {
   const bossId = pickBossIdForWeek(weekKey);
   const boss = getCovenantBoss(bossId);
@@ -138,6 +158,7 @@ export class CovBossSystem {
   static ensureBossState(save: RealmSaveDataV3): void {
     if (!save.covenantState) return;
     ensureBossStateFields(save.covenantState.bossState);
+    normalizeStaleBossId(save.covenantState.bossState);
   }
 
   static ensureCurrentWeek(save: RealmSaveDataV3, now = new Date()): void {
