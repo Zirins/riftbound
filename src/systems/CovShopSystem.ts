@@ -86,12 +86,25 @@ export class CovShopSystem {
 
   static resetWeekly(save: RealmSaveDataV3, weekKey: string): void {
     if (!save.covenantState) return;
-    if (save.covenantState.shopState.weekKey === weekKey) return;
+
+    const purchasedItemCountsBefore = {
+      ...save.covenantState.shopState.purchasedItemCounts,
+    };
+    const previousWeekKey = save.covenantState.shopState.weekKey;
 
     save.covenantState.shopState = {
       weekKey,
       purchasedItemCounts: {},
     };
+
+    if (import.meta.env.DEV) {
+      console.info('[CovShopSystem] resetWeekly', {
+        previousWeekKey,
+        weekKey,
+        purchasedItemCountsBefore,
+        purchasedItemCountsAfter: save.covenantState.shopState.purchasedItemCounts,
+      });
+    }
   }
 
   static getPurchasedCount(save: RealmSaveDataV3, itemId: string): number {
