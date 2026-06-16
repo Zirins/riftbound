@@ -9,27 +9,22 @@ import { RarityBadge } from './RarityBadge';
 import { StarRating } from './StarRating';
 
 export const HERO_CARD_WIDTH = 88;
-export const HERO_CARD_HEIGHT = 128;
+export const HERO_CARD_HEIGHT = 200;
 
 const SILHOUETTE_COLOR = 0x333344;
-const CLASS_LABELS: Record<HeroData['heroClass'], string> = {
-  tank: 'Tank',
-  fighter: 'Fighter',
-  assassin: 'Assassin',
-  mage: 'Mage',
-  support: 'Support',
-  ranger: 'Ranger',
-};
+const PORTRAIT_REGION_FRACTION = 0.65;
+const OVERLAY_ALPHA_BOTTOM = 0.85;
 
 export class HeroCard {
   private readonly badge: RarityBadge;
-  private readonly circle: Phaser.GameObjects.Arc;
+  private readonly circle: Phaser.GameObjects.Rectangle;
   private portraitImage: Phaser.GameObjects.Image | null = null;
   private portraitMaskRect: Phaser.GameObjects.Rectangle | null = null;
+  private gradientOverlay: Phaser.GameObjects.Graphics | null = null;
   private cancelPortraitLoad: (() => void) | null = null;
   private readonly nameLabel: Phaser.GameObjects.Text;
-  private readonly rpLabel: Phaser.GameObjects.Text;
-  private readonly classLabel: Phaser.GameObjects.Text;
+  private readonly titleLabel: Phaser.GameObjects.Text;
+  private readonly bpLabel: Phaser.GameObjects.Text;
   private readonly unknownLabel: Phaser.GameObjects.Text | null;
   private readonly starRating: StarRating | null;
   private readonly zone: Phaser.GameObjects.Zone;
@@ -50,8 +45,11 @@ export class HeroCard {
     this.onTap = onTap;
     this.tapGuard = tapGuard;
     const owned = ownershipState?.isOwned ?? false;
-    const portraitRadius = heroData.radius * 0.65;
-    const portraitY = y - 28;
+    const portraitRegionHeight = Math.floor(HERO_CARD_HEIGHT * PORTRAIT_REGION_FRACTION);
+    const portraitTop = y - HERO_CARD_HEIGHT / 2;
+    const portraitCenterY = portraitTop + portraitRegionHeight / 2;
+    const bottomRegionTop = portraitTop + portraitRegionHeight;
+    const bottomRegionHeight = HERO_CARD_HEIGHT - portraitRegionHeight;
 
     this.badge = new RarityBadge(
       scene,
@@ -62,10 +60,11 @@ export class HeroCard {
       heroData.rarity,
     );
 
-    this.circle = scene.add.circle(
+    this.circle = scene.add.rectangle(
       x,
-      portraitY,
-      portraitRadius,
+      portraitCenterY,
+      HERO_CARD_WIDTH,
+      portraitRegionHeight,
       owned ? heroData.color : SILHOUETTE_COLOR,
     );
 
@@ -74,44 +73,69 @@ export class HeroCard {
       const handle = loadOptionalTexture({
         scene,
         assetPath: portraitPath,
-        onReady: (textureKey) => this.showPortrait(scene, x, portraitY, portraitRadius, textureKey),
+        onReady: (textureKey) => this.showPortrait(scene, x, portraitCenterY, textureKey),
       });
       this.cancelPortraitLoad = handle.cancel;
 
       if (scene.textures.exists(handle.textureKey)) {
-        this.showPortrait(scene, x, portraitY, portraitRadius, handle.textureKey);
+        this.showPortrait(scene, x, portraitCenterY, handle.textureKey);
       }
     }
 
     this.unknownLabel = owned
       ? null
-      : scene.add.text(x, portraitY, '?', {
-          fontSize: '18px',
+      : scene.add.text(x, portraitCenterY, '?', {
+          fontSize: '22px',
           color: '#888899',
           fontFamily: 'monospace',
         }).setOrigin(0.5);
 
-    this.nameLabel = scene.add.text(x, y + 2, owned ? heroData.name : '???', {
-      fontSize: '10px',
+    this.gradientOverlay = scene.add.graphics();
+    this.gradientOverlay.fillGradientStyle(
+      0x000000,
+      0x000000,
+      0x000000,
+      0x000000,
+      0,
+      0,
+      OVERLAY_ALPHA_BOTTOM,
+      OVERLAY_ALPHA_BOTTOM,
+    );
+    this.gradientOverlay.fillRect(
+      x - HERO_CARD_WIDTH / 2,
+      bottomRegionTop,
+      HERO_CARD_WIDTH,
+      bottomRegionHeight,
+    );
+
+    this.nameLabel = scene.add.text(x - HERO_CARD_WIDTH / 2 + 8, bottomRegionTop + 16, owned ? heroData.name : '???', {
+      fontSize: '13px',
       color: owned ? '#ffffff' : '#888899',
       fontFamily: 'monospace',
-    }).setOrigin(0.5);
+      fontStyle: 'bold',
+    }).setOrigin(0, 0.5);
 
-    this.rpLabel = scene.add.text(x, y + 18, owned ? `RP ${rp.toLocaleString()}` : '—', {
-      fontSize: '9px',
+    this.titleLabel = scene.add.text(
+      x - HERO_CARD_WIDTH / 2 + 8,
+      bottomRegionTop + 34,
+      owned ? heroData.title : '',
+      {
+        fontSize: '10px',
+        color: '#bbbbcc',
+        fontFamily: 'monospace',
+        fontStyle: 'italic',
+      },
+    ).setOrigin(0, 0.5);
+
+    this.bpLabel = scene.add.text(x + HERO_CARD_WIDTH / 2 - 8, bottomRegionTop + 16, owned ? `BP: ${rp.toLocaleString()}` : '', {
+      fontSize: '10px',
       color: owned ? '#aaaacc' : '#666677',
       fontFamily: 'monospace',
-    }).setOrigin(0.5);
+    }).setOrigin(1, 0.5);
 
     this.starRating = owned
-      ? new StarRating(scene, x - 28, y + 34, ownershipState!.starRank)
+      ? new StarRating(scene, x - 28, y + HERO_CARD_HEIGHT / 2 + 10, ownershipState!.starRank)
       : null;
-
-    this.classLabel = scene.add.text(x, y + 50, CLASS_LABELS[heroData.heroClass], {
-      fontSize: '8px',
-      color: '#7788aa',
-      fontFamily: 'monospace',
-    }).setOrigin(0.5);
 
     this.zone = scene.add.zone(x, y, HERO_CARD_WIDTH, HERO_CARD_HEIGHT);
     this.zone.setInteractive({ useHandCursor: true });
@@ -122,18 +146,35 @@ export class HeroCard {
     scene: Phaser.Scene,
     x: number,
     y: number,
-    _radius: number,
     textureKey: string,
   ): void {
     if (this.destroyed || !scene.textures.exists(textureKey)) return;
 
     this.portraitImage?.destroy();
     this.portraitMaskRect?.destroy();
+    this.portraitMaskRect = null;
 
-    // Fill the full card width and crop to the portrait region.
-    const portraitRegionHeight = 72;
-    this.portraitImage = scene.add.image(x, y, textureKey)
-      .setDisplaySize(HERO_CARD_WIDTH, portraitRegionHeight);
+    const portraitRegionHeight = Math.floor(HERO_CARD_HEIGHT * PORTRAIT_REGION_FRACTION);
+
+    // Scale to cover the portrait region (no letterboxing), then mask to region.
+    const tex = scene.textures.get(textureKey);
+    const source = tex.getSourceImage() as { width: number; height: number } | undefined;
+    const srcW = source?.width ?? HERO_CARD_WIDTH;
+    const srcH = source?.height ?? portraitRegionHeight;
+    const srcAspect = srcW / Math.max(1, srcH);
+    const targetAspect = HERO_CARD_WIDTH / Math.max(1, portraitRegionHeight);
+
+    let drawW = HERO_CARD_WIDTH;
+    let drawH = portraitRegionHeight;
+    if (srcAspect > targetAspect) {
+      drawH = portraitRegionHeight;
+      drawW = Math.ceil(drawH * srcAspect);
+    } else {
+      drawW = HERO_CARD_WIDTH;
+      drawH = Math.ceil(drawW / srcAspect);
+    }
+
+    this.portraitImage = scene.add.image(x, y, textureKey).setDisplaySize(drawW, drawH);
 
     this.portraitMaskRect = scene.add.rectangle(
       x,
@@ -161,8 +202,10 @@ export class HeroCard {
     this.portraitMaskRect?.destroy();
     this.portraitMaskRect = null;
     this.nameLabel.destroy();
-    this.rpLabel.destroy();
-    this.classLabel.destroy();
+    this.titleLabel.destroy();
+    this.bpLabel.destroy();
+    this.gradientOverlay?.destroy();
+    this.gradientOverlay = null;
     this.unknownLabel?.destroy();
     this.starRating?.destroy();
   }
@@ -177,10 +220,11 @@ export class HeroCard {
     container.add(this.circle);
     if (this.portraitImage) container.add(this.portraitImage);
     if (this.portraitMaskRect) container.add(this.portraitMaskRect);
+    if (this.gradientOverlay) container.add(this.gradientOverlay);
     if (this.unknownLabel) container.add(this.unknownLabel);
     container.add(this.nameLabel);
-    container.add(this.rpLabel);
-    container.add(this.classLabel);
+    container.add(this.titleLabel);
+    container.add(this.bpLabel);
     this.starRating?.reparentTo(container);
     container.add(this.zone);
   }

@@ -16,10 +16,10 @@ import type { RealmSaveDataV3 } from '../types';
 type RosterTab = 'heroes' | 'bonds';
 
 const CARD_GAP = 6;
-const CARD_ROW_Y = 185;
+const CARD_ROW_Y = 210;
 const CARD_START_X = 52;
-const SCROLL_VIEWPORT_Y = 90;
-const SCROLL_VIEWPORT_HEIGHT = 200;
+const SCROLL_VIEWPORT_Y = 80;
+const SCROLL_VIEWPORT_HEIGHT = 280;
 const TAB_WIDTH = 140;
 const TAB_HEIGHT = 28;
 const TAB_GAP = 12;
