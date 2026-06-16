@@ -23,7 +23,6 @@ import { SkillSystem } from '../systems/SkillSystem';
 import { UltimateSystem } from '../systems/UltimateSystem';
 import { WaveSystem } from '../systems/WaveSystem';
 import { BossBar } from '../ui/BossBar';
-import { OptionalBackground } from '../ui/OptionalBackground';
 import { drawEnergyBar } from '../ui/EnergyBar';
 import { UltimateButtons, type HudPortraitConfig } from '../ui/UltimateButtons';
 import type {
@@ -156,7 +155,6 @@ export class BattleScene extends Phaser.Scene {
   private energyCost = 0;
   private heroesDeathCount = 0;
 
-  private battleBackground: OptionalBackground | null = null;
   private waveLabel!: Phaser.GameObjects.Text;
 
   private heroes: BattleHero[] = [];
@@ -327,7 +325,6 @@ export class BattleScene extends Phaser.Scene {
 
     const stageData = getStageData(this.stageId);
     const chapterId = stageData?.chapterId;
-    console.log('[BattleScene] stageId:', this.stageId, 'chapterId:', chapterId);
     const bgKey = chapterId === 'chapter_1'
       ? 'bg_ch1'
       : chapterId === 'chapter_2'
@@ -737,8 +734,6 @@ export class BattleScene extends Phaser.Scene {
   shutdown(): void {
     this.teardownBattleSystems();
 
-    this.battleBackground?.destroy();
-    this.battleBackground = null;
     this.waveLabel?.destroy();
 
     for (const visual of this.heroVisuals.values()) {

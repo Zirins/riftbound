@@ -28,7 +28,6 @@ import { NotificationDot } from '../ui/NotificationDot';
 import { RiftChronicleOverlay } from '../ui/RiftChronicleOverlay';
 import { TasksOverlay } from '../ui/TasksOverlay';
 import { WorldFeedWidget } from '../ui/WorldFeedWidget';
-import { OptionalBackground } from '../ui/OptionalBackground';
 
 const AVATAR_COLORS = [0x4488ff, 0xff4422, 0x44cc66, 0xffcc22, 0x9944cc, 0xffffff];
 const ZONE_WIDTH = 200;
@@ -63,7 +62,6 @@ export class HubScene extends Phaser.Scene {
   private currencyBar: CurrencyBar | null = null;
   private activeOverlay: RiftChronicleOverlay | TasksOverlay | MailOverlay | OfflineRewardOverlay | null = null;
   private worldFeedWidget: WorldFeedWidget | null = null;
-  private hubBackground: OptionalBackground | null = null;
   private profileLabel: Phaser.GameObjects.Text | null = null;
   private toastLabel: Phaser.GameObjects.Text | null = null;
   private zoneButtons: ButtonPrimary[] = [];
@@ -115,8 +113,6 @@ export class HubScene extends Phaser.Scene {
     this.worldFeedWidget = null;
     this.hubBgImage?.destroy();
     this.hubBgImage = null;
-    this.hubBackground?.destroy();
-    this.hubBackground = null;
     this.currencyBar?.destroy();
     this.profileLabel?.destroy();
     this.toastLabel?.destroy();
@@ -136,7 +132,6 @@ export class HubScene extends Phaser.Scene {
 
     this.currencyBar = null;
     this.worldFeedWidget = null;
-    this.hubBackground = null;
     this.hubBgImage = null;
     this.profileLabel = null;
     this.toastLabel = null;

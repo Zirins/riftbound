@@ -19,7 +19,8 @@ export class HeroCard {
   private readonly badge: RarityBadge;
   private readonly circle: Phaser.GameObjects.Rectangle;
   private portraitImage: Phaser.GameObjects.Image | null = null;
-  private portraitMaskRect: Phaser.GameObjects.Rectangle | null = null;
+  private portraitMaskGraphics: Phaser.GameObjects.Graphics | null = null;
+  private scrollContainer: Phaser.GameObjects.Container | null = null;
   private gradientOverlay: Phaser.GameObjects.Graphics | null = null;
   private cancelPortraitLoad: (() => void) | null = null;
   private readonly nameLabel: Phaser.GameObjects.Text;
@@ -113,10 +114,12 @@ export class HeroCard {
       color: owned ? '#ffffff' : '#888899',
       fontFamily: 'monospace',
       fontStyle: 'bold',
-    }).setOrigin(0, 0.5);
+      wordWrap: { width: HERO_CARD_WIDTH - 12 },
+      align: 'center',
+    }).setOrigin(0.5, 0.5).setX(x);
 
     this.titleLabel = scene.add.text(
-      x - HERO_CARD_WIDTH / 2 + 8,
+      x,
       bottomRegionTop + 34,
       owned ? heroData.title : '',
       {
@@ -124,14 +127,16 @@ export class HeroCard {
         color: '#bbbbcc',
         fontFamily: 'monospace',
         fontStyle: 'italic',
+        wordWrap: { width: HERO_CARD_WIDTH - 12 },
+        align: 'center',
       },
-    ).setOrigin(0, 0.5);
+    ).setOrigin(0.5, 0.5);
 
-    this.bpLabel = scene.add.text(x + HERO_CARD_WIDTH / 2 - 8, bottomRegionTop + 16, owned ? `BP: ${rp.toLocaleString()}` : '', {
+    this.bpLabel = scene.add.text(x, bottomRegionTop + 52, owned ? `BP: ${rp.toLocaleString()}` : '', {
       fontSize: '10px',
       color: owned ? '#aaaacc' : '#666677',
       fontFamily: 'monospace',
-    }).setOrigin(1, 0.5);
+    }).setOrigin(0.5, 0.5);
 
     this.starRating = owned
       ? new StarRating(scene, x - 28, y + HERO_CARD_HEIGHT / 2 + 10, ownershipState!.starRank)
@@ -145,49 +150,50 @@ export class HeroCard {
   private showPortrait(
     scene: Phaser.Scene,
     x: number,
-    y: number,
+    portraitCenterY: number,
     textureKey: string,
   ): void {
     if (this.destroyed || !scene.textures.exists(textureKey)) return;
 
+    scene.textures.get(textureKey).setFilter(Phaser.Textures.FilterMode.LINEAR);
+
     this.portraitImage?.destroy();
-    this.portraitMaskRect?.destroy();
-    this.portraitMaskRect = null;
+    this.portraitMaskGraphics?.destroy();
+    this.portraitMaskGraphics = null;
 
     const portraitRegionHeight = Math.floor(HERO_CARD_HEIGHT * PORTRAIT_REGION_FRACTION);
+    const portraitTop = portraitCenterY - portraitRegionHeight / 2;
 
-    // Scale to cover the portrait region (no letterboxing), then mask to region.
-    const tex = scene.textures.get(textureKey);
-    const source = tex.getSourceImage() as { width: number; height: number } | undefined;
-    const srcW = source?.width ?? HERO_CARD_WIDTH;
-    const srcH = source?.height ?? portraitRegionHeight;
-    const srcAspect = srcW / Math.max(1, srcH);
-    const targetAspect = HERO_CARD_WIDTH / Math.max(1, portraitRegionHeight);
+    // Native resolution — mask clips to the card; avoids heavy downscale blur.
+    this.portraitImage = scene.add.image(x, portraitCenterY, textureKey);
+    this.portraitImage.setOrigin(0.5, 0.38);
 
-    let drawW = HERO_CARD_WIDTH;
-    let drawH = portraitRegionHeight;
-    if (srcAspect > targetAspect) {
-      drawH = portraitRegionHeight;
-      drawW = Math.ceil(drawH * srcAspect);
-    } else {
-      drawW = HERO_CARD_WIDTH;
-      drawH = Math.ceil(drawW / srcAspect);
-    }
-
-    this.portraitImage = scene.add.image(x, y, textureKey).setDisplaySize(drawW, drawH);
-
-    this.portraitMaskRect = scene.add.rectangle(
-      x,
-      y,
+    this.portraitMaskGraphics = scene.add.graphics();
+    this.portraitMaskGraphics.fillStyle(0xffffff);
+    this.portraitMaskGraphics.fillRect(
+      x - HERO_CARD_WIDTH / 2,
+      portraitTop,
       HERO_CARD_WIDTH,
       portraitRegionHeight,
-      0x000000,
-      0,
     );
-    const mask = this.portraitMaskRect.createGeometryMask();
-    this.portraitImage.setMask(mask);
+    this.portraitMaskGraphics.setVisible(false);
+    this.portraitImage.setMask(this.portraitMaskGraphics.createGeometryMask());
+
+    this.attachPortraitToScrollContainer();
 
     this.circle.setVisible(false);
+  }
+
+  private attachPortraitToScrollContainer(): void {
+    if (!this.scrollContainer || !this.portraitImage) return;
+    if (this.scrollContainer.getIndex(this.portraitImage) !== -1) return;
+
+    const circleIdx = this.scrollContainer.getIndex(this.circle);
+    const insertAt = circleIdx >= 0 ? circleIdx + 1 : this.scrollContainer.length;
+    this.scrollContainer.addAt(this.portraitImage, insertAt);
+    if (this.portraitMaskGraphics && this.scrollContainer.getIndex(this.portraitMaskGraphics) === -1) {
+      this.scrollContainer.addAt(this.portraitMaskGraphics, insertAt + 1);
+    }
   }
 
   destroy(): void {
@@ -199,8 +205,9 @@ export class HeroCard {
     this.badge.destroy();
     this.circle.destroy();
     this.portraitImage?.destroy();
-    this.portraitMaskRect?.destroy();
-    this.portraitMaskRect = null;
+    this.portraitMaskGraphics?.destroy();
+    this.portraitMaskGraphics = null;
+    this.scrollContainer = null;
     this.nameLabel.destroy();
     this.titleLabel.destroy();
     this.bpLabel.destroy();
@@ -216,10 +223,10 @@ export class HeroCard {
   };
 
   reparentTo(container: Phaser.GameObjects.Container): void {
+    this.scrollContainer = container;
     this.badge.reparentTo(container);
     container.add(this.circle);
-    if (this.portraitImage) container.add(this.portraitImage);
-    if (this.portraitMaskRect) container.add(this.portraitMaskRect);
+    this.attachPortraitToScrollContainer();
     if (this.gradientOverlay) container.add(this.gradientOverlay);
     if (this.unknownLabel) container.add(this.unknownLabel);
     container.add(this.nameLabel);
