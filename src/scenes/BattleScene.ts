@@ -326,17 +326,21 @@ export class BattleScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor(UI.BACKGROUND_COLOR);
 
     const stageData = getStageData(this.stageId);
-    const chapterRaw = stageData?.chapterId;
-    const chapterIndex = chapterRaw
-      ? Number(String(chapterRaw).match(/\d+/)?.[0] ?? NaN)
-      : NaN;
-    const bgKey = chapterIndex === 1 ? 'bg_ch1' : chapterIndex === 2 ? 'bg_ch2' : chapterIndex === 3 ? 'bg_ch3' : null;
+    const chapterId = stageData?.chapterId;
+    console.log('[BattleScene] stageId:', this.stageId, 'chapterId:', chapterId);
+    const bgKey = chapterId === 'chapter_1'
+      ? 'bg_ch1'
+      : chapterId === 'chapter_2'
+        ? 'bg_ch2'
+        : chapterId === 'chapter_3'
+          ? 'bg_ch3'
+          : null;
 
     if (bgKey && this.textures.exists(bgKey)) {
       this.add.image(CANVAS.WIDTH / 2, CANVAS.HEIGHT / 2, bgKey)
         .setDisplaySize(CANVAS.WIDTH, CANVAS.HEIGHT)
         .setDepth(0);
-    } else if (stageData?.chapterId) {
+    } else if (chapterId) {
       // Fall back to existing colored fill behavior when chapter is unknown.
       this.cameras.main.setBackgroundColor(UI.BACKGROUND_COLOR);
     }

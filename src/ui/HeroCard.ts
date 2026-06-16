@@ -25,6 +25,7 @@ export class HeroCard {
   private readonly badge: RarityBadge;
   private readonly circle: Phaser.GameObjects.Arc;
   private portraitImage: Phaser.GameObjects.Image | null = null;
+  private portraitMaskRect: Phaser.GameObjects.Rectangle | null = null;
   private cancelPortraitLoad: (() => void) | null = null;
   private readonly nameLabel: Phaser.GameObjects.Text;
   private readonly rpLabel: Phaser.GameObjects.Text;
@@ -121,14 +122,30 @@ export class HeroCard {
     scene: Phaser.Scene,
     x: number,
     y: number,
-    radius: number,
+    _radius: number,
     textureKey: string,
   ): void {
     if (this.destroyed || !scene.textures.exists(textureKey)) return;
 
     this.portraitImage?.destroy();
-    const diameter = radius * 2;
-    this.portraitImage = scene.add.image(x, y, textureKey).setDisplaySize(diameter, diameter);
+    this.portraitMaskRect?.destroy();
+
+    // Fill the full card width and crop to the portrait region.
+    const portraitRegionHeight = 72;
+    this.portraitImage = scene.add.image(x, y, textureKey)
+      .setDisplaySize(HERO_CARD_WIDTH, portraitRegionHeight);
+
+    this.portraitMaskRect = scene.add.rectangle(
+      x,
+      y,
+      HERO_CARD_WIDTH,
+      portraitRegionHeight,
+      0x000000,
+      0,
+    );
+    const mask = this.portraitMaskRect.createGeometryMask();
+    this.portraitImage.setMask(mask);
+
     this.circle.setVisible(false);
   }
 
@@ -141,6 +158,8 @@ export class HeroCard {
     this.badge.destroy();
     this.circle.destroy();
     this.portraitImage?.destroy();
+    this.portraitMaskRect?.destroy();
+    this.portraitMaskRect = null;
     this.nameLabel.destroy();
     this.rpLabel.destroy();
     this.classLabel.destroy();
@@ -157,6 +176,7 @@ export class HeroCard {
     this.badge.reparentTo(container);
     container.add(this.circle);
     if (this.portraitImage) container.add(this.portraitImage);
+    if (this.portraitMaskRect) container.add(this.portraitMaskRect);
     if (this.unknownLabel) container.add(this.unknownLabel);
     container.add(this.nameLabel);
     container.add(this.rpLabel);
