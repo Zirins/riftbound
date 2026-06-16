@@ -9,9 +9,11 @@ import { WeeklyTaskSystem } from '../systems/WeeklyTaskSystem';
 import type { RealmSaveDataV3 } from '../types';
 import { ProgressBar } from './ProgressBar';
 
-const PANEL_WIDTH = 620;
+const PANEL_WIDTH = 380;
 const ROW_HEIGHT = 56;
 const BUTTON_HEIGHT = 36;
+const PANEL_PADDING_X = 24;
+const BUTTON_COL_WIDTH = 90;
 
 interface OverlayButtonParts {
   bg: Phaser.GameObjects.Rectangle;
@@ -64,12 +66,19 @@ export class WeeklyTasksPanel {
     if (!realm) return;
 
     const startY = CANVAS.HEIGHT / 2 - 118;
+    const panelLeftX = CANVAS.WIDTH / 2 - PANEL_WIDTH / 2;
+    const panelRightX = CANVAS.WIDTH / 2 + PANEL_WIDTH / 2;
+    const leftX = panelLeftX + PANEL_PADDING_X;
+    const actionX = panelRightX - PANEL_PADDING_X - 40;
+    const barWidth = Math.max(
+      120,
+      PANEL_WIDTH - PANEL_PADDING_X * 2 - 70 - BUTTON_COL_WIDTH,
+    );
 
     for (let i = 0; i < WEEKLY_MISSIONS.length; i += 1) {
       const definition = WEEKLY_MISSIONS[i];
       const view = WeeklyTaskSystem.getViewState(realm, definition);
       const y = startY + i * ROW_HEIGHT;
-      const leftX = CANVAS.WIDTH / 2 - PANEL_WIDTH / 2 + 24;
 
       const nameColor = view.locked ? '#666688' : '#ffffff';
       const name = this.scene.add.text(leftX, y - 18, view.name, {
@@ -89,14 +98,14 @@ export class WeeklyTasksPanel {
 
       if (view.locked) {
         const lockLabel = this.scene.add.text(
-          CANVAS.WIDTH / 2 + 180,
+          actionX,
           y,
           view.lockReason ?? 'Unlocks later',
           {
             fontSize: '9px',
             color: '#888899',
             fontFamily: 'monospace',
-            wordWrap: { width: 150 },
+            wordWrap: { width: BUTTON_COL_WIDTH + 60 },
             align: 'center',
           },
         ).setOrigin(0.5);
@@ -121,7 +130,7 @@ export class WeeklyTasksPanel {
         this.scene,
         leftX + 70,
         y + 14,
-        220,
+        barWidth,
         10,
         0x44cc88,
         0x333344,
@@ -130,7 +139,7 @@ export class WeeklyTasksPanel {
       this.progressBars.push(bar);
 
       if (view.claimed) {
-        const claimed = this.scene.add.text(CANVAS.WIDTH / 2 + 210, y, '✓ CLAIMED', {
+        const claimed = this.scene.add.text(actionX, y, '✓ CLAIMED', {
           fontSize: '10px',
           color: '#44ff88',
           fontFamily: 'monospace',
@@ -139,7 +148,7 @@ export class WeeklyTasksPanel {
         this.container.add([name, description, progressText, claimed]);
       } else if (view.completed) {
         this.addContainerButton(
-          CANVAS.WIDTH / 2 + 210,
+          actionX,
           y,
           'CLAIM',
           () => {

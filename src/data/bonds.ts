@@ -62,21 +62,28 @@ export const PAIR_BOND_DEFINITIONS: PairBondDefinition[] = [
     name: 'Hollow Silence',
     description: 'Lin Mo and Huan Li hunt from the mirror dark.',
     heroIds: ['lin_hollowshade', 'veyra_hollowglass'],
-    modifiers: { attackPercent: 0.02 },
+    modifiers: { attackPercent: 0.06 },
   },
   {
     id: 'pair_wei_kael',
     name: 'Order Formation',
     description: 'Wei An and Tie Shan hold the Argent line together.',
     heroIds: ['wei_argentblade', 'kael'],
-    modifiers: { defensePercent: 0.03 },
+    modifiers: { defensePercent: 0.07 },
+  },
+  {
+    id: 'pair_frost_judgment',
+    name: 'Frost Judgment',
+    description: 'Bing Que and Huan Li freeze the battlefield.',
+    heroIds: ['bing_que', 'veyra_hollowglass'],
+    modifiers: { attackPercent: 0.05, defensePercent: 0.05 },
   },
   {
     id: 'pair_lian_han_jue',
-    name: 'Frost Judgment',
-    description: 'Lian Qing and Han Jue pass sentence as one. (Untestable until han_jue ships.)',
+    name: 'Judgment Accord',
+    description: 'Lian Qing and Han Jue pass sentence as one. (Inactive until han_jue ships.)',
     heroIds: ['lian_sunscourge', 'han_jue'],
-    modifiers: { attackPercent: 0.03 },
+    modifiers: { attackPercent: 0.06, attackSpeedPercent: 0.04 },
   },
 ];
 
@@ -111,6 +118,7 @@ export function formatModifierSummary(modifiers: GlobalStatModifiers): string {
   if (modifiers.hpPercent) parts.push(`HP+${Math.round(modifiers.hpPercent * 100)}%`);
   if (modifiers.attackPercent) parts.push(`ATK+${Math.round(modifiers.attackPercent * 100)}%`);
   if (modifiers.defensePercent) parts.push(`DEF+${Math.round(modifiers.defensePercent * 100)}%`);
+  if (modifiers.attackSpeedPercent) parts.push(`SPD+${Math.round(modifiers.attackSpeedPercent * 100)}%`);
   if (modifiers.energyRegenPercent) {
     parts.push(`Energy regen+${Math.round(modifiers.energyRegenPercent * 100)}%`);
   }
@@ -134,6 +142,7 @@ export function mergeGlobalModifiers(
     hpPercent: (target.hpPercent ?? 0) + (source.hpPercent ?? 0),
     attackPercent: (target.attackPercent ?? 0) + (source.attackPercent ?? 0),
     defensePercent: (target.defensePercent ?? 0) + (source.defensePercent ?? 0),
+    attackSpeedPercent: (target.attackSpeedPercent ?? 0) + (source.attackSpeedPercent ?? 0),
     energyRegenPercent: (target.energyRegenPercent ?? 0) + (source.energyRegenPercent ?? 0),
     campaignGoldPercent: (target.campaignGoldPercent ?? 0) + (source.campaignGoldPercent ?? 0),
     covenantCoinGainPercent: (target.covenantCoinGainPercent ?? 0) + (source.covenantCoinGainPercent ?? 0),

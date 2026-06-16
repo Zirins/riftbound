@@ -13,12 +13,14 @@ import { ProgressBar } from './ProgressBar';
 import { createOverlayDim } from './HubOverlayPanel';
 import { WeeklyTasksPanel } from './WeeklyTasksOverlay';
 
-const PANEL_WIDTH = 620;
+const PANEL_WIDTH = 380;
 const PANEL_HEIGHT_DAILY = 320;
 const PANEL_HEIGHT_WEEKLY = 460;
 const ROW_HEIGHT = 64;
 const BUTTON_HEIGHT = 36;
 const OVERLAY_DEPTH = 100;
+const PANEL_PADDING_X = 24;
+const BUTTON_COL_WIDTH = 90;
 
 type TasksTab = 'daily' | 'weekly';
 
@@ -104,10 +106,13 @@ export class TasksOverlay {
   private drawClaimAll(panelHeight: number): void {
     if (!this.container) return;
 
+    const panelLeftX = CANVAS.WIDTH / 2 - PANEL_WIDTH / 2;
+    const claimAllX = panelLeftX + PANEL_PADDING_X + 60;
+
     if (this.activeTab === 'daily') {
       const claimable = TaskSystem.getDailyTasks().filter((t) => t.completed && !t.claimed).length;
       this.addContainerButton(
-        CANVAS.WIDTH / 2 - 190,
+        claimAllX,
         CANVAS.HEIGHT / 2 + panelHeight / 2 - 28,
         claimable > 0 ? 'CLAIM ALL' : 'NO CLAIMS',
         () => {
@@ -124,7 +129,7 @@ export class TasksOverlay {
     const save = loadCurrentRealm() as RealmSaveDataV3 | null;
     const claimableWeekly = save ? WeeklyTaskSystem.getUnclaimedCount(save) : 0;
     this.addContainerButton(
-      CANVAS.WIDTH / 2 - 190,
+      claimAllX,
       CANVAS.HEIGHT / 2 + panelHeight / 2 - 28,
       claimableWeekly > 0 ? 'CLAIM ALL' : 'NO CLAIMS',
       () => {
@@ -196,6 +201,14 @@ export class TasksOverlay {
   private drawDailyTasks(panelHeight: number): void {
     const tasks = TaskSystem.getDailyTasks();
     const startY = CANVAS.HEIGHT / 2 - panelHeight / 2 + 100;
+    const panelLeftX = CANVAS.WIDTH / 2 - PANEL_WIDTH / 2;
+    const panelRightX = CANVAS.WIDTH / 2 + PANEL_WIDTH / 2;
+    const leftX = panelLeftX + PANEL_PADDING_X;
+    const actionX = panelRightX - PANEL_PADDING_X - 40;
+    const barWidth = Math.max(
+      120,
+      PANEL_WIDTH - PANEL_PADDING_X * 2 - 70 - BUTTON_COL_WIDTH,
+    );
 
     for (let i = 0; i < tasks.length; i += 1) {
       const taskState = tasks[i];
@@ -203,7 +216,6 @@ export class TasksOverlay {
       if (!definition) continue;
 
       const y = startY + i * ROW_HEIGHT;
-      const leftX = CANVAS.WIDTH / 2 - PANEL_WIDTH / 2 + 24;
 
       const description = this.scene.add.text(leftX, y - 14, definition.description, {
         fontSize: '11px',
@@ -228,7 +240,7 @@ export class TasksOverlay {
         this.scene,
         leftX + 70,
         y + 6,
-        220,
+        barWidth,
         10,
         0x44cc88,
         0x333344,
@@ -239,7 +251,7 @@ export class TasksOverlay {
       const isComplete = taskState.currentProgress >= definition.requiredProgress;
 
       if (taskState.claimed) {
-        const claimed = this.scene.add.text(CANVAS.WIDTH / 2 + 210, y, '✓ CLAIMED', {
+        const claimed = this.scene.add.text(actionX, y, '✓ CLAIMED', {
           fontSize: '10px',
           color: '#44ff88',
           fontFamily: 'monospace',
@@ -248,7 +260,7 @@ export class TasksOverlay {
         this.container?.add(claimed);
       } else if (isComplete) {
         this.addContainerButton(
-          CANVAS.WIDTH / 2 + 210,
+          actionX,
           y,
           'CLAIM',
           () => {

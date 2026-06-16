@@ -11,7 +11,9 @@ import { ButtonPrimary } from '../ui/ButtonPrimary';
 
 const ROW_HEIGHT = 36;
 const LIST_TOP_Y = 96;
-const LIST_HEIGHT = 250;
+const VISIBLE_ROWS = 8;
+const LIST_VIEW_HEIGHT = VISIBLE_ROWS * ROW_HEIGHT;
+const LIST_WIDTH = 520;
 
 function formatRole(role: CovenantMember['role']): string {
   switch (role) {
@@ -29,6 +31,10 @@ export class CovMemberScene extends Phaser.Scene {
 
   private backButton: ButtonPrimary | null = null;
   private listTexts: Phaser.GameObjects.Text[] = [];
+  private listContainer: Phaser.GameObjects.Container | null = null;
+  private listMaskRect: Phaser.GameObjects.Rectangle | null = null;
+  private scrollOffsetY = 0;
+  private maxScrollY = 0;
 
   constructor() {
     super({ key: CovMemberScene.KEY });
@@ -97,11 +103,19 @@ export class CovMemberScene extends Phaser.Scene {
   }
 
   private renderMembers(members: CovenantMember[]): void {
-    const maxRows = Math.floor(LIST_HEIGHT / ROW_HEIGHT);
-    const visible = members.slice(0, maxRows);
+    this.listContainer?.destroy(true);
+    this.listContainer = null;
+    this.listMaskRect?.destroy(true);
+    this.listMaskRect = null;
+    this.scrollOffsetY = 0;
+    this.maxScrollY = 0;
 
-    visible.forEach((member, index) => {
-      const y = LIST_TOP_Y + 22 + index * ROW_HEIGHT;
+    const listTopContentY = LIST_TOP_Y + 22;
+    const listContainer = this.add.container(0, 0);
+    this.listContainer = listContainer;
+
+    members.forEach((member, index) => {
+      const y = listTopContentY + index * ROW_HEIGHT;
       const isPlayer = member.role === 'leader' || member.role === 'member';
       const nameColor = isPlayer ? '#44ccff' : '#ffffff';
 
@@ -120,27 +134,42 @@ export class CovMemberScene extends Phaser.Scene {
           fontFamily: 'monospace',
         }).setOrigin(0, 0.5);
         this.listTexts.push(label);
+        listContainer.add(label);
       }
     });
 
-    if (members.length > maxRows) {
-      const overflow = this.add.text(
-        CANVAS.WIDTH / 2,
-        LIST_TOP_Y + LIST_HEIGHT + 8,
-        `+ ${members.length - maxRows} more members`,
-        {
-          fontSize: '10px',
-          color: '#888899',
-          fontFamily: 'monospace',
-        },
-      ).setOrigin(0.5);
-      this.listTexts.push(overflow);
+    // Mask the list to a fixed 8-row viewport (scroll activates beyond that).
+    this.listMaskRect = this.add.rectangle(
+      CANVAS.WIDTH / 2,
+      listTopContentY + LIST_VIEW_HEIGHT / 2 - ROW_HEIGHT / 2,
+      LIST_WIDTH,
+      LIST_VIEW_HEIGHT,
+      0x000000,
+      0,
+    );
+    const mask = this.listMaskRect.createGeometryMask();
+    listContainer.setMask(mask);
+
+    const totalHeight = Math.max(0, members.length * ROW_HEIGHT);
+    this.maxScrollY = Math.max(0, totalHeight - LIST_VIEW_HEIGHT);
+
+    if (this.maxScrollY > 0) {
+      this.input.on('wheel', (_p: unknown, _go: unknown, _dx: number, dy: number) => {
+        this.scrollOffsetY = Phaser.Math.Clamp(this.scrollOffsetY + dy * 0.6, 0, this.maxScrollY);
+        listContainer.setY(-this.scrollOffsetY);
+      });
     }
   }
 
   shutdown(): void {
     this.backButton?.destroy();
     this.backButton = null;
+
+    this.input.off('wheel');
+    this.listContainer?.destroy(true);
+    this.listContainer = null;
+    this.listMaskRect?.destroy(true);
+    this.listMaskRect = null;
 
     for (const text of this.listTexts) text.destroy();
     this.listTexts.length = 0;
