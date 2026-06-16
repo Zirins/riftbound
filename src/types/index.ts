@@ -12,7 +12,7 @@ export type HeroClass =
   | 'support'
   | 'ranger';
 
-export type HeroRarity = 'uncommon' | 'rare' | 'epic' | 'legendary';
+export type HeroRarity = 'b' | 'a' | 'a_plus' | 's';
 export type HeroFaction = 'argent' | 'radiant' | 'freebound' | 'hollow';
 
 export type EnemyClass = 'melee' | 'ranged' | 'mage' | 'armored' | 'boss';
@@ -754,6 +754,7 @@ export interface GlobalStatModifiers {
   hpPercent?: number;
   attackPercent?: number;
   defensePercent?: number;
+  attackSpeedPercent?: number;
   energyRegenPercent?: number;
   campaignGoldPercent?: number;
   covenantCoinGainPercent?: number;
