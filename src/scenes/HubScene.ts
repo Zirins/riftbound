@@ -29,7 +29,6 @@ import { RiftChronicleOverlay } from '../ui/RiftChronicleOverlay';
 import { TasksOverlay } from '../ui/TasksOverlay';
 import { WorldFeedWidget } from '../ui/WorldFeedWidget';
 import { OptionalBackground } from '../ui/OptionalBackground';
-import { ASSET_PATHS } from '../constants/assetPaths';
 
 const AVATAR_COLORS = [0x4488ff, 0xff4422, 0x44cc66, 0xffcc22, 0x9944cc, 0xffffff];
 const ZONE_WIDTH = 200;
@@ -59,6 +58,7 @@ const HUB_ZONES: HubZoneConfig[] = [
 
 export class HubScene extends Phaser.Scene {
   static readonly KEY = SCENE_KEYS.HUB;
+  private hubBgImage: Phaser.GameObjects.Image | null = null;
 
   private currencyBar: CurrencyBar | null = null;
   private activeOverlay: RiftChronicleOverlay | TasksOverlay | MailOverlay | OfflineRewardOverlay | null = null;
@@ -79,14 +79,16 @@ export class HubScene extends Phaser.Scene {
     super({ key: HubScene.KEY });
   }
 
+  preload(): void {
+    this.load.image('bg_hub', 'assets/backgrounds/main_hub.png');
+  }
+
   create(): void {
     this.cameras.main.setBackgroundColor(UI.BACKGROUND_COLOR);
 
-    this.hubBackground = new OptionalBackground(this, CANVAS.WIDTH, CANVAS.HEIGHT, {
-      assetPath: ASSET_PATHS.backgrounds.hub,
-      fallbackColor: UI.BACKGROUND_COLOR,
-      depth: 0,
-    });
+    this.hubBgImage = this.add.image(CANVAS.WIDTH / 2, CANVAS.HEIGHT / 2, 'bg_hub')
+      .setDisplaySize(CANVAS.WIDTH, CANVAS.HEIGHT)
+      .setDepth(0);
 
     this.processHubLoadResets();
     TaskSystem.resetIfNewDay();
@@ -111,6 +113,8 @@ export class HubScene extends Phaser.Scene {
     this.closeActiveOverlay();
     this.worldFeedWidget?.destroy();
     this.worldFeedWidget = null;
+    this.hubBgImage?.destroy();
+    this.hubBgImage = null;
     this.hubBackground?.destroy();
     this.hubBackground = null;
     this.currencyBar?.destroy();
@@ -133,6 +137,7 @@ export class HubScene extends Phaser.Scene {
     this.currencyBar = null;
     this.worldFeedWidget = null;
     this.hubBackground = null;
+    this.hubBgImage = null;
     this.profileLabel = null;
     this.toastLabel = null;
     this.mailDot = null;
@@ -145,7 +150,7 @@ export class HubScene extends Phaser.Scene {
     const realm = loadCurrentRealm();
     const avatarColor = AVATAR_COLORS[realm?.avatarColorIndex ?? 0] ?? AVATAR_COLORS[0];
 
-    this.add.circle(28, 28, 14, avatarColor);
+    this.add.circle(28, 28, 14, avatarColor).setDepth(1);
 
     const accountLevel = realm?.accountLevel ?? 1;
     const tierLabel = getAccountTierLabel(accountLevel);
@@ -157,9 +162,10 @@ export class HubScene extends Phaser.Scene {
       fontSize: '12px',
       color: '#ffffff',
       fontFamily: 'monospace',
-    }).setOrigin(0, 0.5);
+    }).setOrigin(0, 0.5).setDepth(1);
 
     this.currencyBar = new CurrencyBar(this, 480, 28);
+    this.currencyBar.setDepth(1);
   }
 
   private buildZones(): void {
@@ -173,18 +179,19 @@ export class HubScene extends Phaser.Scene {
         ZONE_WIDTH,
         ZONE_HEIGHT,
       );
+      button.setDepth(1);
 
       this.add.text(zone.x, zone.y + 22, zone.sublabel, {
         fontSize: '10px',
         color: '#aaaacc',
         fontFamily: 'monospace',
-      }).setOrigin(0.5);
+      }).setOrigin(0.5).setDepth(1);
 
       if (!isUnlocked(zone.featureKey)) {
         const lock = this.add.text(zone.x + ZONE_WIDTH / 2 - 20, zone.y - 20, '🔒', {
           fontSize: '14px',
           color: '#ffcc44',
-        }).setOrigin(0.5);
+        }).setOrigin(0.5).setDepth(1);
         this.lockIcons.push(lock);
       }
 
@@ -194,6 +201,7 @@ export class HubScene extends Phaser.Scene {
           zone.x + ZONE_WIDTH / 2 - 12,
           zone.y - ZONE_HEIGHT / 2 + 8,
         );
+        this.chronicleDot.setDepth(1);
       }
 
       this.zoneButtons.push(button);
@@ -207,10 +215,14 @@ export class HubScene extends Phaser.Scene {
 
   private buildBottomBar(): void {
     const mailButton = new ButtonPrimary(this, 120, 340, '📬 MAIL', () => this.openMailOverlay(), 120);
+    mailButton.setDepth(1);
     this.mailDot = new NotificationDot(this, 168, 322);
+    this.mailDot.setDepth(1);
 
     const tasksButton = new ButtonPrimary(this, 230, 340, '☑ TASKS', () => this.openTasksOverlay(), 100);
+    tasksButton.setDepth(1);
     this.tasksDot = new NotificationDot(this, 278, 322);
+    this.tasksDot.setDepth(1);
 
     const riftSeasonButton = new ButtonPrimary(
       this,
@@ -220,6 +232,7 @@ export class HubScene extends Phaser.Scene {
       () => this.onRiftSeasonTap(),
       90,
     );
+    riftSeasonButton.setDepth(1);
 
     const achievementsButton = new ButtonPrimary(
       this,
@@ -229,7 +242,9 @@ export class HubScene extends Phaser.Scene {
       () => this.onAchievementsTap(),
       100,
     );
+    achievementsButton.setDepth(1);
     this.achievementsDot = new NotificationDot(this, 498, 322);
+    this.achievementsDot.setDepth(1);
 
     const settingsButton = new ButtonPrimary(
       this,
@@ -239,6 +254,7 @@ export class HubScene extends Phaser.Scene {
       () => this.scene.start(SCENE_KEYS.SETTINGS),
       100,
     );
+    settingsButton.setDepth(1);
 
     const inventoryButton = new ButtonPrimary(
       this,
@@ -248,6 +264,7 @@ export class HubScene extends Phaser.Scene {
       () => this.onInventoryTap(),
       80,
     );
+    inventoryButton.setDepth(1);
 
     const quickBattle = new ButtonPrimary(
       this,
@@ -257,6 +274,7 @@ export class HubScene extends Phaser.Scene {
       () => this.scene.start(SCENE_KEYS.FORMATION, { origin: 'quickBattle' }),
       110,
     );
+    quickBattle.setDepth(1);
 
     this.bottomButtons.push(mailButton, tasksButton, riftSeasonButton, achievementsButton, settingsButton, inventoryButton, quickBattle);
   }

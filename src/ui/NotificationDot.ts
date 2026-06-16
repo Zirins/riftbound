@@ -49,6 +49,11 @@ export class NotificationDot {
     return this.visible;
   }
 
+  setDepth(depth: number): void {
+    this.circle.setDepth(depth);
+    this.countLabel.setDepth(depth);
+  }
+
   destroy(): void {
     this.circle.destroy();
     this.countLabel.destroy();

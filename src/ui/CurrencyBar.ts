@@ -55,6 +55,14 @@ export class CurrencyBar {
     this.energyLabel.setText(`⚡ ${energy}/${maxEnergy}`);
   }
 
+  setDepth(depth: number): void {
+    this.goldIcon.setDepth(depth);
+    this.goldLabel.setDepth(depth);
+    this.crystalIcon.setDepth(depth);
+    this.crystalLabel.setDepth(depth);
+    this.energyLabel.setDepth(depth);
+  }
+
   destroy(): void {
     this.goldIcon.destroy();
     this.goldLabel.destroy();

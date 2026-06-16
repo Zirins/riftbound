@@ -10,6 +10,7 @@ export const ASSET_ROOT = 'assets';
 export const ASSET_PATHS = {
   backgrounds: {
     hub: `${ASSET_ROOT}/backgrounds/main_hub.png`,
+    chapter1: `${ASSET_ROOT}/backgrounds/chapter_1_rift_outskirts.png`,
     chapter2: `${ASSET_ROOT}/backgrounds/chapter_2_hollow_reaches.png`,
     chapter3: `${ASSET_ROOT}/backgrounds/chapter_3_ironreach_depths.png`,
   },
@@ -57,6 +58,8 @@ export const ASSET_PATHS = {
 /** Campaign battle background for a chapter, or null when no art is defined (Chapter 1). */
 export function getBattleBackgroundPath(chapterId: string): string | null {
   switch (chapterId) {
+    case 'chapter_1':
+      return ASSET_PATHS.backgrounds.chapter1;
     case 'chapter_2':
       return ASSET_PATHS.backgrounds.chapter2;
     case 'chapter_3':

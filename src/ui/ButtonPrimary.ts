@@ -46,6 +46,12 @@ export class ButtonPrimary {
     this.label.setText(text);
   }
 
+  setDepth(depth: number): void {
+    this.bg.setDepth(depth);
+    this.label.setDepth(depth);
+    this.zone.setDepth(depth);
+  }
+
   destroy(): void {
     this.zone.off('pointerup', this.handlePointerUp, this);
     this.zone.destroy();

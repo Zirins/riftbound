@@ -3,7 +3,7 @@
 
 import Phaser from 'phaser';
 import { CANVAS, COMBAT, FORMATION, UI, WAVES } from '../constants/gameConfig';
-import { getBattleBackgroundPath } from '../constants/assetPaths';
+import { ASSET_PATHS } from '../constants/assetPaths';
 import { getEnemyColor, getEnemyDisplayName } from '../data/enemies';
 import { SCENE_KEYS } from '../constants/sceneKeys';
 import { HEROES_DATA } from '../data/heroes';
@@ -297,6 +297,12 @@ export class BattleScene extends Phaser.Scene {
     super({ key: BattleScene.KEY });
   }
 
+  preload(): void {
+    this.load.image('bg_ch1', ASSET_PATHS.backgrounds.chapter1);
+    this.load.image('bg_ch2', ASSET_PATHS.backgrounds.chapter2);
+    this.load.image('bg_ch3', ASSET_PATHS.backgrounds.chapter3);
+  }
+
   init(data: {
     stageId?: string;
     arenaOpponentId?: string;
@@ -320,11 +326,20 @@ export class BattleScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor(UI.BACKGROUND_COLOR);
 
     const stageData = getStageData(this.stageId);
-    const battleBgPath = stageData ? getBattleBackgroundPath(stageData.chapterId) : null;
-    this.battleBackground = new OptionalBackground(this, CANVAS.WIDTH, CANVAS.BATTLE_HEIGHT, {
-      assetPath: battleBgPath,
-      fallbackColor: UI.BACKGROUND_COLOR,
-    });
+    const chapterRaw = stageData?.chapterId;
+    const chapterIndex = chapterRaw
+      ? Number(String(chapterRaw).match(/\d+/)?.[0] ?? NaN)
+      : NaN;
+    const bgKey = chapterIndex === 1 ? 'bg_ch1' : chapterIndex === 2 ? 'bg_ch2' : chapterIndex === 3 ? 'bg_ch3' : null;
+
+    if (bgKey && this.textures.exists(bgKey)) {
+      this.add.image(CANVAS.WIDTH / 2, CANVAS.HEIGHT / 2, bgKey)
+        .setDisplaySize(CANVAS.WIDTH, CANVAS.HEIGHT)
+        .setDepth(0);
+    } else if (stageData?.chapterId) {
+      // Fall back to existing colored fill behavior when chapter is unknown.
+      this.cameras.main.setBackgroundColor(UI.BACKGROUND_COLOR);
+    }
 
     this.waveLabel = this.add.text(UI.WAVE_LABEL_X, UI.WAVE_LABEL_Y, 'WAVE 1', {
       fontSize: '14px',
