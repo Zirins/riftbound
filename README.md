@@ -2,14 +2,15 @@
 
 **Original xianxia-inspired cultivation fantasy hero-collector auto-battler RPG** — built as solo/personal project IP, not affiliated with any other game.
 
+**Play it:** https://zirins.github.io/riftbound/
+
 ## What it is
 
 Riftbound Sigils is a landscape mobile RPG where you command a squad of Relic Bearers, bond Sigils, clear campaign stages, and progress through daily retention systems (Arena, Covenant, Void Trial, Rift Season battle pass, and more). Combat is side-view formation auto-battle with readable ultimates and collection-driven growth.
 
 ## Status
 
-**V2 complete** — all 32 implementation phases shipped and verified in code/harnesses.  
-**Pending:** final manual Android device pass (fresh install, back button, background/foreground).
+V3 complete — scrollable world-map hub, card-based chapter select, S-tier hero implementation (Zhao Yan), portrait art integration, and Android-verified build.
 
 ## Tech stack
 
@@ -31,11 +32,12 @@ npm run cap:android  # open Android Studio
 
 Typecheck only: `npm run typecheck`
 
-Harness self-tests (node): `npx vite-node src/dev/runHarnessSelfTests.ts`
+## Features (V3)
 
-## Features (V2)
-
+- **World-map hub** — scrollable landmark-based navigation with hotspots
 - **Campaign** — Chapters 1–3 with specced enemies, sweep on 3-star clears
+- **S-tier heroes** — Zhao Yan with full kit (Ember Counter, Flame Eruption, awakening side skills)
+- **Portrait art** — hero portraits and battle backgrounds integrated
 - **Heroes** — collection, kits (passive/ultimate/side skills), awakening, Sigils, Bonds
 - **Arena** — Resonance Arena ranks and seasonal progression
 - **Covenant** — simulated guild: contribution, tech, weekly shop, boss
