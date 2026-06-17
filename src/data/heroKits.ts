@@ -1449,6 +1449,101 @@ const lianKit: HeroCombatKit = {
   ],
 };
 
+// ─── Zhao Yan — Ember vanguard tank ───────────────────────────────────────────
+
+const ZY = HERO_NEW.ZHAO_YAN;
+
+const zhaoYanKit: HeroCombatKit = {
+  heroId: ZY.ID,
+  role: 'frontline_tank',
+  classType: 'vanguard',
+  element: 'flame',
+  targetingProfile: { defaultTargetRule: 'frontline_enemy', fallbackTargetRule: 'nearest_enemy' },
+  aiProfile: {
+    ultimatePriority: 'asap',
+    sideSkillPriority: [],
+  },
+  passive: skill(
+    'ember_counter',
+    ZY.ID,
+    'Ember Counter',
+    'passive',
+    `Every ${ZY.EMBER_HIT_COUNT} hits taken, gain 1 Ember Charge (max ${ZY.EMBER_MAX_CHARGES}). Each charge: +${ZY.EMBER_ATK_PER_CHARGE * 100}% ATK.`,
+    'on_hit_taken',
+    'self',
+    [],
+    ['buff'],
+  ),
+  ultimate: skill(
+    'flame_eruption',
+    ZY.ID,
+    'Flame Eruption',
+    'ultimate',
+    'Consume all Ember Charges. Deal 120% ATK per charge as AoE flame damage (radius 100px). Requires at least 1 charge.',
+    'manual_or_auto_ultimate',
+    'area_circle',
+    [
+      atkDamage(ZY.ERUPTION_ATK_MULT_PER_CHARGE, {
+        area: { shape: 'circle', radius: ZY.ERUPTION_RADIUS },
+      }),
+    ],
+    ['damage', 'area', 'damage_over_time'],
+    { energyCost: 100 },
+  ),
+  sideSkills: [
+    skill(
+      'zhao_counter_stance',
+      ZY.ID,
+      'Counter Stance',
+      'side',
+      'At 5 Ember Charges, take 15% reduced incoming damage.',
+      'on_hit_taken',
+      'self',
+      [],
+      ['buff'],
+    ),
+    skill(
+      'zhao_eruption_afterburn',
+      ZY.ID,
+      'Eruption Afterburn',
+      'side',
+      'Flame Eruption applies Burn (30 damage/s for 4s) to all hit enemies.',
+      'manual_or_auto_ultimate',
+      'all_enemies',
+      [applyStatus('burn', ZY.BURN_DURATION, ZY.BURN_DPS)],
+      ['damage_over_time', 'debuff'],
+    ),
+    skill(
+      'zhao_radiant_surge',
+      ZY.ID,
+      'Radiant Surge',
+      'side',
+      'After casting Flame Eruption, gain +20% ATK for 6s.',
+      'manual_or_auto_ultimate',
+      'self',
+      [statMod('atk_up', ZY.RADIANT_SURGE_DURATION, ZY.RADIANT_SURGE_ATK)],
+      ['buff'],
+    ),
+  ],
+  awakeningTrack: [
+    awakening(1, 'Counter Stance — at 5 Ember Charges, incoming damage is reduced by 15%.', { hp: 300, defense: 20 }, []),
+    awakening(2, 'Flame Eruption scorches enemies with lingering burn.', { attack: 15 }, [
+      {
+        targetSkillId: 'flame_eruption',
+        modifierType: 'add_status',
+        value: applyStatus('burn', ZY.BURN_DURATION, ZY.BURN_DPS),
+      },
+    ]),
+    awakening(3, 'Radiant Surge — after Flame Eruption, gain +20% ATK for 6s.', { hp: 400, attack: 20 }, [
+      {
+        targetSkillId: 'flame_eruption',
+        modifierType: 'add_effect',
+        value: statMod('atk_up', ZY.RADIANT_SURGE_DURATION, ZY.RADIANT_SURGE_ATK),
+      },
+    ]),
+  ],
+};
+
 // ─── Registry ─────────────────────────────────────────────────────────────────
 
 export const HERO_KITS: Record<string, HeroCombatKit> = {
@@ -1466,6 +1561,7 @@ export const HERO_KITS: Record<string, HeroCombatKit> = {
   [WE.ID]: weiKit,
   [FE.ID]: fenKit,
   [LI.ID]: lianKit,
+  [ZY.ID]: zhaoYanKit,
 };
 
 export const HERO_KIT_IDS = Object.keys(HERO_KITS);

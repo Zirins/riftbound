@@ -18,6 +18,7 @@ const T = HERO_NEW.THANE;
 const C = HERO_NEW.CAIRA;
 const MK = HERO_NEW.MAREK;
 const R = HERO_NEW.REN;
+const ZY = HERO_NEW.ZHAO_YAN;
 
 const SOLENNE_LINE_HALF_HEIGHT = 50;
 
@@ -101,6 +102,9 @@ export class UltimateSystem extends Phaser.Events.EventEmitter {
         break;
       case 'stormreign_cleave':
         this.playStormreignCleaveVfx(hero);
+        break;
+      case 'flame_eruption':
+        this.playFlameEruptionVfx(hero);
         break;
       default:
         break;
@@ -300,6 +304,18 @@ export class UltimateSystem extends Phaser.Events.EventEmitter {
       alpha: 0,
       duration: UI.ULTIMATE_VFX_DURATION / 2,
       onComplete: () => cleave.destroy(),
+    });
+  }
+
+  private playFlameEruptionVfx(hero: HeroRuntimeState): void {
+    const burst = this.scene.add.circle(hero.x, hero.y, ZY.RADIUS, ZY.COLOR, 0.75);
+    this.trackVfx(burst);
+    this.scene.tweens.add({
+      targets: burst,
+      radius: ZY.ERUPTION_RADIUS,
+      alpha: 0,
+      duration: UI.ULTIMATE_VFX_DURATION,
+      onComplete: () => burst.destroy(),
     });
   }
 }

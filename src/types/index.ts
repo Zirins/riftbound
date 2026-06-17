@@ -101,6 +101,9 @@ export interface HeroRuntimeState {
   healCooldownRemaining: number;    // ms — support passive heal timer (Mira)
   ultimateReady: boolean;
   attackCounter: number;            // tracks Nth-hit passive triggers
+  hitsTakenCounter: number;         // tracks Nth-hit-taken passive triggers
+  emberCharges: number;             // Zhao Yan — battle-only Ember Charge stacks
+  baseAttackSnapshot: number;       // battle-start ATK for charge-scaling passives
   activeBuffs: ActiveBuff[];
   activeDebuffs: ActiveDebuff[];
 }
@@ -1051,6 +1054,7 @@ export type SkillTrigger =
   | 'energy_full'
   | 'manual_or_auto_ultimate'
   | 'on_hit'
+  | 'on_hit_taken'
   | 'on_crit'
   | 'on_kill'
   | 'on_death'
@@ -1285,6 +1289,7 @@ export type BattleUnitRef =
 export type BattleEventType =
   | 'combat_start'
   | 'on_hit'
+  | 'on_hit_taken'
   | 'on_crit'
   | 'on_kill'
   | 'on_death'

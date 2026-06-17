@@ -57,6 +57,7 @@ const PASSIVE_LABELS: Record<string, string> = {
   rootguard: 'Rootguard — stacking defense when hit',
   dawn_mercy: 'Dawn Mercy — heals lowest-HP ally; doubles below 30% HP',
   gathering_squall: 'Gathering Squall — consecutive attacks boost attack',
+  ember_counter: 'Ember Counter — every 3 hits taken builds Ember Charges (+4% ATK each)',
 };
 
 const ULTIMATE_LABELS: Record<string, string> = {
@@ -70,6 +71,7 @@ const ULTIMATE_LABELS: Record<string, string> = {
   ironbark_stand: 'Ironbark Stand — mass taunt + shield',
   veil_of_morning: 'Veil of Morning — team heal + shields',
   stormreign_cleave: 'Stormreign Cleave — front-row devastating cleave',
+  flame_eruption: 'Flame Eruption — consume Ember Charges for AoE flame burst',
 };
 
 const TAB_WIDTH = 140;

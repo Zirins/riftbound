@@ -33,6 +33,7 @@ const V = HERO_NEW.VEYRA;
 const T = HERO_NEW.THANE;
 const C = HERO_NEW.CAIRA;
 const MK = HERO_NEW.MAREK;
+const ZY = HERO_NEW.ZHAO_YAN;
 
 const REN_MARK_PREFIX = `mark_${R.ID}_`;
 const VEYRA_GLARE_DURATION = 3000;
@@ -82,7 +83,7 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
     this.tickStatusEffects(heroes, enemies, delta);
     this.tickProjectiles(heroes, enemies, delta);
     this.tickHeroes(heroes, enemies, delta);
-    this.tickEnemies(heroes, enemies, delta);
+    this.tickEnemies(heroes, enemies, delta, elapsedTimeMs);
     this.syncUltimateReady(heroes);
     this.flushProjectileCleanups();
     clampAllBattleUnits(heroes, enemies);
@@ -298,6 +299,7 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
     heroes: HeroRuntimeState[],
     enemies: EnemyRuntimeState[],
     delta: number,
+    elapsedTimeMs: number,
   ): void {
     for (const enemy of enemies) {
       if (!enemy.isAlive) continue;
@@ -322,7 +324,7 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
         this.getEffectiveEnemyAttack(enemy) * (enemy.basicAttackMultiplier ?? 1),
         this.getEffectiveHeroDefense(target),
       );
-      this.applyDamageToHero(target, damage, enemy);
+      this.applyDamageToHero(target, damage, enemy, heroes, enemies, elapsedTimeMs);
       const stagger = this.getDebuffStrength(enemy, 'stagger');
       enemy.attackCooldownRemaining = enemy.attackCooldown * (1 + stagger);
     }
@@ -708,10 +710,23 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
     hero: HeroRuntimeState,
     damage: number,
     attacker?: EnemyRuntimeState,
+    heroes: HeroRuntimeState[] = [],
+    enemies: EnemyRuntimeState[] = [],
+    elapsedTimeMs = 0,
   ): void {
     if (!hero.isAlive) return;
 
     let remaining = damage;
+    const battleHero = ensureBattleHero(hero);
+
+    if (
+      hero.heroId === ZY.ID
+      && hero.emberCharges >= ZY.EMBER_MAX_CHARGES
+      && (battleHero.runtimeKit?.awakeningLevel ?? 0) >= 1
+    ) {
+      remaining = Math.floor(remaining * (1 - ZY.COUNTER_STANCE_REDUCTION));
+    }
+
     const shieldBuff = hero.activeBuffs.find((buff) => buff.type === 'shield');
     if (shieldBuff) {
       const absorbed = Math.min(shieldBuff.value, remaining);
@@ -749,10 +764,22 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
       this.emit('heroKilled', hero.heroId);
     }
 
+    if (remaining > 0) {
+      const battleState = buildBattleState(heroes, enemies, elapsedTimeMs);
+      SkillSystem.handleHitTaken(battleHero, battleState);
+    }
+
     void attacker;
   }
 
   private calculateHeroDamage(attacker: HeroRuntimeState, targetDefense: number): number {
+    if (attacker.heroId === ZY.ID) {
+      return this.calculateDamage(
+        SkillSystem.getZhaoYanAttack(ensureBattleHero(attacker)),
+        targetDefense,
+      );
+    }
+
     let attack = attacker.attack;
     if (attacker.heroId === MK.ID) {
       const squall = attacker.activeBuffs.find((buff) => buff.id === 'gathering_squall');
@@ -827,6 +854,8 @@ export class AutoBattleSystem extends Phaser.Events.EventEmitter {
         return C.COLOR;
       case MK.ID:
         return MK.COLOR;
+      case ZY.ID:
+        return ZY.COLOR;
       default:
         return HEROES.SURA.COLOR;
     }

@@ -2,16 +2,19 @@
 // Chapter 2/3 enemy skills, telegraphs, and boss mechanics (Section 19).
 
 import Phaser from 'phaser';
-import { BATTLE_STAT_CAPS, CANVAS, FORMATION, UI, WARDEN } from '../constants/gameConfig';
+import { BATTLE_STAT_CAPS, CANVAS, FORMATION, HERO_NEW, UI, WARDEN } from '../constants/gameConfig';
 import {
   ENEMY_IDS,
   getEnemySpawnTemplate,
 } from '../data/enemies';
 import type { EnemyRuntimeState, HeroRuntimeState } from '../types';
-import { enemyRef, ensureBattleHero, heroRef, isUnitAlive } from './battleStateUtils';
+import { enemyRef, ensureBattleHero, heroRef, isUnitAlive, buildBattleState } from './battleStateUtils';
+import { SkillSystem } from './SkillSystem';
 import { StatusEffectSystem } from './StatusEffectSystem';
 import { getEnemyTarget } from './TargetingSystem';
 import { clampEnemyPosition, clampHeroPosition } from './BattlefieldBounds';
+
+const ZY = HERO_NEW.ZHAO_YAN;
 
 interface SkillCooldownState {
   remainingMs: number;
@@ -43,6 +46,8 @@ export class EnemyCombatSystem {
   private readonly pendingTelegraphs: PendingTelegraph[] = [];
   private readonly silenceFields: ActiveSilenceField[] = [];
   private spawnCounter = 0;
+  private currentHeroes: HeroRuntimeState[] = [];
+  private currentEnemies: EnemyRuntimeState[] = [];
 
   constructor(private readonly scene: Phaser.Scene) {}
 
@@ -63,6 +68,8 @@ export class EnemyCombatSystem {
     enemies: EnemyRuntimeState[],
     onSummon: (enemy: EnemyRuntimeState) => void,
   ): { bossHp: number; bossMaxHp: number } | null {
+    this.currentHeroes = heroes;
+    this.currentEnemies = enemies;
     this.tickTelegraphs(deltaMs, heroes, enemies);
 
     for (const enemy of enemies) {
@@ -572,12 +579,31 @@ export class EnemyCombatSystem {
   }
 
   private applyDamageToHero(hero: HeroRuntimeState, rawDamage: number): void {
-    const ref = heroRef(ensureBattleHero(hero));
-    StatusEffectSystem.applyDamageWithMitigation(ref, rawDamage);
+    const battleHero = ensureBattleHero(hero);
+    let damage = rawDamage;
+
+    if (
+      hero.heroId === ZY.ID
+      && hero.emberCharges >= ZY.EMBER_MAX_CHARGES
+      && (battleHero.runtimeKit?.awakeningLevel ?? 0) >= 1
+    ) {
+      damage = Math.floor(damage * (1 - ZY.COUNTER_STANCE_REDUCTION));
+    }
+
+    const beforeHp = hero.currentHP;
+    const ref = heroRef(battleHero);
+    StatusEffectSystem.applyDamageWithMitigation(ref, damage);
     hero.currentHP = ref.unit.currentHP;
     hero.isAlive = isUnitAlive(ref);
     if (!hero.isAlive) {
       hero.currentHP = 0;
+    }
+
+    if (damage > 0 && hero.currentHP < beforeHp) {
+      SkillSystem.handleHitTaken(
+        battleHero,
+        buildBattleState(this.currentHeroes, this.currentEnemies, 0),
+      );
     }
   }
 

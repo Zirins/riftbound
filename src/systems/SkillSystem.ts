@@ -42,6 +42,7 @@ import { clampHeroPosition } from './BattlefieldBounds';
 const PASSIVE_EVENT_TRIGGERS: Partial<Record<BattleEvent['type'], SkillTrigger>> = {
   combat_start: 'combat_start',
   on_hit: 'on_hit',
+  on_hit_taken: 'on_hit_taken',
   on_crit: 'on_crit',
   on_kill: 'on_kill',
   on_death: 'on_death',
@@ -49,6 +50,8 @@ const PASSIVE_EVENT_TRIGGERS: Partial<Record<BattleEvent['type'], SkillTrigger>>
   on_ally_low_hp: 'on_ally_low_hp',
   on_status_applied: 'on_status_applied',
 };
+
+const ZY = HERO_NEW.ZHAO_YAN;
 
 export class SkillSystem {
   static initializeHeroRuntimeKit(
@@ -124,6 +127,38 @@ export class SkillSystem {
     return castResult.success ? [castResult] : [];
   }
 
+  /** Battle-only hit-taken passives (Ember Counter, etc.) — never touches save data. */
+  static handleHitTaken(hero: BattleHero, battleState: BattleState): void {
+    hero.hitsTakenCounter += 1;
+
+    const passive = hero.runtimeKit?.kit.passive;
+    if (!passive || passive.trigger !== 'on_hit_taken') return;
+
+    if (passive.id === 'ember_counter' && hero.heroId === ZY.ID) {
+      if (hero.hitsTakenCounter < ZY.EMBER_HIT_COUNT) return;
+      hero.hitsTakenCounter = 0;
+      hero.emberCharges = Math.min(
+        ZY.EMBER_MAX_CHARGES,
+        hero.emberCharges + 1,
+      );
+      return;
+    }
+
+    this.evaluatePassiveEvent(hero, battleState, {
+      type: 'on_hit_taken',
+      sourceHeroId: hero.heroId,
+    });
+  }
+
+  static getZhaoYanAttack(hero: BattleHero): number {
+    const base = hero.baseAttackSnapshot || hero.attack;
+    const chargeBonus = Math.floor(base * ZY.EMBER_ATK_PER_CHARGE * hero.emberCharges);
+    const atkUp = hero.v2StatusEffects
+      .filter((effect) => effect.statusId === 'atk_up' && effect.durationRemainingMs > 0)
+      .reduce((total, effect) => total + effect.value * effect.stacks, 0);
+    return Math.floor((hero.attack + chargeBonus) * (1 + atkUp));
+  }
+
   static castSkill(
     hero: BattleHero,
     skillId: string,
@@ -169,6 +204,10 @@ export class SkillSystem {
       }
     }
 
+    if (skillId === 'flame_eruption') {
+      return this.castFlameEruption(hero, battleState);
+    }
+
     const targets = resolveTargets(skill.targetRule, hero, battleState);
     if (targets.length === 0 && skill.targetRule !== 'self') {
       return failure('no_targets');
@@ -196,6 +235,74 @@ export class SkillSystem {
     return {
       success: true,
       skillId,
+      casterHeroId: hero.heroId,
+      targets: targets.map((target) => ({
+        unitId: getUnitId(target),
+        side: target.side,
+      })),
+      effects: effectResults,
+    };
+  }
+
+  private static castFlameEruption(
+    hero: BattleHero,
+    battleState: BattleState,
+  ): SkillCastResult {
+    const failure = (reason: string): SkillCastResult => ({
+      success: false,
+      skillId: 'flame_eruption',
+      casterHeroId: hero.heroId,
+      reason,
+      targets: [],
+      effects: [],
+    });
+
+    const charges = hero.emberCharges;
+    if (charges < 1) {
+      return failure('no_charges');
+    }
+
+    const skill = this.findSkill(hero, 'flame_eruption');
+    if (!skill) {
+      return failure('skill_not_found');
+    }
+
+    if (hero.currentEnergy < (skill.energyCost ?? COMBAT.ENERGY_MAX)) {
+      return failure('insufficient_energy');
+    }
+
+    const area = skill.effects.find((effect) => effect.area)?.area
+      ?? { shape: 'circle' as const, radius: ZY.ERUPTION_RADIUS };
+    const targets = resolveAreaAroundCaster(hero, battleState.enemies, area);
+    const rawDamage = Math.floor(
+      this.getZhaoYanAttack(hero) * ZY.ERUPTION_ATK_MULT_PER_CHARGE * charges,
+    );
+
+    const effectResults: SkillEffectResult[] = [];
+    for (const target of targets) {
+      if (!isUnitAlive(target)) continue;
+      const dealt = StatusEffectSystem.applyDamageWithMitigation(target, rawDamage);
+      effectResults.push({
+        effectType: 'damage',
+        targetUnitId: getUnitId(target),
+        targetSide: target.side,
+        amount: dealt,
+      });
+    }
+
+    for (const effect of skill.effects) {
+      if (effect.effectType === 'damage') continue;
+      const applied = this.applyEffect(hero, skill, effect, targets, battleState);
+      effectResults.push(...applied);
+    }
+
+    hero.emberCharges = 0;
+    hero.currentEnergy -= skill.energyCost ?? COMBAT.ENERGY_MAX;
+    clampHeroEnergy(hero);
+
+    return {
+      success: true,
+      skillId: 'flame_eruption',
       casterHeroId: hero.heroId,
       targets: targets.map((target) => ({
         unitId: getUnitId(target),
