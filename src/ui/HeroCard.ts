@@ -8,14 +8,30 @@ import { loadOptionalTexture } from '../utils/assetFallback';
 import { RarityBadge } from './RarityBadge';
 import { StarRating } from './StarRating';
 
-export const HERO_CARD_WIDTH = 88;
-export const HERO_CARD_HEIGHT = 200;
+export const HERO_CARD_WIDTH = 120;
+export const HERO_CARD_HEIGHT = 300;
 
 const SILHOUETTE_COLOR = 0x333344;
-const PORTRAIT_REGION_FRACTION = 0.65;
-const PORTRAIT_ORIGIN_X = 0.5;
-const PORTRAIT_ORIGIN_Y = 0.38;
+const PORTRAIT_REGION_HEIGHT = HERO_CARD_HEIGHT;
+const BOTTOM_TEXT_OVERLAY_HEIGHT = 80;
 const OVERLAY_ALPHA_BOTTOM = 0.85;
+
+const PORTRAIT_CROP_OFFSETS: Record<string, { x: number; y: number }> = {
+  kael:               { x: 0, y: 0 },
+  sura:               { x: 0, y: 0 },
+  mira:               { x: 0, y: 0 },
+  nyra:               { x: 0, y: 0 },
+  ren_vale:           { x: 0, y: 0 },
+  solenne_arclight:   { x: 0, y: 0 },
+  veyra_hollowglass:  { x: 0, y: 0 },
+  thane_ironroot:     { x: 0, y: 0 },
+  caira_dawnveil:     { x: 0, y: 0 },
+  marek_stormreign:   { x: 0, y: 0 },
+  lin_hollowshade:    { x: 0, y: 0 },
+  wei_argentblade:    { x: 0, y: 0 },
+  fen_phantomcall:    { x: 0, y: 0 },
+  lian_sunscourge:    { x: 0, y: 0 },
+};
 
 export class HeroCard {
   private readonly badge: RarityBadge;
@@ -47,11 +63,10 @@ export class HeroCard {
     this.onTap = onTap;
     this.tapGuard = tapGuard;
     const owned = ownershipState?.isOwned ?? false;
-    const portraitRegionHeight = Math.floor(HERO_CARD_HEIGHT * PORTRAIT_REGION_FRACTION);
-    const portraitTop = y - HERO_CARD_HEIGHT / 2;
-    const portraitCenterY = portraitTop + portraitRegionHeight / 2;
-    const bottomRegionTop = portraitTop + portraitRegionHeight;
-    const bottomRegionHeight = HERO_CARD_HEIGHT - portraitRegionHeight;
+    const portraitRegionHeight = PORTRAIT_REGION_HEIGHT;
+    const portraitCenterY = y;
+    const bottomRegionTop = y + HERO_CARD_HEIGHT / 2 - BOTTOM_TEXT_OVERLAY_HEIGHT;
+    const bottomRegionHeight = BOTTOM_TEXT_OVERLAY_HEIGHT;
 
     this.badge = new RarityBadge(
       scene,
@@ -75,18 +90,18 @@ export class HeroCard {
       const handle = loadOptionalTexture({
         scene,
         assetPath: portraitPath,
-        onReady: (textureKey) => this.showPortrait(scene, x, portraitCenterY, textureKey),
+        onReady: (textureKey) => this.showPortrait(scene, x, portraitCenterY, heroData.id, textureKey),
       });
       this.cancelPortraitLoad = handle.cancel;
 
       if (scene.textures.exists(handle.textureKey)) {
-        this.showPortrait(scene, x, portraitCenterY, handle.textureKey);
+        this.showPortrait(scene, x, portraitCenterY, heroData.id, handle.textureKey);
       }
     }
 
     this.unknownLabel = owned
       ? null
-      : scene.add.text(x, portraitCenterY, '?', {
+      : scene.add.text(x, y, '?', {
           fontSize: '22px',
           color: '#888899',
           fontFamily: 'monospace',
@@ -110,7 +125,7 @@ export class HeroCard {
       bottomRegionHeight,
     );
 
-    this.nameLabel = scene.add.text(x - HERO_CARD_WIDTH / 2 + 8, bottomRegionTop + 16, owned ? heroData.name : '???', {
+    this.nameLabel = scene.add.text(x - HERO_CARD_WIDTH / 2 + 8, bottomRegionTop + 18, owned ? heroData.name : '???', {
       fontSize: '13px',
       color: owned ? '#ffffff' : '#888899',
       fontFamily: 'monospace',
@@ -121,7 +136,7 @@ export class HeroCard {
 
     this.titleLabel = scene.add.text(
       x,
-      bottomRegionTop + 34,
+      bottomRegionTop + 39,
       owned ? heroData.title : '',
       {
         fontSize: '10px',
@@ -133,14 +148,14 @@ export class HeroCard {
       },
     ).setOrigin(0.5, 0.5);
 
-    this.bpLabel = scene.add.text(x, bottomRegionTop + 52, owned ? `BP: ${rp.toLocaleString()}` : '', {
+    this.bpLabel = scene.add.text(x, bottomRegionTop + 59, owned ? `BP: ${rp.toLocaleString()}` : '', {
       fontSize: '10px',
       color: owned ? '#aaaacc' : '#666677',
       fontFamily: 'monospace',
     }).setOrigin(0.5, 0.5);
 
     this.starRating = owned
-      ? new StarRating(scene, x - 28, y + HERO_CARD_HEIGHT / 2 + 10, ownershipState!.starRank)
+      ? new StarRating(scene, x - 28, y + HERO_CARD_HEIGHT / 2 - 14, ownershipState!.starRank)
       : null;
 
     this.zone = scene.add.zone(x, y, HERO_CARD_WIDTH, HERO_CARD_HEIGHT);
@@ -152,6 +167,7 @@ export class HeroCard {
     scene: Phaser.Scene,
     x: number,
     portraitCenterY: number,
+    heroId: string,
     textureKey: string,
   ): void {
     if (this.destroyed || !scene.textures.exists(textureKey)) return;
@@ -161,18 +177,23 @@ export class HeroCard {
     this.portraitRenderTexture?.destroy();
     this.portraitRenderTexture = null;
 
-    const portraitRegionHeight = Math.floor(HERO_CARD_HEIGHT * PORTRAIT_REGION_FRACTION);
+    const cropOffset = PORTRAIT_CROP_OFFSETS[heroId] ?? { x: 0, y: 0 };
 
-    const renderTexture = scene.add.renderTexture(0, 0, HERO_CARD_WIDTH, portraitRegionHeight);
+    const renderTexture = scene.add.renderTexture(0, 0, HERO_CARD_WIDTH, HERO_CARD_HEIGHT);
+    scene.textures.get(renderTexture.texture.key)?.setFilter(Phaser.Textures.FilterMode.LINEAR);
     renderTexture.setOrigin(0.5, 0.5);
     renderTexture.setPosition(x, portraitCenterY);
 
     const tempImage = scene.make.image({ key: textureKey, x: 0, y: 0, add: false });
-    tempImage.setOrigin(PORTRAIT_ORIGIN_X, PORTRAIT_ORIGIN_Y);
+    const nativeWidth = tempImage.width;
+    const nativeHeight = tempImage.height;
+    const coverScale = Math.max(HERO_CARD_WIDTH / nativeWidth, HERO_CARD_HEIGHT / nativeHeight);
+    tempImage.setScale(coverScale);
+    tempImage.setOrigin(0.5, 0.5);
     renderTexture.draw(
       tempImage,
-      HERO_CARD_WIDTH / 2,
-      portraitRegionHeight / 2,
+      HERO_CARD_WIDTH / 2 + cropOffset.x,
+      HERO_CARD_HEIGHT / 2 + cropOffset.y,
     );
     tempImage.destroy();
 
