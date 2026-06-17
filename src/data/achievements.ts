@@ -237,7 +237,7 @@ const ACHIEVEMENT_LIST: AchievementDefinition[] = [
     description: 'Summon a Legendary hero.',
     hiddenDescription: '???',
     isHidden: false,
-    trigger: { kind: 'event_rarity', event: 'hero_summoned', rarity: 'legendary', target: 1 },
+    trigger: { kind: 'event_rarity', event: 'hero_summoned', rarity: 'a_plus', target: 1 },
     reward: achievementReward(20),
   },
 
@@ -515,7 +515,7 @@ const ACHIEVEMENT_LIST: AchievementDefinition[] = [
     description: 'Summon a Legendary hero.',
     hiddenDescription: 'Draw a Legendary from the temple.',
     isHidden: true,
-    trigger: { kind: 'event_rarity', event: 'hero_summoned', rarity: 'legendary', target: 1 },
+    trigger: { kind: 'event_rarity', event: 'hero_summoned', rarity: 'a_plus', target: 1 },
     reward: achievementReward(20),
   },
   {

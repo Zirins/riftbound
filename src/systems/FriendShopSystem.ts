@@ -8,6 +8,7 @@ import {
   type FriendShopItemId,
 } from '../data/friendShop';
 import { HEROES_DATA } from '../data/heroes';
+import { RANDOM_SHARD_HERO_GRADE } from '../utils/heroRarityUtils';
 import { getLocalWeekKey } from '../save/utils/saveDateUtils';
 import type { RealmSaveDataV3, RewardBundle } from '../types';
 import { EconomySystem } from './EconomySystem';
@@ -34,7 +35,7 @@ function pickRandomRareHeroId(save: RealmSaveDataV3): string {
   const ownedRareIds = save.ownedHeroes
     .filter((hero) => hero.isOwned)
     .map((hero) => hero.heroId)
-    .filter((heroId) => HEROES_DATA.find((hero) => hero.id === heroId)?.rarity === 'rare');
+    .filter((heroId) => HEROES_DATA.find((hero) => hero.id === heroId)?.rarity === RANDOM_SHARD_HERO_GRADE);
 
   if (ownedRareIds.length === 0) return 'kael';
 

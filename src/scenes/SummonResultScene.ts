@@ -6,15 +6,16 @@ import { CANVAS, UI } from '../constants/gameConfig';
 import { SCENE_KEYS } from '../constants/sceneKeys';
 import { HEROES_DATA } from '../data/heroes';
 import type { HeroRarity, SummonResult } from '../types';
+import { formatHeroRarity, isTopHeroRarity } from '../utils/heroRarityUtils';
 import { ButtonPrimary } from '../ui/ButtonPrimary';
 
 const REVEAL_INTERVAL_MS = 400;
 
 const RARITY_COLORS: Record<HeroRarity, string> = {
-  uncommon: '#888888',
-  rare: '#4488ff',
-  epic: '#aa44ff',
-  legendary: '#ffcc22',
+  b: '#888888',
+  a: '#4488ff',
+  a_plus: '#aa44ff',
+  s: '#ffcc22',
 };
 
 export class SummonResultScene extends Phaser.Scene {
@@ -125,7 +126,7 @@ export class SummonResultScene extends Phaser.Scene {
     this.revealIndex += 1;
     this.renderCard(result, this.revealIndex - 1, this.results.length);
 
-    if (result.rarity === 'epic' || result.rarity === 'legendary') {
+    if (isTopHeroRarity(result.rarity)) {
       this.playRarityFlash();
     }
   }
@@ -144,7 +145,7 @@ export class SummonResultScene extends Phaser.Scene {
       fontFamily: 'monospace',
     }).setOrigin(0.5);
 
-    const rarityLine = this.add.text(x, y + 48, result.rarity.toUpperCase(), {
+    const rarityLine = this.add.text(x, y + 48, formatHeroRarity(result.rarity), {
       fontSize: '8px',
       color: RARITY_COLORS[result.rarity],
       fontFamily: 'monospace',

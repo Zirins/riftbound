@@ -3,6 +3,7 @@
 
 import { HEROES, RIFT_CHRONICLE_REWARDS } from '../constants/gameConfig';
 import { HEROES_DATA } from '../data/heroes';
+import { RANDOM_SHARD_HERO_GRADE } from '../utils/heroRarityUtils';
 import { buildLegacyCurrencyBundle } from './legacyRewardBundle';
 import { RewardSystem } from './RewardSystem';
 import { loadCurrentRealm, saveCurrentRealm } from './SaveSystem';
@@ -91,7 +92,7 @@ function pickRandomRareShardHeroId(save: RealmSaveDataV3): string {
   const rareOwnedIds = save.ownedHeroes
     .filter((hero) => hero.isOwned)
     .map((hero) => hero.heroId)
-    .filter((heroId) => HEROES_DATA.find((data) => data.id === heroId)?.rarity === 'rare');
+    .filter((heroId) => HEROES_DATA.find((data) => data.id === heroId)?.rarity === RANDOM_SHARD_HERO_GRADE);
 
   const pool = rareOwnedIds.length > 0 ? rareOwnedIds : [HEROES.KAEL.ID];
   return pool[Math.floor(Math.random() * pool.length)] ?? HEROES.KAEL.ID;

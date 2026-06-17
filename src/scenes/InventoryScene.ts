@@ -7,6 +7,7 @@ import { ASSET_PATHS } from '../constants/assetPaths';
 import { SCENE_KEYS } from '../constants/sceneKeys';
 import { getItemsByCategory, type ItemCategory, type ItemRarity } from '../data/items';
 import { HEROES_DATA } from '../data/heroes';
+import { heroRarityToItemRarity } from '../utils/heroRarityUtils';
 import { EconomySystem } from '../systems/EconomySystem';
 import { InventorySystem } from '../systems/InventorySystem';
 import { loadCurrentRealm } from '../systems/SaveSystem';
@@ -234,7 +235,7 @@ export class InventoryScene extends Phaser.Scene {
           name: `${hero?.name ?? heroId} Shards`,
           description: 'Fragments used to ascend this Relic Bearer.',
           quantity,
-          rarity: (hero?.rarity ?? 'rare') as ItemRarity,
+          rarity: hero ? heroRarityToItemRarity(hero.rarity) : 'rare',
           typeLabel: 'Hero Shard',
         };
       });

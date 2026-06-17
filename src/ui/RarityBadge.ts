@@ -5,10 +5,10 @@ import Phaser from 'phaser';
 import type { HeroRarity } from '../types';
 
 const RARITY_COLORS: Record<HeroRarity, number> = {
-  uncommon: 0x888888,
-  rare: 0x4488ff,
-  epic: 0xaa44ff,
-  legendary: 0xffcc22,
+  b: 0x888888,
+  a: 0x4488ff,
+  a_plus: 0xaa44ff,
+  s: 0xffcc22,
 };
 
 export class RarityBadge {
