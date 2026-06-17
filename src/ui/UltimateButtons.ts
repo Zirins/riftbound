@@ -5,6 +5,15 @@
 import Phaser from 'phaser';
 import { CANVAS, COMBAT, HEROES, UI } from '../constants/gameConfig';
 import type { GameState, HeroRuntimeState } from '../types';
+import {
+  BATTLE_HUD_PORTRAIT_SIZE,
+  createColoredCircleFallback,
+  createRoundedSquarePortrait,
+  destroyPortraitVisual,
+  loadHeroPortrait,
+  swapPortraitBody,
+  type PortraitVisualBundle,
+} from './heroPortraitVisuals';
 
 export interface HudPortraitConfig {
   id: string;
@@ -15,7 +24,7 @@ export interface HudPortraitConfig {
 interface PortraitButton {
   heroId: string;
   glow: Phaser.GameObjects.Arc;
-  circle: Phaser.GameObjects.Arc;
+  visual: PortraitVisualBundle;
   label: Phaser.GameObjects.Text;
   tapZone: Phaser.GameObjects.Zone;
 }
@@ -23,10 +32,10 @@ interface PortraitButton {
 const AUTO_TOGGLE_X = CANVAS.WIDTH - 72;
 const AUTO_TOGGLE_WIDTH = 88;
 const AUTO_TOGGLE_HEIGHT = 52;
+const HUD_PORTRAIT_HALF = BATTLE_HUD_PORTRAIT_SIZE / 2;
 
 export class UltimateButtons {
   private readonly portraits: PortraitButton[] = [];
-  private hudBackground!: Phaser.GameObjects.Rectangle;
   private autoToggleBg!: Phaser.GameObjects.Rectangle;
   private autoToggleLabel!: Phaser.GameObjects.Text;
   private autoToggleState!: Phaser.GameObjects.Text;
@@ -42,17 +51,7 @@ export class UltimateButtons {
   create(portraits: readonly HudPortraitConfig[]): void {
     const hudDepth = UI.HUD_DEPTH;
 
-    this.hudBackground = this.scene.add.rectangle(
-      CANVAS.WIDTH / 2,
-      CANVAS.BATTLE_HEIGHT + CANVAS.HUD_HEIGHT / 2,
-      CANVAS.WIDTH,
-      CANVAS.HUD_HEIGHT,
-      UI.HUD_BACKGROUND,
-      UI.HUD_ALPHA,
-    );
-    this.hudBackground.setDepth(hudDepth);
-
-    const tapWidth = UI.HUD_PORTRAIT_RADIUS * 2;
+    const tapWidth = BATTLE_HUD_PORTRAIT_SIZE;
 
     portraits.forEach((hero, index) => {
       const x = UI.HUD_PORTRAIT_START_X + index * UI.HUD_PORTRAIT_SPACING;
@@ -61,7 +60,7 @@ export class UltimateButtons {
       const glow = this.scene.add.circle(
         x,
         y,
-        UI.HUD_PORTRAIT_RADIUS + HEROES.PORTRAIT_GLOW_LINEWIDTH,
+        HUD_PORTRAIT_HALF + HEROES.PORTRAIT_GLOW_LINEWIDTH,
         HEROES.PORTRAIT_GLOW_COLOR,
         0,
       );
@@ -69,10 +68,45 @@ export class UltimateButtons {
       glow.setVisible(false);
       glow.setDepth(hudDepth + 1);
 
-      const circle = this.scene.add.circle(x, y, UI.HUD_PORTRAIT_RADIUS, hero.color);
-      circle.setDepth(hudDepth + 2);
+      const fallbackCircle = createColoredCircleFallback(
+        this.scene,
+        x,
+        y,
+        HUD_PORTRAIT_HALF,
+        hero.color,
+        hudDepth + 2,
+      );
 
-      const label = this.scene.add.text(x, y + UI.HUD_PORTRAIT_RADIUS, hero.name, {
+      const visual: PortraitVisualBundle = {
+        body: fallbackCircle,
+        maskGraphics: null,
+        cancelPortraitLoad: loadHeroPortrait(
+          this.scene,
+          hero.id,
+          (textureKey) => {
+            const portrait = this.portraits.find((entry) => entry.heroId === hero.id);
+            if (!portrait) return;
+
+            const swapped = swapPortraitBody(
+              portrait.visual.body,
+              portrait.visual.maskGraphics,
+              () => createRoundedSquarePortrait(
+                this.scene,
+                x,
+                y,
+                textureKey,
+                BATTLE_HUD_PORTRAIT_SIZE,
+                undefined,
+                hudDepth + 2,
+              ),
+            );
+            portrait.visual.body = swapped.body;
+            portrait.visual.maskGraphics = swapped.maskGraphics;
+          },
+        ),
+      };
+
+      const label = this.scene.add.text(x, y + HUD_PORTRAIT_HALF, hero.name, {
         fontSize: '12px',
         color: '#ffffff',
         fontFamily: 'monospace',
@@ -90,7 +124,7 @@ export class UltimateButtons {
       tapZone.setInteractive(hitRect, Phaser.Geom.Rectangle.Contains);
       tapZone.on('pointerdown', () => this.handlePortraitTap(hero.id));
 
-      this.portraits.push({ heroId: hero.id, glow, circle, label, tapZone });
+      this.portraits.push({ heroId: hero.id, glow, visual, label, tapZone });
     });
 
     this.createAutoUltimateToggle(hudDepth);
@@ -103,14 +137,13 @@ export class UltimateButtons {
         hero?.isAlive && hero.currentEnergy >= COMBAT.ENERGY_MAX,
       );
       portrait.glow.setVisible(isReady);
-      portrait.circle.setAlpha(hero?.isAlive ? 1 : 0.35);
+      portrait.visual.body.setAlpha(hero?.isAlive ? 1 : 0.35);
     }
 
     this.refreshAutoUltimateToggle();
   }
 
   destroy(): void {
-    this.hudBackground?.destroy();
     this.autoToggleZone?.off('pointerdown');
     this.autoToggleZone?.destroy();
     this.autoToggleBg?.destroy();
@@ -119,7 +152,7 @@ export class UltimateButtons {
     for (const portrait of this.portraits) {
       portrait.tapZone.off('pointerdown');
       portrait.tapZone.destroy();
-      portrait.circle.destroy();
+      destroyPortraitVisual(portrait.visual);
       portrait.glow.destroy();
       portrait.label.destroy();
     }
