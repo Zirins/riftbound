@@ -397,18 +397,19 @@ export const STAR_UPGRADE_COSTS = [
 
 // ─── Dissolve Shard Yields (V1.1) ─────────────────────────────────────────────
 export const DISSOLVE_SHARDS = {
-  uncommon:  5,
-  rare:      10,
-  epic:      25,
-  legendary: 50,
+  b:       5,
+  a:       10,
+  a_plus:  50,
+  s:       50,
 } as const;
 
 // ─── Gacha (V1.1) ─────────────────────────────────────────────────────────────
 export const GACHA = {
-  UNCOMMON_RATE:         0.60,
+  UNCOMMON_RATE:         0.597,
   RARE_RATE:             0.35,
   EPIC_RATE:             0.045,
   LEGENDARY_RATE:        0.005,
+  S_TIER_RATE:           0.003,
   SOFT_PITY_START:       75,
   SOFT_PITY_EPIC_BOOST:  0.05,    // +5% Epic rate per pull after soft pity
   HARD_PITY:             90,      // guaranteed Epic or higher
@@ -605,6 +606,23 @@ export const HERO_NEW = {
     MARK_DURATION: 6000, MARK_STACK_VULN: 0.06, MARK_MAX_STACKS: 5,
     DETONATE_BASE: 120, DETONATE_ATK_MULT: 0.55,
     ULTIMATE_DAMAGE: 280,
+  },
+  ZHAO_YAN: {
+    ID: 'zhao_yan',
+    COLOR: 0xFF6633, RADIUS: 24,
+    BASE_HP: 2000, HP_PER_LEVEL: 140, BASE_ATTACK: 95, ATTACK_PER_LEVEL: 8,
+    BASE_DEFENSE: 55, DEFENSE_PER_LEVEL: 4, ATTACK_COOLDOWN: 1100, SPEED: 115,
+    ENERGY_GAIN_ON_HIT: 10, ENERGY_GAIN_ON_TAKEN: 20,
+    EMBER_HIT_COUNT: 3,
+    EMBER_MAX_CHARGES: 5,
+    EMBER_ATK_PER_CHARGE: 0.04,
+    ERUPTION_ATK_MULT_PER_CHARGE: 1.2,
+    ERUPTION_RADIUS: 100,
+    BURN_DPS: 30,
+    BURN_DURATION: 4000,
+    COUNTER_STANCE_REDUCTION: 0.15,
+    RADIANT_SURGE_ATK: 0.20,
+    RADIANT_SURGE_DURATION: 6000,
   },
 } as const;
 

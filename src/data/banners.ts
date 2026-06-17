@@ -15,7 +15,7 @@ export const BANNERS: BannerData[] = [
     heroPool: HEROES_DATA.map((hero) => ({
       heroId: hero.id,
       rarity: hero.rarity,
-      weight: 1,
+      weight: hero.rarity === 's' ? 2 : 1,
       isFeatured: false,
     })),
     costPerPull: GACHA.SINGLE_PULL_COST,
@@ -34,6 +34,12 @@ export interface FeaturedBannerDefinition {
 }
 
 export const FEATURED_BANNER_ROTATION: FeaturedBannerDefinition[] = [
+  {
+    id: 'featured_zhao_yan',
+    name: 'Dawnforged Paragon',
+    description: 'Rate-up: Zhao Yan — Dawnforged Paragon',
+    featuredHeroId: 'zhao_yan',
+  },
   {
     id: 'featured_caira',
     name: 'Veil of Morning',
@@ -79,8 +85,13 @@ export function buildFeaturedHeroPool(featuredHeroId: string) {
   }));
 }
 
+export function getAPlusPoolHeroIds(): string[] {
+  return HEROES_DATA.filter((hero) => hero.rarity === 'a_plus').map((hero) => hero.id);
+}
+
+/** @deprecated Use getAPlusPoolHeroIds — kept for legacy call sites. */
 export function getLegendaryPoolHeroIds(): string[] {
-  return HEROES_DATA.filter((hero) => hero.rarity === 'legendary').map((hero) => hero.id);
+  return getAPlusPoolHeroIds();
 }
 
 export function pickHeroFromFeaturedPool(

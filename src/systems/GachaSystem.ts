@@ -5,16 +5,13 @@ import { DISSOLVE_SHARDS, GACHA } from '../constants/gameConfig';
 import { BANNERS, STANDARD_BANNER_ID } from '../data/banners';
 import { HEROES_DATA } from '../data/heroes';
 import type { BannerData, HeroRarity, RealmSaveData, SummonResult } from '../types';
+import {
+  HERO_RARITY_RANK,
+  isTenPullGuaranteeTier,
+} from '../utils/heroRarityUtils';
 import { canAfford, deduct } from './EconomySystem';
 import { loadCurrentRealm, saveCurrentRealm } from './SaveSystem';
 import { reportProgress } from './TaskSystem';
-
-const RARITY_RANK: Record<HeroRarity, number> = {
-  uncommon: 0,
-  rare: 1,
-  epic: 2,
-  legendary: 3,
-};
 
 function todayString(): string {
   return new Date().toISOString().slice(0, 10);
@@ -70,8 +67,8 @@ function executePulls(bannerId: string, count: 1 | 10): SummonResult[] {
   for (let i = 0; i < count; i += 1) {
     let forceMinRarity: HeroRarity | undefined;
     if (count === 10 && i === 9 && GACHA.TEN_PULL_GUARANTEE) {
-      const hasRarePlus = results.some((result) => result.rarity !== 'uncommon');
-      if (!hasRarePlus) forceMinRarity = 'rare';
+      const hasGradePlus = results.some((result) => isTenPullGuaranteeTier(result.rarity));
+      if (!hasGradePlus) forceMinRarity = 'a';
     }
 
     const pityCount: number = realm.pityCounters[bannerId] ?? 0;
@@ -79,7 +76,7 @@ function executePulls(bannerId: string, count: 1 | 10): SummonResult[] {
     const heroId = pickHeroFromPool(banner, rarity);
     const outcome = applyPullOutcome(realm, heroId);
 
-    const nextPity: number = rarity === 'legendary' ? 0 : pityCount + 1;
+    const nextPity: number = rarity === 'a_plus' || rarity === 's' ? 0 : pityCount + 1;
     realm = {
       ...realm,
       pityCounters: { ...realm.pityCounters, [bannerId]: nextPity },
@@ -98,37 +95,30 @@ function executePulls(bannerId: string, count: 1 | 10): SummonResult[] {
 }
 
 function computeRarity(pityCount: number, forceMinRarity?: HeroRarity): HeroRarity {
-  if (pityCount >= GACHA.LEGENDARY_PITY) return 'legendary';
+  if (pityCount >= GACHA.LEGENDARY_PITY) return 'a_plus';
 
   if (pityCount >= GACHA.HARD_PITY) {
-    let epic = GACHA.EPIC_RATE;
-    let legendary = GACHA.LEGENDARY_RATE;
-    if (pityCount >= GACHA.SOFT_PITY_START) {
-      const boost = (pityCount - GACHA.SOFT_PITY_START + 1) * GACHA.SOFT_PITY_EPIC_BOOST;
-      epic += boost;
-    }
-    const total = epic + legendary;
-    return Math.random() < legendary / total ? 'legendary' : 'epic';
+    return 'a_plus';
   }
 
-  let uncommon: number = GACHA.UNCOMMON_RATE;
-  let rare: number = GACHA.RARE_RATE;
-  let epic: number = GACHA.EPIC_RATE;
+  let bRate: number = GACHA.UNCOMMON_RATE;
+  let aRate: number = GACHA.RARE_RATE;
+  let topRate: number = GACHA.EPIC_RATE + GACHA.LEGENDARY_RATE;
 
   if (pityCount >= GACHA.SOFT_PITY_START) {
     const boost = (pityCount - GACHA.SOFT_PITY_START + 1) * GACHA.SOFT_PITY_EPIC_BOOST;
-    epic += boost;
-    uncommon = Math.max(0, uncommon - boost);
+    topRate += boost;
+    bRate = Math.max(0, bRate - boost);
   }
 
   const roll = Math.random();
   let rarity: HeroRarity;
-  if (roll < uncommon) rarity = 'uncommon';
-  else if (roll < uncommon + rare) rarity = 'rare';
-  else if (roll < uncommon + rare + epic) rarity = 'epic';
-  else rarity = 'legendary';
+  if (roll < bRate) rarity = 'b';
+  else if (roll < bRate + aRate) rarity = 'a';
+  else if (roll < bRate + aRate + GACHA.EPIC_RATE + GACHA.LEGENDARY_RATE) rarity = 'a_plus';
+  else rarity = 's';
 
-  if (forceMinRarity && RARITY_RANK[rarity] < RARITY_RANK[forceMinRarity]) {
+  if (forceMinRarity && HERO_RARITY_RANK[rarity] < HERO_RARITY_RANK[forceMinRarity]) {
     return forceMinRarity;
   }
   return rarity;
@@ -154,7 +144,7 @@ function applyPullOutcome(
   heroId: string,
 ): { isNew: boolean; shardsGranted: number } {
   const heroData = HEROES_DATA.find((hero) => hero.id === heroId);
-  const rarity = heroData?.rarity ?? 'rare';
+  const rarity = heroData?.rarity ?? 'a';
   const existingIndex = realm.ownedHeroes.findIndex((hero) => hero.heroId === heroId);
   const alreadyOwned = existingIndex >= 0 && realm.ownedHeroes[existingIndex].isOwned;
 

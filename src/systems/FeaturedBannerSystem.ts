@@ -7,7 +7,7 @@ import {
   FEATURED_BANNER_ROTATION,
   getFeaturedBannerDefinition,
   getFeaturedBannerIndex,
-  getLegendaryPoolHeroIds,
+  getAPlusPoolHeroIds,
   pickHeroFromFeaturedPool,
 } from '../data/banners';
 import { HEROES_DATA } from '../data/heroes';
@@ -19,17 +19,21 @@ import {
   parseLocalDateKey,
 } from '../save/utils/saveDateUtils';
 import type { HeroRarity, RealmSaveDataV3, SummonResult } from '../types';
+import {
+  HERO_RARITY_RANK,
+  isTenPullGuaranteeTier,
+} from '../utils/heroRarityUtils';
 import { EconomySystem } from './EconomySystem';
 import { GameEventBus } from './GameEventBus';
 import { reportProgress } from './TaskSystem';
 
-const RARITY_RANK: Record<HeroRarity, number> = {
-  uncommon: 0,
-  rare: 1,
-  epic: 2,
-  legendary: 3,
-};
+const RARITY_RANK = HERO_RARITY_RANK;
 
+function pickNonFeaturedAPlus(featuredHeroId: string): string {
+  const topTier = getAPlusPoolHeroIds().filter((id) => id !== featuredHeroId);
+  if (topTier.length === 0) return featuredHeroId;
+  return topTier[Math.floor(Math.random() * topTier.length)];
+}
 function ensureFeaturedBannerState(save: RealmSaveDataV3): void {
   if (!save.featuredBannerState) {
     save.featuredBannerState = createDefaultFeaturedBannerState();
@@ -57,12 +61,6 @@ function startBannerRotationEntry(
   save.featuredBannerState.totalPullsOnCurrentBanner = 0;
 }
 
-function pickNonFeaturedLegendary(featuredHeroId: string): string {
-  const legendaries = getLegendaryPoolHeroIds().filter((id) => id !== featuredHeroId);
-  if (legendaries.length === 0) return featuredHeroId;
-  return legendaries[Math.floor(Math.random() * legendaries.length)];
-}
-
 export type LegendaryResolvePath = 'guarantee' | 'fifty_fifty_win' | 'fifty_fifty_loss';
 
 function resolveLegendaryHero(
@@ -81,32 +79,32 @@ function resolveLegendaryHero(
 
   save.featuredBannerState.guaranteedFeatured = true;
   return {
-    heroId: pickNonFeaturedLegendary(featuredHeroId),
+    heroId: pickNonFeaturedAPlus(featuredHeroId),
     path: 'fifty_fifty_loss',
   };
 }
 
 function computeFeaturedRarity(pityCount: number, forceMinRarity?: HeroRarity): HeroRarity {
   if (pityCount >= FEATURED_BANNER.HARD_PITY - 1) {
-    return 'legendary';
+    return 'a_plus';
   }
 
-  let uncommon: number = GACHA.UNCOMMON_RATE;
-  let rare: number = GACHA.RARE_RATE;
-  let epic: number = GACHA.EPIC_RATE;
+  let bRate: number = GACHA.UNCOMMON_RATE;
+  let aRate: number = GACHA.RARE_RATE;
+  let topRate: number = GACHA.EPIC_RATE + GACHA.LEGENDARY_RATE;
 
   if (pityCount >= FEATURED_BANNER.SOFT_PITY_START) {
     const boost = (pityCount - FEATURED_BANNER.SOFT_PITY_START + 1) * GACHA.SOFT_PITY_EPIC_BOOST;
-    epic += boost;
-    uncommon = Math.max(0, uncommon - boost);
+    topRate += boost;
+    bRate = Math.max(0, bRate - boost);
   }
 
   const roll = Math.random();
   let rarity: HeroRarity;
-  if (roll < uncommon) rarity = 'uncommon';
-  else if (roll < uncommon + rare) rarity = 'rare';
-  else if (roll < uncommon + rare + epic) rarity = 'epic';
-  else rarity = 'legendary';
+  if (roll < bRate) rarity = 'b';
+  else if (roll < bRate + aRate) rarity = 'a';
+  else if (roll < bRate + aRate + GACHA.EPIC_RATE + GACHA.LEGENDARY_RATE) rarity = 'a_plus';
+  else rarity = 's';
 
   if (forceMinRarity && RARITY_RANK[rarity] < RARITY_RANK[forceMinRarity]) {
     return forceMinRarity;
@@ -119,7 +117,7 @@ function applyPullOutcome(
   heroId: string,
 ): { isNew: boolean; shardsGranted: number } {
   const heroData = HEROES_DATA.find((hero) => hero.id === heroId);
-  const rarity = heroData?.rarity ?? 'rare';
+  const rarity = heroData?.rarity ?? 'a';
   const existingIndex = save.ownedHeroes.findIndex((hero) => hero.heroId === heroId);
   const alreadyOwned = existingIndex >= 0 && save.ownedHeroes[existingIndex].isOwned;
 
@@ -226,20 +224,20 @@ export class FeaturedBannerSystem {
     for (let i = 0; i < count; i += 1) {
       let forceMinRarity: HeroRarity | undefined;
       if (count === 10 && i === 9 && GACHA.TEN_PULL_GUARANTEE) {
-        const hasRarePlus = results.some((result) => result.rarity !== 'uncommon');
-        if (!hasRarePlus) forceMinRarity = 'rare';
+        const hasGradePlus = results.some((result) => isTenPullGuaranteeTier(result.rarity));
+        if (!hasGradePlus) forceMinRarity = 'a';
       }
 
       const pityCount = save.featuredBannerState.pityCounter;
       const rarity = computeFeaturedRarity(pityCount, forceMinRarity);
-      const legendaryResolve = rarity === 'legendary'
+      const legendaryResolve = rarity === 'a_plus' || rarity === 's'
         ? resolveLegendaryHero(save, banner.featuredHeroId)
         : null;
       const heroId = legendaryResolve?.heroId
         ?? pickHeroFromFeaturedPool(pool, rarity);
 
       const outcome = applyPullOutcome(save, heroId);
-      save.featuredBannerState.pityCounter = rarity === 'legendary' ? 0 : pityCount + 1;
+      save.featuredBannerState.pityCounter = (rarity === 'a_plus' || rarity === 's') ? 0 : pityCount + 1;
       save.featuredBannerState.totalPullsOnCurrentBanner += 1;
 
       results.push({
