@@ -110,7 +110,7 @@ export class CampaignScene extends Phaser.Scene {
         72,
         32,
         '← CHAPTERS',
-        () => this.scene.start(SCENE_KEYS.CAMPAIGN),
+        () => this.scene.start(SCENE_KEYS.CAMPAIGN, {}),
         120,
       );
     } else {
@@ -169,7 +169,7 @@ export class CampaignScene extends Phaser.Scene {
   private renderStageMap(chapterId: string, clearedStages: ClearedStageRecord[]): void {
     const chapter = CHAPTER_DEFINITIONS.find((entry) => entry.id === chapterId);
     if (!chapter) {
-      this.scene.start(SCENE_KEYS.CAMPAIGN);
+      this.scene.start(SCENE_KEYS.CAMPAIGN, {});
       return;
     }
 

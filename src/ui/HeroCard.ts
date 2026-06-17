@@ -16,6 +16,9 @@ const PORTRAIT_REGION_HEIGHT = HERO_CARD_HEIGHT;
 const BOTTOM_TEXT_OVERLAY_HEIGHT = 80;
 const OVERLAY_ALPHA_BOTTOM = 0.85;
 
+/** Pan cover crop toward the left edge of portrait art (figures are left-weighted). */
+const PORTRAIT_FOCUS_X_RATIO = 0.15;
+
 const PORTRAIT_CROP_OFFSETS: Record<string, { x: number; y: number }> = {
   kael:               { x: 0, y: 0 },
   sura:               { x: 0, y: 0 },
@@ -190,9 +193,10 @@ export class HeroCard {
     const coverScale = Math.max(HERO_CARD_WIDTH / nativeWidth, HERO_CARD_HEIGHT / nativeHeight);
     tempImage.setScale(coverScale);
     tempImage.setOrigin(0.5, 0.5);
+    const focusOffsetX = nativeWidth * coverScale * PORTRAIT_FOCUS_X_RATIO;
     renderTexture.draw(
       tempImage,
-      HERO_CARD_WIDTH / 2 + cropOffset.x,
+      HERO_CARD_WIDTH / 2 + cropOffset.x + focusOffsetX,
       HERO_CARD_HEIGHT / 2 + cropOffset.y,
     );
     tempImage.destroy();
