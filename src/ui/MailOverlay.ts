@@ -13,6 +13,9 @@ const PANEL_HEIGHT = 320;
 const ROW_HEIGHT = 56;
 const BUTTON_HEIGHT = 36;
 const OVERLAY_DEPTH = 100;
+const LIST_TOP_Y = CANVAS.HEIGHT / 2 - 100;
+const LIST_VIEW_HEIGHT = 200;
+const FOOTER_Y = CANVAS.HEIGHT / 2 + 140;
 
 const CURRENCY_LABELS: Record<string, string> = {
   gold: 'Gold',
@@ -80,9 +83,22 @@ export class MailOverlay {
   private readonly scene: Phaser.Scene;
   private container: Phaser.GameObjects.Container | null = null;
   private readonly overlayButtons: OverlayButtonParts[] = [];
-  private readonly rowTexts: Phaser.GameObjects.Text[] = [];
+  private mailListContainer: Phaser.GameObjects.Container | null = null;
+  private mailListMask: Phaser.GameObjects.Rectangle | null = null;
+  private mailScrollOffset = 0;
+  private mailMaxScrollY = 0;
   private readonly onClose: () => void;
   private readonly onRefresh: () => void;
+  private readonly onMailWheel = (
+    _pointer: Phaser.Input.Pointer,
+    _gameObjects: Phaser.GameObjects.GameObject[],
+    _deltaX: number,
+    deltaY: number,
+  ): void => {
+    if (!this.mailListContainer || this.mailMaxScrollY <= 0) return;
+    this.mailScrollOffset = Phaser.Math.Clamp(this.mailScrollOffset + deltaY * 0.6, 0, this.mailMaxScrollY);
+    this.mailListContainer.setY(LIST_TOP_Y - this.mailScrollOffset);
+  };
 
   constructor(scene: Phaser.Scene, onClose: () => void, onRefresh: () => void) {
     this.scene = scene;
@@ -120,7 +136,7 @@ export class MailOverlay {
     const claimableCount = MailSystem.getUnclaimedCount();
     this.addContainerButton(
       CANVAS.WIDTH / 2 - 80,
-      CANVAS.HEIGHT / 2 + 140,
+      FOOTER_Y,
       claimableCount > 0 ? 'CLAIM ALL' : 'NO CLAIMS',
       () => {
         if (MailSystem.claimAllAttachments() <= 0) return;
@@ -133,7 +149,7 @@ export class MailOverlay {
 
     this.addContainerButton(
       CANVAS.WIDTH / 2 + 120,
-      CANVAS.HEIGHT / 2 + 140,
+      FOOTER_Y,
       'CLOSE',
       () => this.close(),
       100,
@@ -165,64 +181,124 @@ export class MailOverlay {
   }
 
   private drawMail(): void {
+    this.teardownMailScroll();
+
     const realm = loadCurrentRealm();
     const mails = [...(realm?.mail ?? [])].sort((a, b) => b.sentAt - a.sentAt);
-    const startY = CANVAS.HEIGHT / 2 - 95;
+    const leftX = CANVAS.WIDTH / 2 - PANEL_WIDTH / 2 + 24;
+    const claimX = CANVAS.WIDTH / 2 + 200;
+
+    const listContainer = this.scene.add.container(0, LIST_TOP_Y);
+    this.mailListContainer = listContainer;
+    this.container?.add(listContainer);
 
     if (mails.length === 0) {
-      const empty = this.scene.add.text(CANVAS.WIDTH / 2, CANVAS.HEIGHT / 2 - 20, 'No messages.', {
-        fontSize: '12px',
-        color: '#aaaacc',
-        fontFamily: 'monospace',
-      }).setOrigin(0.5);
-      this.rowTexts.push(empty);
-      this.container?.add(empty);
-      return;
-    }
-
-    for (let i = 0; i < mails.length; i += 1) {
-      const mail = mails[i];
-      const y = startY + i * ROW_HEIGHT;
-      const leftX = CANVAS.WIDTH / 2 - PANEL_WIDTH / 2 + 24;
-
-      const subject = this.scene.add.text(leftX, y - 12, mail.subject, {
-        fontSize: '11px',
-        color: '#ffffff',
-        fontFamily: 'monospace',
-      }).setOrigin(0, 0.5);
-      this.rowTexts.push(subject);
-
-      const sender = this.scene.add.text(leftX, y + 6, `${mail.fromName} — ${formatAttachments(mail)}`, {
-        fontSize: '9px',
-        color: '#aaaacc',
-        fontFamily: 'monospace',
-      }).setOrigin(0, 0.5);
-      this.rowTexts.push(sender);
-
-      this.container?.add([subject, sender]);
-
-      if ((mail.attachments.length > 0 || mail.rewardBundle) && !mail.isClaimed) {
-        this.addContainerButton(
-          CANVAS.WIDTH / 2 + 200,
-          y,
-          'CLAIM',
-          () => {
-            MailSystem.claimAttachments(mail.id);
-            this.onRefresh();
-            this.render();
-          },
-          100,
-        );
-      } else if (mail.isClaimed) {
-        const claimed = this.scene.add.text(CANVAS.WIDTH / 2 + 200, y, '✓ CLAIMED', {
-          fontSize: '10px',
-          color: '#44ff88',
+      const empty = this.scene.add.text(
+        CANVAS.WIDTH / 2,
+        LIST_VIEW_HEIGHT / 2,
+        'No messages.',
+        {
+          fontSize: '12px',
+          color: '#aaaacc',
           fontFamily: 'monospace',
-        }).setOrigin(0.5);
-        this.rowTexts.push(claimed);
-        this.container?.add(claimed);
+        },
+      ).setOrigin(0.5);
+      listContainer.add(empty);
+    } else {
+      for (let i = 0; i < mails.length; i += 1) {
+        const mail = mails[i];
+        const y = i * ROW_HEIGHT;
+
+        const subject = this.scene.add.text(leftX, y - 12, mail.subject, {
+          fontSize: '11px',
+          color: '#ffffff',
+          fontFamily: 'monospace',
+        }).setOrigin(0, 0.5);
+
+        const sender = this.scene.add.text(leftX, y + 6, `${mail.fromName} — ${formatAttachments(mail)}`, {
+          fontSize: '9px',
+          color: '#aaaacc',
+          fontFamily: 'monospace',
+        }).setOrigin(0, 0.5);
+
+        listContainer.add([subject, sender]);
+
+        const claimLocalX = claimX;
+        if ((mail.attachments.length > 0 || mail.rewardBundle) && !mail.isClaimed) {
+          this.addListButton(
+            listContainer,
+            claimLocalX,
+            y,
+            'CLAIM',
+            () => {
+              MailSystem.claimAttachments(mail.id);
+              this.onRefresh();
+              this.render();
+            },
+            100,
+          );
+        } else if (mail.isClaimed) {
+          const claimed = this.scene.add.text(claimLocalX, y, '✓ CLAIMED', {
+            fontSize: '10px',
+            color: '#44ff88',
+            fontFamily: 'monospace',
+          }).setOrigin(0.5);
+          listContainer.add(claimed);
+        }
       }
     }
+
+    this.mailListMask = this.scene.add.rectangle(
+      CANVAS.WIDTH / 2,
+      LIST_TOP_Y + LIST_VIEW_HEIGHT / 2,
+      PANEL_WIDTH - 24,
+      LIST_VIEW_HEIGHT,
+      0x000000,
+      0,
+    );
+    listContainer.setMask(this.mailListMask.createGeometryMask());
+    this.container?.add(this.mailListMask);
+
+    const totalHeight = Math.max(ROW_HEIGHT, mails.length * ROW_HEIGHT);
+    this.mailMaxScrollY = Math.max(0, totalHeight - LIST_VIEW_HEIGHT);
+    this.mailScrollOffset = 0;
+    listContainer.setY(LIST_TOP_Y);
+
+    if (this.mailMaxScrollY > 0) {
+      this.scene.input.on('wheel', this.onMailWheel);
+    }
+  }
+
+  private addListButton(
+    parent: Phaser.GameObjects.Container,
+    x: number,
+    y: number,
+    label: string,
+    onClick: () => void,
+    width: number,
+  ): void {
+    const bg = this.scene.add.rectangle(x, y, width, BUTTON_HEIGHT, 0x3355aa);
+    const text = this.scene.add.text(x, y, label, {
+      fontSize: '12px',
+      color: '#ffffff',
+      fontFamily: 'monospace',
+    }).setOrigin(0.5);
+    const zone = this.scene.add.zone(x, y, width, BUTTON_HEIGHT);
+    zone.setInteractive({ useHandCursor: true });
+    zone.on('pointerup', onClick);
+
+    parent.add([bg, text, zone]);
+    this.overlayButtons.push({ bg, label: text, zone });
+  }
+
+  private teardownMailScroll(): void {
+    this.scene.input.off('wheel', this.onMailWheel);
+    this.mailListContainer?.destroy(true);
+    this.mailListContainer = null;
+    this.mailListMask?.destroy();
+    this.mailListMask = null;
+    this.mailScrollOffset = 0;
+    this.mailMaxScrollY = 0;
   }
 
   private close(): void {
@@ -231,12 +307,13 @@ export class MailOverlay {
   }
 
   private destroyContent(): void {
+    this.teardownMailScroll();
+
     for (const button of this.overlayButtons) button.zone.off('pointerup');
     this.overlayButtons.length = 0;
 
     this.container?.destroy(true);
     this.container = null;
-    this.rowTexts.length = 0;
   }
 
   destroy(): void {

@@ -18,6 +18,13 @@ import { ButtonPrimary } from '../ui/ButtonPrimary';
 const ROW_HEIGHT = 52;
 const LIST_TOP_Y = 118;
 const LIST_HEIGHT = 210;
+const LIST_WIDTH = CANVAS.WIDTH - 80;
+
+interface ListClaimButton {
+  bg: Phaser.GameObjects.Rectangle;
+  label: Phaser.GameObjects.Text;
+  zone: Phaser.GameObjects.Zone;
+}
 
 export class AchievementsScene extends Phaser.Scene {
   static readonly KEY = SCENE_KEYS.ACHIEVEMENTS;
@@ -25,10 +32,29 @@ export class AchievementsScene extends Phaser.Scene {
   private selectedCategory: AchievementCategory = 'combat';
   private backButton: ButtonPrimary | null = null;
   private categoryButtons: ButtonPrimary[] = [];
-  private claimButtons: ButtonPrimary[] = [];
+  private listContainer: Phaser.GameObjects.Container | null = null;
+  private listMaskRect: Phaser.GameObjects.Rectangle | null = null;
+  private listScrollOffset = 0;
+  private listMaxScrollY = 0;
+  private readonly listClaimButtons: ListClaimButton[] = [];
   private listTexts: Phaser.GameObjects.Text[] = [];
   private toastLabel: Phaser.GameObjects.Text | null = null;
   private toastTimer: Phaser.Time.TimerEvent | null = null;
+
+  private readonly onListWheel = (
+    _pointer: Phaser.Input.Pointer,
+    _gameObjects: Phaser.GameObjects.GameObject[],
+    _deltaX: number,
+    deltaY: number,
+  ): void => {
+    if (!this.listContainer || this.listMaxScrollY <= 0) return;
+    this.listScrollOffset = Phaser.Math.Clamp(
+      this.listScrollOffset + deltaY * 0.6,
+      0,
+      this.listMaxScrollY,
+    );
+    this.listContainer.setY(LIST_TOP_Y - this.listScrollOffset);
+  };
 
   constructor() {
     super({ key: AchievementsScene.KEY });
@@ -137,18 +163,23 @@ export class AchievementsScene extends Phaser.Scene {
       ? definitions.filter((def) => AchievementSystem.isCompleted(save, def.id))
       : definitions.filter((def) => !def.isHidden);
 
+    const listContainer = this.add.container(0, LIST_TOP_Y);
+    this.listContainer = listContainer;
+
     if (visibleDefs.length === 0) {
-      const empty = this.add.text(CANVAS.WIDTH / 2, LIST_TOP_Y + 40, 'No achievements revealed yet.', {
+      const empty = this.add.text(CANVAS.WIDTH / 2, 40, 'No achievements revealed yet.', {
         fontSize: '12px',
         color: '#888899',
         fontFamily: 'monospace',
       }).setOrigin(0.5);
       this.listTexts.push(empty);
+      listContainer.add(empty);
+      this.setupListScroll(ROW_HEIGHT);
       return;
     }
 
-    visibleDefs.slice(0, 6).forEach((definition, index) => {
-      const y = LIST_TOP_Y + index * ROW_HEIGHT;
+    visibleDefs.forEach((definition, index) => {
+      const y = index * ROW_HEIGHT;
       const view = AchievementSystem.getViewState(save, definition);
 
       const statusColor = view.claimed
@@ -180,26 +211,21 @@ export class AchievementsScene extends Phaser.Scene {
       });
 
       this.listTexts.push(title, desc, progress);
+      listContainer.add([title, desc, progress]);
 
       if (view.completed && !view.claimed) {
-        const claimButton = new ButtonPrimary(
-          this,
-          CANVAS.WIDTH - 80,
-          y + 12,
-          'CLAIM',
-          () => this.handleClaim(definition.id),
-          90,
-          28,
-        );
-        this.claimButtons.push(claimButton);
+        this.addListClaimButton(listContainer, CANVAS.WIDTH - 80, y + 12, () => {
+          this.handleClaim(definition.id);
+        });
       }
     });
 
     if (definitions.length > visibleDefs.length) {
       const hiddenCount = definitions.length - visibleDefs.length;
+      const hintY = visibleDefs.length * ROW_HEIGHT + 8;
       const hint = this.add.text(
         CANVAS.WIDTH / 2,
-        LIST_TOP_Y + LIST_HEIGHT,
+        hintY,
         `${hiddenCount} hidden achievement${hiddenCount === 1 ? '' : 's'} remain undiscovered`,
         {
           fontSize: '10px',
@@ -208,6 +234,53 @@ export class AchievementsScene extends Phaser.Scene {
         },
       ).setOrigin(0.5);
       this.listTexts.push(hint);
+      listContainer.add(hint);
+    }
+
+    const totalHeight = visibleDefs.length * ROW_HEIGHT
+      + (definitions.length > visibleDefs.length ? 28 : 0);
+    this.setupListScroll(totalHeight);
+  }
+
+  private addListClaimButton(
+    parent: Phaser.GameObjects.Container,
+    x: number,
+    y: number,
+    onClick: () => void,
+  ): void {
+    const bg = this.add.rectangle(x, y, 90, 28, 0x3355aa);
+    const label = this.add.text(x, y, 'CLAIM', {
+      fontSize: '12px',
+      color: '#ffffff',
+      fontFamily: 'monospace',
+    }).setOrigin(0.5);
+    const zone = this.add.zone(x, y, 90, 28);
+    zone.setInteractive({ useHandCursor: true });
+    zone.on('pointerup', onClick);
+
+    parent.add([bg, label, zone]);
+    this.listClaimButtons.push({ bg, label, zone });
+  }
+
+  private setupListScroll(totalHeight: number): void {
+    if (!this.listContainer) return;
+
+    this.listMaskRect = this.add.rectangle(
+      CANVAS.WIDTH / 2,
+      LIST_TOP_Y + LIST_HEIGHT / 2,
+      LIST_WIDTH,
+      LIST_HEIGHT,
+      0x000000,
+      0,
+    );
+    this.listContainer.setMask(this.listMaskRect.createGeometryMask());
+
+    this.listScrollOffset = 0;
+    this.listMaxScrollY = Math.max(0, totalHeight - LIST_HEIGHT);
+    this.listContainer.setY(LIST_TOP_Y);
+
+    if (this.listMaxScrollY > 0) {
+      this.input.on('wheel', this.onListWheel);
     }
   }
 
@@ -247,10 +320,20 @@ export class AchievementsScene extends Phaser.Scene {
   }
 
   private clearList(): void {
-    for (const text of this.listTexts) text.destroy();
+    this.input.off('wheel', this.onListWheel);
+
+    for (const button of this.listClaimButtons) {
+      button.zone.off('pointerup');
+    }
+    this.listClaimButtons.length = 0;
+
+    this.listContainer?.destroy(true);
+    this.listContainer = null;
+    this.listMaskRect?.destroy();
+    this.listMaskRect = null;
+    this.listScrollOffset = 0;
+    this.listMaxScrollY = 0;
     this.listTexts = [];
-    for (const button of this.claimButtons) button.destroy();
-    this.claimButtons = [];
   }
 
   shutdown(): void {

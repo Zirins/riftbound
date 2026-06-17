@@ -1,7 +1,8 @@
 // src/scenes/CampaignScene.ts
-// Campaign stage map with chapter tabs, unlock gates, and star display.
+// Chapter select cards and per-chapter stage map.
 
 import Phaser from 'phaser';
+import { ASSET_PATHS } from '../constants/assetPaths';
 import { CANVAS, UI } from '../constants/gameConfig';
 import { SCENE_KEYS } from '../constants/sceneKeys';
 import {
@@ -13,33 +14,38 @@ import type { ClearedStageRecord } from '../types';
 import * as EnergySystem from '../systems/EnergySystem';
 import { isUnlocked } from '../systems/StageLoader';
 import { loadCurrentRealm } from '../systems/SaveSystem';
+import {
+  CHAPTER_CARD_WIDTH,
+  ChapterCard,
+  type ChapterDef,
+  isChapterUnlocked,
+} from '../ui/ChapterCard';
 import { ButtonPrimary } from '../ui/ButtonPrimary';
 
-interface ChapterConfig {
-  id: string;
-  title: string;
-  stageIds: string[];
-  unlockStageId: string | null;
-}
+const CHAPTER_CARD_Y = 195;
+const CHAPTER_CARD_SPACING = 220;
 
-const CHAPTERS: ChapterConfig[] = [
+const CHAPTER_DEFINITIONS: Omit<ChapterDef, 'unlocked'>[] = [
   {
     id: 'chapter_1',
-    title: 'CHAPTER 1: RIFT OUTSKIRTS',
+    label: 'Chapter 1',
+    name: 'Rift Outskirts',
+    bgKey: 'bg_ch1',
     stageIds: CHAPTER_1_STAGE_IDS,
-    unlockStageId: null,
   },
   {
     id: 'chapter_2',
-    title: 'CHAPTER 2: THE HOLLOW REACHES',
+    label: 'Chapter 2',
+    name: 'The Hollow Reaches',
+    bgKey: 'bg_ch2',
     stageIds: CHAPTER_2_STAGE_IDS,
-    unlockStageId: 'stage_2_1',
   },
   {
     id: 'chapter_3',
-    title: 'CHAPTER 3: IRONREACH DEPTHS',
+    label: 'Chapter 3',
+    name: 'Ironreach Depths',
+    bgKey: 'bg_ch3',
     stageIds: CHAPTER_3_STAGE_IDS,
-    unlockStageId: 'stage_3_1',
   },
 ];
 
@@ -52,20 +58,31 @@ export class CampaignScene extends Phaser.Scene {
   static readonly KEY = SCENE_KEYS.CAMPAIGN;
 
   private backButton: ButtonPrimary | null = null;
+  private readonly chapterCards: ChapterCard[] = [];
   private readonly nodeZones: Phaser.GameObjects.Zone[] = [];
-  private readonly chapterTabZones: Phaser.GameObjects.Zone[] = [];
   private chapterTitleText: Phaser.GameObjects.Text | null = null;
-  private selectedChapterIndex = 0;
-  private clearedStages: ClearedStageRecord[] = [];
+  private activeChapterId: string | null = null;
+
+  private readonly onSceneResume = (): void => {
+    if (this.activeChapterId) return;
+    this.clearChapterCards();
+    const realm = loadCurrentRealm();
+    if (!realm) return;
+    this.buildChapterCards(realm.clearedStages);
+  };
 
   constructor() {
     super({ key: CampaignScene.KEY });
   }
 
-  init(data?: { chapterIndex?: number }): void {
-    if (data?.chapterIndex !== undefined) {
-      this.selectedChapterIndex = data.chapterIndex;
-    }
+  init(data?: { chapterId?: string }): void {
+    this.activeChapterId = data?.chapterId ?? null;
+  }
+
+  preload(): void {
+    this.load.image('bg_ch1', ASSET_PATHS.backgrounds.chapter1);
+    this.load.image('bg_ch2', ASSET_PATHS.backgrounds.chapter2);
+    this.load.image('bg_ch3', ASSET_PATHS.backgrounds.chapter3);
   }
 
   create(): void {
@@ -73,7 +90,12 @@ export class CampaignScene extends Phaser.Scene {
     EnergySystem.computeRegen();
 
     const realm = loadCurrentRealm();
-    this.clearedStages = realm?.clearedStages ?? [];
+    if (!realm) {
+      this.scene.start(SCENE_KEYS.HUB);
+      return;
+    }
+
+    const clearedStages = realm.clearedStages;
 
     this.add.text(CANVAS.WIDTH / 2, 24, 'STORY PATH', {
       fontSize: '14px',
@@ -81,88 +103,94 @@ export class CampaignScene extends Phaser.Scene {
       fontFamily: 'monospace',
     }).setOrigin(0.5);
 
-    this.renderChapterTabs();
-    this.renderSelectedChapter();
-
-    this.backButton = new ButtonPrimary(
-      this,
-      72,
-      CANVAS.HEIGHT - 36,
-      '← HUB',
-      () => this.scene.start(SCENE_KEYS.HUB),
-      110,
-    );
+    if (this.activeChapterId) {
+      this.renderStageMap(this.activeChapterId, clearedStages);
+      this.backButton = new ButtonPrimary(
+        this,
+        72,
+        32,
+        '← CHAPTERS',
+        () => this.scene.start(SCENE_KEYS.CAMPAIGN),
+        120,
+      );
+    } else {
+      this.buildChapterCards(clearedStages);
+      this.backButton = new ButtonPrimary(
+        this,
+        72,
+        32,
+        '← HUB',
+        () => this.scene.start(SCENE_KEYS.HUB),
+        110,
+      );
+      this.events.on(Phaser.Scenes.Events.RESUME, this.onSceneResume);
+    }
   }
 
   shutdown(): void {
-    for (const zone of this.nodeZones) {
-      zone.off('pointerup');
-      zone.destroy();
-    }
-    for (const zone of this.chapterTabZones) {
-      zone.off('pointerup');
-      zone.destroy();
-    }
-    this.nodeZones.length = 0;
-    this.chapterTabZones.length = 0;
-    this.chapterTitleText?.destroy();
-    this.chapterTitleText = null;
+    this.events.off(Phaser.Scenes.Events.RESUME, this.onSceneResume);
+    this.clearChapterCards();
+    this.clearStageMap();
+
     this.backButton?.destroy();
     this.backButton = null;
+    this.activeChapterId = null;
   }
 
-  private renderChapterTabs(): void {
-    const tabY = 58;
-    const tabSpacing = 150;
-    const startX = CANVAS.WIDTH / 2 - tabSpacing;
+  private buildChapterCards(clearedStages: ClearedStageRecord[]): void {
+    const firstCenterX = (CANVAS.WIDTH - (CHAPTER_CARD_WIDTH + CHAPTER_CARD_SPACING * 2)) / 2
+      + CHAPTER_CARD_WIDTH / 2;
+    const realm = loadCurrentRealm();
+    if (!realm) return;
 
-    CHAPTERS.forEach((chapter, index) => {
-      const x = startX + index * tabSpacing;
-      const unlocked = chapter.unlockStageId
-        ? isUnlocked(chapter.unlockStageId, this.clearedStages)
-        : true;
-      const selected = index === this.selectedChapterIndex;
-      const label = unlocked ? `Ch.${index + 1}` : `Ch.${index + 1} 🔒`;
-      const color = selected ? '#44ccff' : unlocked ? '#ccccdd' : '#666677';
-
-      this.add.text(x, tabY, label, {
-        fontSize: '12px',
-        color,
-        fontFamily: 'monospace',
-      }).setOrigin(0.5);
-
-      if (unlocked) {
-        const zone = this.add.zone(x, tabY, 80, 28);
-        zone.setInteractive({ useHandCursor: true });
-        zone.on('pointerup', () => {
-          if (this.selectedChapterIndex === index) return;
-          this.scene.restart({ chapterIndex: index });
-        });
-        this.chapterTabZones.push(zone);
-      }
+    CHAPTER_DEFINITIONS.forEach((definition, index) => {
+      const x = firstCenterX + index * CHAPTER_CARD_SPACING;
+      const chapterDef: ChapterDef = {
+        ...definition,
+        unlocked: isChapterUnlocked(definition.id, clearedStages),
+      };
+      const card = new ChapterCard(
+        this,
+        x,
+        CHAPTER_CARD_Y,
+        chapterDef,
+        realm,
+        (chapterId) => this.scene.start(SCENE_KEYS.CAMPAIGN, { chapterId }),
+      );
+      this.chapterCards.push(card);
     });
   }
 
-  private renderSelectedChapter(): void {
-    const chapter = CHAPTERS[this.selectedChapterIndex];
+  private clearChapterCards(): void {
+    for (const card of this.chapterCards) card.destroy();
+    this.chapterCards.length = 0;
+  }
+
+  private renderStageMap(chapterId: string, clearedStages: ClearedStageRecord[]): void {
+    const chapter = CHAPTER_DEFINITIONS.find((entry) => entry.id === chapterId);
+    if (!chapter) {
+      this.scene.start(SCENE_KEYS.CAMPAIGN);
+      return;
+    }
+
     const topRow = chapter.stageIds.slice(0, 4);
     const bottomRow = [...chapter.stageIds.slice(4, 8)].reverse();
 
-    this.chapterTitleText = this.add.text(CANVAS.WIDTH / 2, 92, chapter.title, {
+    this.chapterTitleText = this.add.text(CANVAS.WIDTH / 2, 72, `${chapter.label.toUpperCase()}: ${chapter.name.toUpperCase()}`, {
       fontSize: '12px',
       color: '#aaaacc',
       fontFamily: 'monospace',
     }).setOrigin(0.5);
 
-    this.renderRow(topRow, TOP_ROW_Y);
-    this.renderRow(bottomRow, BOTTOM_ROW_Y);
+    this.renderRow(topRow, TOP_ROW_Y, clearedStages);
+    this.renderRow(bottomRow, BOTTOM_ROW_Y, clearedStages);
   }
 
-  private renderRow(stageIds: string[], y: number): void {
+  private renderRow(stageIds: string[], y: number, clearedStages: ClearedStageRecord[]): void {
     stageIds.forEach((stageId, index) => {
       const x = ROW_START_X + index * NODE_SPACING;
-      const cleared = this.clearedStages.find((record) => record.stageId === stageId);
-      const unlocked = isUnlocked(stageId, this.clearedStages);
+      const cleared = clearedStages.find((record) => record.stageId === stageId);
+      const unlocked = isUnlocked(stageId, clearedStages);
       const isBoss = stageId.endsWith('_8');
       const label = this.formatNodeLabel(stageId, cleared?.stars, unlocked, isBoss);
 
@@ -183,6 +211,16 @@ export class CampaignScene extends Phaser.Scene {
         this.nodeZones.push(zone);
       }
     });
+  }
+
+  private clearStageMap(): void {
+    for (const zone of this.nodeZones) {
+      zone.off('pointerup');
+      zone.destroy();
+    }
+    this.nodeZones.length = 0;
+    this.chapterTitleText?.destroy();
+    this.chapterTitleText = null;
   }
 
   private formatNodeLabel(

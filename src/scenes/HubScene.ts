@@ -1,103 +1,99 @@
 // src/scenes/HubScene.ts
-// V1.1 central hub — navigation, currency bar, feature gates, overlays.
+// Scrollable world-map hub with landmark hotspots and fixed HUD.
 
 import Phaser from 'phaser';
-import { getAccountTierLabel, CANVAS, UI } from '../constants/gameConfig';
-import { HEROES_DATA } from '../data/heroes';
+import { ASSET_PATHS } from '../constants/assetPaths';
+import { CANVAS, UI } from '../constants/gameConfig';
 import { SCENE_KEYS } from '../constants/sceneKeys';
-import type { SceneKey } from '../constants/sceneKeys';
 import * as EnergySystem from '../systems/EnergySystem';
 import { AchievementSystem } from '../systems/AchievementSystem';
-import {
-  getUnlockMessage,
-  isUnlocked,
-  type FeatureKey,
-} from '../systems/FeatureUnlockSystem';
-import * as MailSystem from '../systems/MailSystem';
 import { OfflineRewardSystem } from '../systems/OfflineRewardSystem';
 import * as RiftChronicleSystem from '../systems/RiftChronicleSystem';
 import { loadCurrentRealm, saveCurrentRealm } from '../systems/SaveSystem';
-import { computeRP } from '../systems/HeroProgressionSystem';
 import * as TaskSystem from '../systems/TaskSystem';
 import type { RealmSaveDataV3 } from '../types';
-import { ButtonPrimary } from '../ui/ButtonPrimary';
-import { CurrencyBar } from '../ui/CurrencyBar';
+import { HubHUD } from '../ui/HubHUD';
+import { HubHotspot, type HubHotspotConfig } from '../ui/HubHotspot';
 import { MailOverlay } from '../ui/MailOverlay';
 import { OfflineRewardOverlay } from '../ui/OfflineRewardOverlay';
-import { NotificationDot } from '../ui/NotificationDot';
-import { RiftChronicleOverlay } from '../ui/RiftChronicleOverlay';
 import { TasksOverlay } from '../ui/TasksOverlay';
-import { WorldFeedWidget } from '../ui/WorldFeedWidget';
 
-const AVATAR_COLORS = [0x4488ff, 0xff4422, 0x44cc66, 0xffcc22, 0x9944cc, 0xffffff];
-const ZONE_WIDTH = 200;
-const ZONE_HEIGHT = 64;
+const HUB_WORLD_WIDTH = 1560;
+const HUB_WORLD_HEIGHT = 390;
+const BG_TEXTURE_KEY = 'bg_hub';
 
-interface HubZoneConfig {
-  label: string;
-  sublabel: string;
-  x: number;
-  y: number;
-  featureKey: FeatureKey;
-  sceneKey?: SceneKey;
-  overlay?: 'chronicle';
-}
-
-const HUB_ZONES: HubZoneConfig[] = [
-  { label: 'CAMPAIGN', sublabel: 'Rift Outskirts', x: 150, y: 150, featureKey: 'CAMPAIGN', sceneKey: SCENE_KEYS.CAMPAIGN },
-  { label: 'SUMMON TEMPLE', sublabel: 'Eternal Rift', x: 422, y: 150, featureKey: 'SUMMON_TEMPLE', sceneKey: SCENE_KEYS.SUMMON_TEMPLE },
-  { label: 'RESONANCE ARENA', sublabel: 'Season Ranking', x: 694, y: 150, featureKey: 'RESONANCE_ARENA', sceneKey: SCENE_KEYS.RESONANCE_ARENA },
-  { label: 'HEROES', sublabel: 'Manage squad', x: 150, y: 240, featureKey: 'HEROES_ROSTER', sceneKey: SCENE_KEYS.ROSTER },
-  { label: 'CELESTIAL MARKET', sublabel: 'Exchange goods', x: 422, y: 240, featureKey: 'CELESTIAL_MARKET', sceneKey: SCENE_KEYS.SHOP },
-  { label: 'RIFT CHRONICLE', sublabel: 'Daily rewards', x: 694, y: 240, featureKey: 'RIFT_CHRONICLE', overlay: 'chronicle' },
-  { label: 'FRIENDS', sublabel: 'Energy gifts', x: 150, y: 300, featureKey: 'FRIENDS', sceneKey: SCENE_KEYS.FRIENDS },
-  { label: 'VOID TRIAL', sublabel: 'Weekly tower', x: 422, y: 300, featureKey: 'VOID_TRIAL', sceneKey: SCENE_KEYS.VOID_TRIAL },
-  { label: 'SECT', sublabel: 'Guild hall', x: 694, y: 300, featureKey: 'COVENANT', sceneKey: SCENE_KEYS.COVENANT_HUB },
+const HUB_LANDMARKS: HubHotspotConfig[] = [
+  { label: 'Campaign Gate', worldX: 200, featureKey: 'CAMPAIGN', sceneKey: SCENE_KEYS.CAMPAIGN },
+  { label: 'Celestial Market', worldX: 380, featureKey: 'CELESTIAL_MARKET', sceneKey: SCENE_KEYS.SHOP },
+  { label: 'Summon Temple', worldX: 660, featureKey: 'SUMMON_TEMPLE', sceneKey: SCENE_KEYS.SUMMON_TEMPLE },
+  { label: 'Arena Pavilion', worldX: 950, featureKey: 'RESONANCE_ARENA', sceneKey: SCENE_KEYS.RESONANCE_ARENA },
+  { label: 'Covenant Hall', worldX: 1200, featureKey: 'COVENANT', sceneKey: SCENE_KEYS.COVENANT_HUB },
+  { label: 'Void Trial', worldX: 1430, featureKey: 'VOID_TRIAL', sceneKey: SCENE_KEYS.VOID_TRIAL },
 ];
 
 export class HubScene extends Phaser.Scene {
   static readonly KEY = SCENE_KEYS.HUB;
-  private hubBgImage: Phaser.GameObjects.Image | null = null;
 
-  private currencyBar: CurrencyBar | null = null;
-  private activeOverlay: RiftChronicleOverlay | TasksOverlay | MailOverlay | OfflineRewardOverlay | null = null;
-  private worldFeedWidget: WorldFeedWidget | null = null;
-  private profileLabel: Phaser.GameObjects.Text | null = null;
+  private hubBgImage: Phaser.GameObjects.Image | null = null;
+  private readonly hotspots: HubHotspot[] = [];
+  private hubHud: HubHUD | null = null;
+  private activeOverlay: MailOverlay | TasksOverlay | OfflineRewardOverlay | null = null;
   private toastLabel: Phaser.GameObjects.Text | null = null;
-  private zoneButtons: ButtonPrimary[] = [];
-  private bottomButtons: ButtonPrimary[] = [];
-  private mailDot: NotificationDot | null = null;
-  private tasksDot: NotificationDot | null = null;
-  private achievementsDot: NotificationDot | null = null;
-  private chronicleDot: NotificationDot | null = null;
-  private lockIcons: Phaser.GameObjects.Text[] = [];
   private toastTimer: Phaser.Time.TimerEvent | null = null;
+
+  private dragPointerId: number | null = null;
+  private dragStartPointerX = 0;
+  private dragStartScrollX = 0;
+
+  private readonly onPointerDown = (
+    pointer: Phaser.Input.Pointer,
+    currentlyOver: Phaser.GameObjects.GameObject[],
+  ): void => {
+    if (currentlyOver.length > 0) return;
+    this.dragPointerId = pointer.id;
+    this.dragStartPointerX = pointer.x;
+    this.dragStartScrollX = this.cameras.main.scrollX;
+  };
+
+  private readonly onPointerMove = (pointer: Phaser.Input.Pointer): void => {
+    if (pointer.id !== this.dragPointerId || !pointer.isDown) return;
+    const deltaX = pointer.x - this.dragStartPointerX;
+    this.cameras.main.scrollX = this.dragStartScrollX - deltaX;
+  };
+
+  private readonly onPointerUp = (pointer: Phaser.Input.Pointer): void => {
+    if (pointer.id !== this.dragPointerId) return;
+    this.dragPointerId = null;
+  };
+
+  private readonly onSceneResume = (): void => {
+    this.refreshHubState();
+  };
 
   constructor() {
     super({ key: HubScene.KEY });
   }
 
   preload(): void {
-    this.load.image('bg_hub', 'assets/backgrounds/main_hub.png');
+    this.load.image(BG_TEXTURE_KEY, ASSET_PATHS.backgrounds.hub);
   }
 
   create(): void {
     this.cameras.main.setBackgroundColor(UI.BACKGROUND_COLOR);
-
-    this.hubBgImage = this.add.image(CANVAS.WIDTH / 2, CANVAS.HEIGHT / 2, 'bg_hub')
-      .setDisplaySize(CANVAS.WIDTH, CANVAS.HEIGHT)
-      .setDepth(0);
+    this.cameras.main.setBounds(0, 0, HUB_WORLD_WIDTH, HUB_WORLD_HEIGHT);
+    this.cameras.main.setScroll(0, 0);
 
     this.processHubLoadResets();
     TaskSystem.resetIfNewDay();
     RiftChronicleSystem.checkAndUpdate();
 
-    this.buildTopBar();
-    this.buildWorldFeed();
-    this.buildZones();
-    this.buildBottomBar();
-    this.refreshNotificationDots();
-    this.currencyBar?.updateValues();
+    this.buildWorldLayer();
+    this.setupCameraDrag();
+    this.buildHud();
+
+    this.events.on(Phaser.Scenes.Events.RESUME, this.onSceneResume);
+
+    this.refreshHubState();
 
     if (this.shouldShowOfflineRewardOverlay()) {
       this.openOfflineRewardOverlay();
@@ -105,225 +101,73 @@ export class HubScene extends Phaser.Scene {
   }
 
   shutdown(): void {
+    this.events.off(Phaser.Scenes.Events.RESUME, this.onSceneResume);
+    this.teardownCameraDrag();
+
     this.touchLastOnline();
     this.toastTimer?.remove();
     this.toastTimer = null;
+    this.toastLabel?.destroy();
+    this.toastLabel = null;
+
     this.closeActiveOverlay();
-    this.worldFeedWidget?.destroy();
-    this.worldFeedWidget = null;
+
+    for (const hotspot of this.hotspots) hotspot.destroy();
+    this.hotspots.length = 0;
+
+    this.hubHud?.destroy();
+    this.hubHud = null;
+
     this.hubBgImage?.destroy();
     this.hubBgImage = null;
-    this.currencyBar?.destroy();
-    this.profileLabel?.destroy();
-    this.toastLabel?.destroy();
-    this.mailDot?.destroy();
-    this.tasksDot?.destroy();
-    this.achievementsDot?.destroy();
-    this.chronicleDot?.destroy();
-
-    for (const icon of this.lockIcons) icon.destroy();
-    this.lockIcons.length = 0;
-
-    for (const button of this.zoneButtons) button.destroy();
-    this.zoneButtons.length = 0;
-
-    for (const button of this.bottomButtons) button.destroy();
-    this.bottomButtons.length = 0;
-
-    this.currencyBar = null;
-    this.worldFeedWidget = null;
-    this.hubBgImage = null;
-    this.profileLabel = null;
-    this.toastLabel = null;
-    this.mailDot = null;
-    this.tasksDot = null;
-    this.achievementsDot = null;
-    this.chronicleDot = null;
   }
 
-  private buildTopBar(): void {
-    const realm = loadCurrentRealm();
-    const avatarColor = AVATAR_COLORS[realm?.avatarColorIndex ?? 0] ?? AVATAR_COLORS[0];
+  private buildWorldLayer(): void {
+    const worldCenterY = HUB_WORLD_HEIGHT / 2;
 
-    this.add.circle(28, 28, 14, avatarColor).setDepth(1);
+    this.hubBgImage = this.add.image(HUB_WORLD_WIDTH / 2, worldCenterY, BG_TEXTURE_KEY)
+      .setDisplaySize(HUB_WORLD_WIDTH, HUB_WORLD_HEIGHT)
+      .setDepth(0);
 
-    const accountLevel = realm?.accountLevel ?? 1;
-    const tierLabel = getAccountTierLabel(accountLevel);
-    const rp = this.computeFormationRP();
-    this.profileLabel = this.add.text(50, 28, [
-      `${realm?.playerName ?? 'Relic Bearer'}  LV${accountLevel}  ${tierLabel}`,
-      `RP: ${rp.toLocaleString()}`,
-    ].join('  '), {
-      fontSize: '12px',
-      color: '#ffffff',
-      fontFamily: 'monospace',
-    }).setOrigin(0, 0.5).setDepth(1);
-
-    this.currencyBar = new CurrencyBar(this, 480, 28);
-    this.currencyBar.setDepth(1);
-  }
-
-  private buildZones(): void {
-    for (const zone of HUB_ZONES) {
-      const button = new ButtonPrimary(
+    for (const landmark of HUB_LANDMARKS) {
+      const hotspot = new HubHotspot(
         this,
-        zone.x,
-        zone.y,
-        zone.label,
-        () => this.onZoneTap(zone),
-        ZONE_WIDTH,
-        ZONE_HEIGHT,
+        landmark,
+        worldCenterY,
+        (sceneKey) => this.scene.start(sceneKey),
+        (message) => this.showToast(message),
       );
-      button.setDepth(1);
-
-      this.add.text(zone.x, zone.y + 22, zone.sublabel, {
-        fontSize: '10px',
-        color: '#aaaacc',
-        fontFamily: 'monospace',
-      }).setOrigin(0.5).setDepth(1);
-
-      if (!isUnlocked(zone.featureKey)) {
-        const lock = this.add.text(zone.x + ZONE_WIDTH / 2 - 20, zone.y - 20, '🔒', {
-          fontSize: '14px',
-          color: '#ffcc44',
-        }).setOrigin(0.5).setDepth(1);
-        this.lockIcons.push(lock);
-      }
-
-      if (zone.overlay === 'chronicle') {
-        this.chronicleDot = new NotificationDot(
-          this,
-          zone.x + ZONE_WIDTH / 2 - 12,
-          zone.y - ZONE_HEIGHT / 2 + 8,
-        );
-        this.chronicleDot.setDepth(1);
-      }
-
-      this.zoneButtons.push(button);
+      hotspot.setDepth(2);
+      this.hotspots.push(hotspot);
     }
   }
 
-  private buildWorldFeed(): void {
-    this.worldFeedWidget?.destroy();
-    this.worldFeedWidget = new WorldFeedWidget(this);
+  private buildHud(): void {
+    this.hubHud = new HubHUD(this, {
+      onMail: () => this.openMailOverlay(),
+      onFriends: () => this.scene.start(SCENE_KEYS.FRIENDS),
+      onAchievements: () => this.scene.start(SCENE_KEYS.ACHIEVEMENTS),
+      onHeroes: () => this.scene.start(SCENE_KEYS.ROSTER),
+      onBag: () => this.scene.start(SCENE_KEYS.INVENTORY),
+      onTasks: () => this.openTasksOverlay(),
+      onSettings: () => this.scene.start(SCENE_KEYS.SETTINGS),
+      onPass: () => this.scene.start(SCENE_KEYS.RIFT_SEASON),
+      onQuickBattle: () => this.scene.start(SCENE_KEYS.FORMATION, { origin: 'quickBattle' }),
+      showToast: (message) => this.showToast(message),
+    });
   }
 
-  private buildBottomBar(): void {
-    const mailButton = new ButtonPrimary(this, 120, 340, '📬 MAIL', () => this.openMailOverlay(), 120);
-    mailButton.setDepth(1);
-    this.mailDot = new NotificationDot(this, 168, 322);
-    this.mailDot.setDepth(1);
-
-    const tasksButton = new ButtonPrimary(this, 230, 340, '☑ TASKS', () => this.openTasksOverlay(), 100);
-    tasksButton.setDepth(1);
-    this.tasksDot = new NotificationDot(this, 278, 322);
-    this.tasksDot.setDepth(1);
-
-    const riftSeasonButton = new ButtonPrimary(
-      this,
-      345,
-      340,
-      '🎫 PASS',
-      () => this.onRiftSeasonTap(),
-      90,
-    );
-    riftSeasonButton.setDepth(1);
-
-    const achievementsButton = new ButtonPrimary(
-      this,
-      450,
-      340,
-      '🏆 ACHIEV',
-      () => this.onAchievementsTap(),
-      100,
-    );
-    achievementsButton.setDepth(1);
-    this.achievementsDot = new NotificationDot(this, 498, 322);
-    this.achievementsDot.setDepth(1);
-
-    const settingsButton = new ButtonPrimary(
-      this,
-      565,
-      340,
-      '⚙ SETTINGS',
-      () => this.scene.start(SCENE_KEYS.SETTINGS),
-      100,
-    );
-    settingsButton.setDepth(1);
-
-    const inventoryButton = new ButtonPrimary(
-      this,
-      680,
-      340,
-      '🎒 BAG',
-      () => this.onInventoryTap(),
-      80,
-    );
-    inventoryButton.setDepth(1);
-
-    const quickBattle = new ButtonPrimary(
-      this,
-      775,
-      340,
-      '▶▶ QUICK',
-      () => this.scene.start(SCENE_KEYS.FORMATION, { origin: 'quickBattle' }),
-      110,
-    );
-    quickBattle.setDepth(1);
-
-    this.bottomButtons.push(mailButton, tasksButton, riftSeasonButton, achievementsButton, settingsButton, inventoryButton, quickBattle);
+  private setupCameraDrag(): void {
+    this.input.on('pointerdown', this.onPointerDown);
+    this.input.on('pointermove', this.onPointerMove);
+    this.input.on('pointerup', this.onPointerUp);
   }
 
-  private onAchievementsTap(): void {
-    if (!isUnlocked('ACHIEVEMENTS')) {
-      this.showToast(getUnlockMessage('ACHIEVEMENTS'));
-      return;
-    }
-
-    this.scene.start(SCENE_KEYS.ACHIEVEMENTS);
-  }
-
-  private onRiftSeasonTap(): void {
-    if (!isUnlocked('RIFT_SEASON')) {
-      this.showToast(getUnlockMessage('RIFT_SEASON'));
-      return;
-    }
-
-    this.scene.start(SCENE_KEYS.RIFT_SEASON);
-  }
-
-  private onInventoryTap(): void {
-    if (!isUnlocked('INVENTORY')) {
-      this.showToast(getUnlockMessage('INVENTORY'));
-      return;
-    }
-
-    this.scene.start(SCENE_KEYS.INVENTORY);
-  }
-
-  private onZoneTap(zone: HubZoneConfig): void {
-    if (!isUnlocked(zone.featureKey)) {
-      this.showToast(getUnlockMessage(zone.featureKey));
-      return;
-    }
-
-    if (zone.overlay === 'chronicle') {
-      this.openChronicleOverlay();
-      return;
-    }
-
-    if (zone.sceneKey) {
-      this.scene.start(zone.sceneKey);
-    }
-  }
-
-  private openOfflineRewardOverlay(): void {
-    this.closeActiveOverlay();
-    this.activeOverlay = new OfflineRewardOverlay(
-      this,
-      () => this.handleOverlayClosed(),
-      () => this.refreshHubState(),
-    );
+  private teardownCameraDrag(): void {
+    this.input.off('pointerdown', this.onPointerDown);
+    this.input.off('pointermove', this.onPointerMove);
+    this.input.off('pointerup', this.onPointerUp);
+    this.dragPointerId = null;
   }
 
   private processHubLoadResets(): void {
@@ -357,6 +201,15 @@ export class HubScene extends Phaser.Scene {
     saveCurrentRealm(save);
   }
 
+  private openOfflineRewardOverlay(): void {
+    this.closeActiveOverlay();
+    this.activeOverlay = new OfflineRewardOverlay(
+      this,
+      () => this.handleOverlayClosed(),
+      () => this.refreshHubState(),
+    );
+  }
+
   private openMailOverlay(): void {
     this.closeActiveOverlay();
     this.activeOverlay = new MailOverlay(
@@ -375,15 +228,6 @@ export class HubScene extends Phaser.Scene {
     );
   }
 
-  private openChronicleOverlay(): void {
-    this.closeActiveOverlay();
-    this.activeOverlay = new RiftChronicleOverlay(
-      this,
-      () => this.handleOverlayClosed(),
-      () => this.refreshHubState(),
-    );
-  }
-
   private handleOverlayClosed(): void {
     this.activeOverlay = null;
     this.refreshHubState();
@@ -395,59 +239,25 @@ export class HubScene extends Phaser.Scene {
   }
 
   private refreshHubState(): void {
-    this.refreshNotificationDots();
-    this.currencyBar?.updateValues();
-  }
-
-  private refreshNotificationDots(): void {
-    const mailCount = MailSystem.getUnclaimedCount();
-    if (mailCount > 0) this.mailDot?.show(mailCount);
-    else this.mailDot?.hide();
-
-    const taskCount = TaskSystem.getTasksNotificationCount();
-    if (taskCount > 0) this.tasksDot?.show(taskCount);
-    else this.tasksDot?.hide();
-
-    const realm = loadCurrentRealm();
-    const achievementCount = realm
-      ? AchievementSystem.getUnclaimedCount(realm as RealmSaveDataV3)
-      : 0;
-    if (achievementCount > 0) this.achievementsDot?.show(achievementCount);
-    else this.achievementsDot?.hide();
-
-    if (RiftChronicleSystem.isAvailableToday()) this.chronicleDot?.show();
-    else this.chronicleDot?.hide();
+    this.hubHud?.refresh();
   }
 
   private showToast(message: string): void {
     this.toastTimer?.remove();
     this.toastLabel?.destroy();
+
     this.toastLabel = this.add.text(CANVAS.WIDTH / 2, CANVAS.HEIGHT - 90, message, {
       fontSize: '12px',
       color: '#ffcc44',
       fontFamily: 'monospace',
       backgroundColor: '#222233',
       padding: { x: 8, y: 4 },
-    }).setOrigin(0.5);
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(20);
 
     this.toastTimer = this.time.delayedCall(UI.TOAST_DURATION_MS, () => {
       this.toastLabel?.destroy();
       this.toastLabel = null;
       this.toastTimer = null;
     });
-  }
-
-  private computeFormationRP(): number {
-    const realm = loadCurrentRealm();
-    if (!realm) return 0;
-
-    let total = 0;
-    for (const slot of realm.currentFormation.slots) {
-      if (!slot.assignedHeroId) continue;
-      const owned = realm.ownedHeroes.find((h) => h.heroId === slot.assignedHeroId);
-      const heroData = HEROES_DATA.find((hero) => hero.id === slot.assignedHeroId);
-      if (owned && heroData) total += computeRP(owned, heroData);
-    }
-    return total;
   }
 }
