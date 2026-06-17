@@ -4,6 +4,11 @@
 
 **Play it:** https://zirins.github.io/riftbound/
 
+## Screenshots
+
+![Roster](screenshots/screenshot_roster.png)
+![Chapter Select](screenshots/screenshot_chapters.png)
+
 ## What it is
 
 Riftbound Sigils is a landscape mobile RPG where you command a squad of Relic Bearers, bond Sigils, clear campaign stages, and progress through daily retention systems (Arena, Covenant, Void Trial, Rift Season battle pass, and more). Combat is side-view formation auto-battle with readable ultimates and collection-driven growth.
